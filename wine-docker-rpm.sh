@@ -1,5 +1,4 @@
 #!/usr/bin/sh
-echo
 read -p "Wine ARM64EC Docker build script. Fedora 42 required. Press enter to continue."
 VERSION=arm64ec
 set -eouv
