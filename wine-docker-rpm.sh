@@ -11,9 +11,6 @@ SCRIPT_DIR="${PWD}/wine-${VERSION}"
 mkdir -p $SCRIPT_DIR
 cd $SCRIPT_DIR
 TMP_SCRIPT=docker-wine-builder.sh
-touch $TMP_SCRIPT
-rm $TMP_SCRIPT
-touch $TMP_SCRIPT
 cat > "$TMP_SCRIPT" <<'EOF'
 #!/bin/bash
 set -euov pipefail
@@ -52,10 +49,6 @@ mv wine-upstream-arm64ec wine-${VERSION}
 tar -cJf wine-${VERSION}.tar.xz wine-${VERSION}
 rm -rf wine-${VERSION}
 rm -rf upstream-arm64ec.zip
-# Unused sources for Wine 10.5.
-# wget -v -c -nc https://dl.winehq.org/wine/source/10.x/wine-${VERSION}.tar.xz
-# wget -v -c -nc https://dl.winehq.org/wine/source/10.x/wine-${VERSION}.tar.xz.sign
-# wget -v -c -nc https://github.com/wine-staging/wine-staging/archive/refs/tags/v${VERSION}.tar.gz
 cd "${WINE_RPM_BUILD_DIR}"
 wget -v -c -nc https://github.com/bylaws/llvm-mingw/releases/download/20240929/llvm-mingw-20240929-ucrt-aarch64.zip
 unzip -n llvm-mingw-20240929-ucrt-aarch64.zip
@@ -68,38 +61,35 @@ exit
 EOF
 chmod +x "$TMP_SCRIPT"
 
-#   Installing host dependencies   #
+#   Installing host dependencies and preparing Docker  #
 sudo dnf install --refresh dnf-plugins-core ar wget tar
 sudo dnf config-manager addrepo --from-repofile="https://download.docker.com/linux/fedora/docker-ce.repo" --overwrite
 sudo dnf install docker-ce docker-ce-cli containerd.io
-
-#   Starting docker   #
+sudo groupadd -f docker && sudo gpasswd -a ${USER} docker
 sudo systemctl start docker.service
 docker pull fedora:42
-docker run -it --rm -v "$PWD:/out" -v "$PWD:/host" fedora:42 ./host/$TMP_SCRIPT
+
+#   Starting docker   #
+docker run -e VERSION="${VERSION}" -it --rm -v "$PWD:/out" -v "$PWD:/host" fedora:42 ./host/$TMP_SCRIPT
+
+#   Exiting to host   #
 rm "$TMP_SCRIPT"
 cd ..
 
-#   Install the Wine ARM64EC packages that were built   #
-sudo dnf install $SCRIPT_DIR/* --skip-unavailable
-
-#   Downloading FEX arm64ec dlls   #
+#   Downloading and extracting FEX arm64ec dlls   #
 cd "${SCRIPT_DIR}"
 wget -v -c -nc https://launchpad.net/~fex-emu/+archive/ubuntu/fex/+build/30613070/+files/fex-emu-wine_2504~j_arm64.deb
-
-#   Extract FEX dll package   #
 ar xv "${SCRIPT_DIR}/fex-emu-wine_2504~j_arm64.deb"
 tar -xvf "${SCRIPT_DIR}/data.tar.zst"
+cp -v "${SCRIPT_DIR}/usr/lib/wine/aarch64-windows/libarm64ecfex.dll" "${SCRIPT_DIR}/libarm64ecfex.dll"
+cp -v "${SCRIPT_DIR}/usr/lib/wine/aarch64-windows/libwow64fex.dll" "${SCRIPT_DIR}/libwow64fex.dll"
 rm "${SCRIPT_DIR}/fex-emu-wine_2504~j_arm64.deb"
 rm "${SCRIPT_DIR}/debian-binary"
 rm "${SCRIPT_DIR}/data.tar.zst"
 rm "${SCRIPT_DIR}/control.tar.zst"
+rm -r "${SCRIPT_DIR}/usr"
 
-#   Move to install location in wine system libraries   #
-sudo cp -v "${SCRIPT_DIR}/usr/lib/wine/aarch64-windows/libarm64ecfex.dll" /usr/lib64/wine/aarch64-windows/libarm64ecfex.dll
-sudo cp -v "${SCRIPT_DIR}/usr/lib/wine/aarch64-windows/libwow64fex.dll" /usr/lib64/wine/aarch64-windows/libwow64fex.dll
-
-#   Edit registry file in wine to use ARM64EC and Wayland   #
+#   Create registry files for Wine to use ARM64EC and Wayland   #
 cat > "wayland.reg" <<'EOF'
 Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Wine\Drivers]
@@ -110,7 +100,18 @@ Windows Registry Editor Version 5.00
 [HKEY_LOCAL_MACHINE\Software\Microsoft\Wow64\amd64]
 @="libarm64ecfex.dll"
 EOF
+
+#   Create setup script for installing the Wine ARM64EC build, installing the FEX DLLs, and importing the registry entries.   #
+cat > "setup-wine.sh" <<'EOF'
+sudo dnf install ./*.rpm --skip-unavailable
+sudo cp -v libarm64ecfex.dll /usr/lib64/wine/aarch64-windows/libarm64ecfex.dll
+sudo cp -v libwow64fex.dll /usr/lib64/wine/aarch64-windows/libwow64fex.dll
 wine reg import fex-override.reg
 wine reg import wayland.reg
+EOF
+
+#   Execute setup script   #
+chmod +x setup-wine.sh
+./setup-wine.sh
 
 #   Done!   #
