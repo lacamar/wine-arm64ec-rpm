@@ -28,6 +28,7 @@ touch "${WINE_RPM_BUILD_DIR}/SPECS/wine-${VERSION}.spec"
 rm "${WINE_RPM_BUILD_DIR}/SPECS/wine-${VERSION}.spec"
 cp "${WINE_RPM_BUILD_DIR}/SPECS/wine.spec" "${WINE_RPM_BUILD_DIR}/SPECS/wine-${VERSION}.spec"
 sed -i -e "34s/.*/Version:        ${VERSION}/" -e\
+    '35s/.*/Release:        0%{?dist}/' -e\
     '81s/.*/Source900: v10.5.tar.gz/' -e\
     '41s/.*/ /' -e\
     's/%global wine_staging 1/%global wine_staging 0/g' -e\
@@ -68,7 +69,9 @@ EOF
 chmod +x "$TMP_SCRIPT"
 
 #   Installing host dependencies   #
-sudo dnf install docker-ce ar wget tar
+sudo dnf install --refresh dnf-plugins-core ar wget tar
+sudo dnf config-manager addrepo --from-repofile="https://download.docker.com/linux/fedora/docker-ce.repo" --overwrite
+sudo dnf install docker-ce docker-ce-cli containerd.io
 
 #   Starting docker   #
 sudo systemctl start docker.service
@@ -102,7 +105,12 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Wine\Drivers]
 "Graphics"="x11,wayland"
 EOF
-wine reg add "HKLM\Software\Microsoft\Wow64\amd64" /ve /d "libarm64ecfex.dll" /f
+cat > "fex-override.reg" <<'EOF'
+Windows Registry Editor Version 5.00
+[HKEY_LOCAL_MACHINE\Software\Microsoft\Wow64\amd64]
+@="libarm64ecfex.dll"
+EOF
+wine reg import fex-override.reg
 wine reg import wayland.reg
 
 #   Done!   #
