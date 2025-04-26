@@ -70,7 +70,7 @@ sudo systemctl start docker.service
 docker pull fedora:42
 
 #   Starting docker   #
-docker run -e VERSION="${VERSION}" -it --rm -v "$PWD:/out" -v "$PWD:/host" fedora:42 ./host/$TMP_SCRIPT
+docker run -e VERSION="${VERSION}" -it --rm -v "$PWD:/out:z" -v "$PWD:/host:z" fedora:42 ./host/$TMP_SCRIPT
 
 #   Exiting to host   #
 rm "$TMP_SCRIPT"
