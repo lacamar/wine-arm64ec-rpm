@@ -106,7 +106,7 @@ cat > "${TARGET}-spec.patch" <<'EOF'
 +%ifarch x86_64 aarch64
 @@ -720 +729 @@
 - --enable-win64 \
-+ --enable-win64 --enable-archs=arm64ec,aarch64,i386,arm --with-mingw=clang --with-wayland \
++ --enable-win64 --enable-archs=arm64ec,aarch64,i386 --with-mingw=clang --with-wayland \
 @@ -766 +775 @@
 -%ifarch x86_64
 +%ifarch x86_64 aarch64

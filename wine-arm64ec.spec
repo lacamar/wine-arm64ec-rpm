@@ -726,7 +726,7 @@ unset PKG_CONFIG_PATH
  --with-dbus \
  --with-x \
 %ifarch x86_64 aarch64
- --enable-win64 --enable-archs=arm64ec,aarch64,i386,arm --with-mingw=clang --with-wayland \
+ --enable-win64 --enable-archs=arm64ec,aarch64,i386 --with-mingw=clang --with-wayland \
 %ifarch x86_64
  --with-system-dllpath=%{mingw64_bindir} \
 %endif
