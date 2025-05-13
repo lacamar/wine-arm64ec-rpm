@@ -2,7 +2,7 @@
 read -p "Wine ARM64EC Docker build script. Fedora 42 required. Press enter to continue."
 PACKAGE=wine
 VERSION=10.6.arm64ec
-RELEASE=3
+RELEASE=4
 TARGET="${PACKAGE}-${VERSION}-${RELEASE}"
 SCRIPT_DIR="${PWD}/${TARGET}"
 mkdir -p $SCRIPT_DIR
@@ -30,26 +30,9 @@ rpm -ivh ${PACKAGE}-*.src.rpm
 cp "${BUILD_DIR}/SPECS/${PACKAGE}.spec" "${BUILD_DIR}/SPECS/${TARGET}.spec"
 mv -f "/host/${TARGET}-spec.patch" "${BUILD_DIR}"
 patch "${BUILD_DIR}/SPECS/${TARGET}.spec" "${BUILD_DIR}/${TARGET}-spec.patch"
-
-# Wine core source prep
-cd "${BUILD_DIR}/SOURCES"
-curl -L https://github.com/bylaws/wine/archive/refs/heads/upstream-arm64ec.tar.gz | tar --transform="s/^wine-upstream-arm64ec/${PACKAGE}-${VERSION}/" -xzf -
-tar -czvf upstream-arm64ec.tar.gz "${PACKAGE}-${VERSION}"
-rm -rf "${PACKAGE}-${VERSION}"
-
-# Wine staging patches prep
-# tar -xvf wine-staging-*.tar.gz
-# rm wine-staging-*.tar.gz
-# mv wine-staging-* "wine-staging-${VERSION}"
-# tar -czvf "wine-staging-${VERSION}.tar.gz" "wine-staging-${VERSION}"
-# rm -r "wine-staging-${VERSION}"
-cd "${BUILD_DIR}"
-
-wget -v -c -nc https://github.com/bylaws/llvm-mingw/releases/download/20240929/llvm-mingw-20240929-ucrt-aarch64.zip
-unzip -n llvm-mingw-20240929-ucrt-aarch64.zip
-export PATH="${BUILD_DIR}/llvm-mingw-20240929-ucrt-aarch64/bin:$PATH"
 dnf builddep --define "VERSION $VERSION" --define "PACKAGE $PACKAGE" --define "RELEASE $RELEASE" -y "${BUILD_DIR}/SPECS/${TARGET}.spec" --allowerasing
 
+spectool -g -R "${BUILD_DIR}/SPECS/${TARGET}.spec"
 rpmbuild --nodebuginfo --define "VERSION $VERSION" --define "PACKAGE $PACKAGE" --define "RELEASE $RELEASE" -ba "${BUILD_DIR}/SPECS/${TARGET}.spec"
 cp -r ${BUILD_DIR}/RPMS/aarch64/* /out/
 cp -r ${BUILD_DIR}/RPMS/noarch/* /out/
@@ -60,81 +43,111 @@ chmod +x "$TMP_SCRIPT"
 # Create wine RPM spec patch to build ARM64EC
 cat > "${TARGET}-spec.patch" <<'EOF'
 --- SPECS/wine.spec	2025-04-01 08:00:00.000000000 +0800
-+++ SPECS/wine-arm64ec.spec	2025-05-03 20:05:20.587428329 +0800
-@@ -29 +29 @@
++++ SPECS/wine-arm64ec.spec	2025-05-12 03:54:23.763128130 +0800
+@@ -24,0 +25 @@
++%global arm64ec 1
+@@ -29 +30 @@
 -%global wine_staging 1
 +%global wine_staging 0
-@@ -33,3 +33,3 @@
--Name:           wine
+@@ -34,2 +35,2 @@
 -Version:        10.4
 -Release:        2%{?dist}
-+Name:           %{PACKAGE}
-+Version:        %{VERSION}
-+Release:        %{RELEASE}%{?dist}
-@@ -40,2 +40,2 @@
--Source0:        https://dl.winehq.org/wine/source/10.x/wine-%{version}.tar.xz
--Source10:       https://dl.winehq.org/wine/source/10.x/wine-%{version}.tar.xz.sign
-+Source0:        https://github.com/bylaws/wine/archive/refs/heads/upstream-arm64ec.tar.gz
++Version:        10.6.arm64ec
++Release:        4%{?dist}
+@@ -39,0 +41,5 @@
 +
-@@ -87 +87 @@
++%if %{?arm64ec}
++Source0:        https://github.com/bylaws/wine/archive/refs/heads/upstream-arm64ec.tar.gz
++Source10:       https://dl.winehq.org/wine/source/10.x/wine-10.6.tar.xz.sign
++%else
+@@ -41,0 +48,2 @@
++%endif
++
+@@ -77,0 +86,5 @@
++%if %{?arm64ec}
++#mingw LLVM fork for building arm64ec
++Source800: https://github.com/bylaws/llvm-mingw/releases/download/20250305/llvm-mingw-20250305-ucrt-ubuntu-20.04-aarch64.tar.xz
++%endif
++
+@@ -87 +101 @@
 -ExclusiveArch:  %{ix86} x86_64
 +ExclusiveArch:  %{ix86} x86_64 aarch64
-@@ -91,0 +92,7 @@
+@@ -91,0 +106,9 @@
++%if %{?arm64ec}
 +BuildRequires:  llvm-devel
 +BuildRequires:  gcc
 +BuildRequires:  libnetapi-devel
 +BuildRequires:  libxkbcommon-devel
 +BuildRequires:  wayland-devel
 +BuildRequires:  ffmpeg-free-devel
++%endif
 +
-@@ -97,2 +103,0 @@
+@@ -97,2 +119,0 @@
 -%else
 -BuildRequires:  gcc
-@@ -166 +171 @@
+@@ -166 +187 @@
 -%ifarch %{ix86} x86_64
 +%ifarch %{ix86} x86_64 aarch64
-@@ -661 +666 @@
+@@ -661 +682 @@
 -%ifarch x86_64
 +%ifarch x86_64 aarch64
-@@ -682,0 +688,4 @@
-+%ifarch aarch64
+@@ -669,0 +691,3 @@
++%if %{?arm64ec}
++%setup -qn wine-upstream-arm64ec
++%else
+@@ -670,0 +695 @@
++%endif
+@@ -672 +697,3 @@
+-
++%if %{?arm64ec}
++tar -xJf %{SOURCE800} -C %{_builddir}
++%endif
+@@ -682,0 +710,6 @@
++%if %{?arm64ec}
 +unset toolchain
 +export CC=gcc CXX=g++
-+%endif
-@@ -698 +707 @@
--%ifarch x86_64
-+%ifarch x86_64 aarch64
-@@ -720 +729 @@
-- --enable-win64 \
-+ --enable-win64 --enable-archs=arm64ec,aarch64,i386 --with-mingw=clang --with-wayland \
-@@ -766 +775 @@
--%ifarch x86_64
-+%ifarch x86_64 aarch64
-@@ -1065,0 +1075,3 @@
-+%{_libdir}/wine/%{winepedir}/xtajit64.dll
-+%{_libdir}/wine/arm-windows/*
++export PATH="%{_builddir}/llvm-mingw-20250305-ucrt-ubuntu-20.04-aarch64/bin:$PATH"
 +
-@@ -1091 +1102 @@
--%ifarch %{ix86} x86_64
-+%ifarch %{ix86} x86_64 aarch64
-@@ -1650 +1661 @@
++%endif
+@@ -724,0 +759,5 @@
++%if %{?arm64ec}
++ --enable-archs=arm64ec,aarch64,i386 \
++ --with-mingw=clang \
++ --with-wayland \
++%endif
+@@ -766 +805 @@
 -%ifarch x86_64
 +%ifarch x86_64 aarch64
-@@ -1684 +1694,0 @@
--%if 0%{?wine_staging}
-@@ -1686 +1695,0 @@
--%endif
-@@ -1716 +1724,0 @@
--%if 0%{?wine_staging}
-@@ -1719 +1726,0 @@
--%endif
-@@ -2107 +2114 @@
+@@ -1065,0 +1105,4 @@
++%if %{?arm64ec}
++%{_libdir}/wine/%{winepedir}/xtajit64.dll
++%endif
++
+@@ -1091 +1134 @@
 -%ifarch %{ix86} x86_64
 +%ifarch %{ix86} x86_64 aarch64
-@@ -2132 +2139 @@
+@@ -1650 +1693 @@
 -%ifarch x86_64
 +%ifarch x86_64 aarch64
-@@ -2430 +2436,0 @@
+@@ -1684 +1726,0 @@
+-%if 0%{?wine_staging}
+@@ -1686 +1727,0 @@
+-%endif
+@@ -1716 +1756,0 @@
+-%if 0%{?wine_staging}
+@@ -1719 +1758,0 @@
+-%endif
+@@ -2107 +2146 @@
+-%ifarch %{ix86} x86_64
++%ifarch %{ix86} x86_64 aarch64
+@@ -2132 +2171 @@
+-%ifarch x86_64
++%ifarch x86_64 aarch64
+@@ -2138,0 +2178,3 @@
++* Sat May 10 2025 Lachlan Marie <lchlnm@pm.me> - 10.6.arm64ec-4
++- Added conditional variables to adjust build process based on aarch64 architecture
++
+@@ -2430 +2471,0 @@
 -
 EOF
 
