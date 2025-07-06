@@ -22,31 +22,23 @@
 %global __brp_llvm_compile_lto_elf %nil
 %global __brp_strip_lto %nil
 %global __brp_strip_static_archive %nil
-%global arm64ec 1
 %endif
 
 # build with wine-staging patches, see:  https://github.com/wine-staging/wine-staging
 %if 0%{?fedora} || 0%{?rhel}
-%global wine_staging 0
+%global wine_staging 1
 %endif
 # 0%%{?fedora}
 
 Name:           wine
-Version:        10.6.arm64ec
-Release:        4%{?dist}
+Version:        10.8
+Release:        1%{?dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
 URL:            https://www.winehq.org/
-
-%if %{?arm64ec}
-Source0:        https://github.com/bylaws/wine/archive/refs/heads/upstream-arm64ec.tar.gz
-Source10:       https://dl.winehq.org/wine/source/10.x/wine-10.6.tar.xz.sign
-%else
 Source0:        https://dl.winehq.org/wine/source/10.x/wine-%{version}.tar.xz
 Source10:       https://dl.winehq.org/wine/source/10.x/wine-%{version}.tar.xz.sign
-%endif
-
 
 Source1:        wine.systemd
 Source2:        wine-README-Fedora
@@ -83,9 +75,8 @@ Source502:      wine-README-tahoma
 
 Patch511:       wine-cjk.patch
 
-%if %{?arm64ec}
-#mingw LLVM fork for building arm64ec
-Source800: https://github.com/bylaws/llvm-mingw/releases/download/20250305/llvm-mingw-20250305-ucrt-ubuntu-20.04-aarch64.tar.xz
+%ifarch aarch64
+Patch600:       wine-arm64ec-compat.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -102,21 +93,14 @@ ExclusiveArch:  %{ix86} x86_64 aarch64
 ExclusiveArch:  %{ix86}
 %endif
 
-%if %{?arm64ec}
-BuildRequires:  llvm-devel
-BuildRequires:  gcc
-BuildRequires:  libnetapi-devel
-BuildRequires:  libxkbcommon-devel
-BuildRequires:  wayland-devel
-BuildRequires:  ffmpeg-free-devel
-%endif
-
 BuildRequires:  bison
 BuildRequires:  flex
 %ifarch aarch64
+BuildRequires:  llvm-devel
 BuildRequires:  clang >= 5.0
 BuildRequires:  lld
 %endif
+BuildRequires:  gcc
 BuildRequires:  autoconf
 BuildRequires:  make
 BuildRequires:  desktop-file-utils
@@ -143,7 +127,12 @@ BuildRequires:  libgphoto2-devel
 BuildRequires:  libpcap-devel
 # modular x
 BuildRequires:  libX11-devel
-BuildRequires:  mesa-libGL-devel mesa-libGLU-devel mesa-libOSMesa-devel
+BuildRequires:  mesa-libGL-devel mesa-libGLU-devel
+%if 0%{?fedora} >= 43 || 0%{?rhel} >= 11
+BuildRequires:  mesa-compat-libOSMesa-devel
+%else
+BuildRequires:  mesa-libOSMesa-devel
+%endif
 BuildRequires:  libXxf86dga-devel libXxf86vm-devel
 BuildRequires:  libXrandr-devel libXrender-devel
 BuildRequires:  libXext-devel
@@ -297,7 +286,11 @@ Requires:       libXrender(x86-32)
 #dlopen in windowscodesc (fixes rhbz#1085075)
 Requires:       libpng(x86-32)
 Requires:       libpcap(x86-32)
+%if 0%{?fedora} >= 43
+Requires:       mesa-compat-libOSMesa(x86-32)
+%else
 Requires:       mesa-libOSMesa(x86-32)
+%endif
 Requires:       libv4l(x86-32)
 Requires:       unixODBC(x86-32)
 Requires:       SDL2(x86-32)
@@ -332,7 +325,11 @@ Requires:       libXrender(x86-64)
 #dlopen in windowscodesc (fixes rhbz#1085075)
 Requires:       libpng(x86-64)
 Requires:       libpcap(x86-64)
+%if 0%{?fedora} >= 43 || 0%{?rhel} >= 11
+Requires:       mesa-compat-libOSMesa(x86-64)
+%else
 Requires:       mesa-libOSMesa(x86-64)
+%endif
 Requires:       libv4l(x86-64)
 Requires:       unixODBC(x86-64)
 Requires:       SDL2(x86-64)
@@ -363,7 +360,11 @@ Requires:       libXcursor
 #dlopen in windowscodesc (fixes rhbz#1085075)
 Requires:       libpng
 Requires:       libpcap
+%if 0%{?fedora} >= 43 || 0%{?rhel} >= 11
+Requires:       mesa-compat-libOSMesa
+%else
 Requires:       mesa-libOSMesa
+%endif
 Requires:       libv4l
 Requires:       unixODBC
 Requires:       SDL2
@@ -687,15 +688,10 @@ This package adds symlinks for wine wow64 functionality.
 %endif
 
 %prep
-%if %{?arm64ec}
-%setup -qn wine-upstream-arm64ec
-%else
 %setup -qn wine-%{version}
-%endif
 %patch -P 511 -p1 -b.cjk
-%if %{?arm64ec}
-tar -xJf %{SOURCE800} -C %{_builddir}
-%endif
+%patch -P 600 -p1
+
 %if 0%{?wine_staging}
 # setup and apply wine-staging patches
 gzip -dc %{SOURCE900} | tar -xf - --strip-components=1
@@ -706,12 +702,6 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 # 0%%{?wine_staging}
 
 %build
-%if %{?arm64ec}
-unset toolchain
-export CC=gcc CXX=g++
-export PATH="%{_builddir}/llvm-mingw-20250305-ucrt-ubuntu-20.04-aarch64/bin:$PATH"
-
-%endif
 # This package uses top level ASM constructs which are incompatible with LTO.
 # Top level ASMs are often used to implement symbol versioning.  gcc-10
 # introduces a new mechanism for symbol versioning which works with LTO.
@@ -737,7 +727,9 @@ export CFLAGS="$(echo "%{optflags}" | sed -e 's/-fcf-protection//' -e 's/-fstack
 # Wine enabled -Wl,-WX that turns linker warnings into errors
 # Fedora passes '--as-needed' for all binaries and this is a warning from the linker, now an error, so disable flag for now
 sed -i 's/-Wl,-WX//g' configure
-%global toolchain clang
+
+# Remove branch protection flag that breaks wine on Apple M2 architecture (armv8.6-a). M1 can work with this flag this (armv8.4)
+export CFLAGS="$(echo "$CFLAGS" | sed -e 's/-mbranch-protection=standard//')"
 %endif
 
 # required so that both Linux and Windows development files can be found
@@ -754,15 +746,14 @@ unset PKG_CONFIG_PATH
  --with-system-dllpath=%{mingw64_bindir} \
 %endif
 %endif
-%if %{?arm64ec}
+%ifarch aarch64
  --enable-archs=arm64ec,aarch64,i386 \
  --with-mingw=clang \
- --with-wayland \
 %endif
 %ifarch %{ix86}
  --with-system-dllpath=%{mingw32_bindir} \
 %endif
-%{?wine_staging: --with-xattr} \
+%{?wine_staging: --with-xattr --with-wayland} \
  --disable-tests
 
 %make_build TARGETFLAGS=""
@@ -1100,7 +1091,7 @@ fi
 %{_libdir}/wine/%{winepedir}/write.exe
 %{_libdir}/wine/%{winepedir}/wusa.exe
 
-%if %{?arm64ec}
+%ifarch aarch64
 %{_libdir}/wine/%{winepedir}/xtajit64.dll
 %endif
 
@@ -1722,7 +1713,9 @@ fi
 %{_libdir}/wine/%{winepedir}/windows.media.devices.dll
 %{_libdir}/wine/%{winepedir}/windows.media.mediacontrol.dll
 %{_libdir}/wine/%{winepedir}/windows.media.speech.dll
+%if 0%{?wine_staging}
 %{_libdir}/wine/%{winepedir}/windows.networking.connectivity.dll
+%endif
 %{_libdir}/wine/%{winepedir}/windows.networking.dll
 %{_libdir}/wine/%{winepedir}/windows.networking.hostname.dll
 %{_libdir}/wine/%{winepedir}/windows.perception.stub.dll
@@ -1752,8 +1745,10 @@ fi
 %{_libdir}/wine/%{winesodir}/wineusb.so
 %{_libdir}/wine/%{winesodir}/winevulkan.so
 %{_libdir}/wine/%{winepedir}/winevulkan.dll
+%if 0%{?wine_staging}
 %{_libdir}/wine/%{winepedir}/winewayland.drv
 %{_libdir}/wine/%{winesodir}/winewayland.so
+%endif
 %{_libdir}/wine/%{winepedir}/winex11.drv
 %{_libdir}/wine/%{winesodir}/winex11.so
 %{_libdir}/wine/%{winepedir}/wing32.dll
@@ -2173,8 +2168,15 @@ fi
 %endif
 
 %changelog
-* Sat May 10 2025 Lachlan Marie <lchlnm@pm.me> - 10.6.arm64ec-4
-- Added conditional variables to adjust build process based on aarch64 architecture
+* Fri Jul 4 2025 Lachlan Marie <lchlnm@pm.me> - 10.5-1
+- Added support for aarch64 and wayland. Cflags set specifically to build armv8.6-a (M2).
+
+* Tue Jun 24 2025 José Expósito <jexposit@redhat.com> - 10.4-4
+- Use mesa-compat-libOSMesa on Fedora 42 and later
+
+* Fri Apr 25 2025 Björn Esser <besser82@fedoraproject.org> - 10.4-3
+- Use mesa-compat-libOSMesa on Fedora 43 and later
+  Fixes: rhbz#2362160
 
 * Tue Apr 01 2025 Michael Cronenworth <mike@cchtml.com> - 10.4-2
 - Initial support for new Wow64 mode
