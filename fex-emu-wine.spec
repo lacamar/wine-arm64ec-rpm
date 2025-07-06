@@ -107,13 +107,7 @@ Requires:       systemd-udev
 
 
 %description
-FEX allows you to run x86 and x86-64 binaries on an AArch64 host, similar to
-qemu-user and box86. It has native support for a rootfs overlay, so you don't
-need to chroot, as well as some thunklibs so it can forward things like GL to
-the host. FEX presents a Linux 5.0+ interface to the guest, and supports only
-AArch64 as a host. FEX is very much work in progress, so expect things to
-change.
-
+FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 
 %prep
 %if %{defined commit}
@@ -136,7 +130,6 @@ export CXXFLAGS="$CFLAGS"
 export LDFLAGS="%{my_ldflags}"
 export PATH="%{_builddir}/llvm-mingw-20250305-ucrt-ubuntu-20.04-aarch64/bin:$PATH"
 
-# 4. Build arm64ec thunk set
 mkdir build-arm64ec && pushd build-arm64ec
 
 cmake -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CFLAGS" \
@@ -154,7 +147,6 @@ sed -i 's/arm64ec-w64-mingw32-dlltool/llvm-dlltool -m arm64ec/g' build.ninja
 ninja
 popd
 
-# 5. Build wow64 thunk set (arm64 host / x86 guest)
 mkdir build-wow64 && pushd build-wow64
 cmake -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CFLAGS" \
   -GNinja \
@@ -171,9 +163,6 @@ sed -i 's/aarch64-w64-mingw32-dlltool/llvm-dlltool -m arm64/g' build.ninja
 ninja
 popd
 
-######################################################################
-# %install – place files under the staging tree and make them clean
-######################################################################
 %install
 rm -rf %{buildroot}
 
@@ -193,7 +182,6 @@ rm -rf %{buildroot}/usr/share
 %license LICENSE
 %doc Readme.md docs
 
-# main runtime bits
 %{_libdir}/wine/aarch64-windows/libarm64ecfex.dll
 %{_libdir}/wine/aarch64-windows/libwow64fex.dll
 
