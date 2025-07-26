@@ -1,15 +1,21 @@
 # wine-aarch64-rpm-builder
-A script for building Wine RPM packages on aarch64 with ARM64EC suppport
+This is a script for building Wine and FEXEmu Wine DLLs RPMs with experimental ARM64EC support. The script also installs these packages automatically once the build is finished.
 
+This will let you run Windows 32bit and 64bit software on an aarch64 16k Linux host (e.g. Asahi Linux).
 
+Using Wine in this configuration is very prone to bugs, so you should expect most software to not run. This is an area of the Wine and FEX projects that is being actively developed, so support is improving.
 
-This is a bash script that utilises docker to build Fedora42 RPMs on aarch64 for Wine that include ARM64EC support.
-Additionally, the script automatically installs these Wine RPMs and the necessary DLLs from the FEX project for ARM64EC before setting the necessary registry keys to use Wine with ARM64EC support.
+This script builds wine by taking mainline wine sources and wine-staging patches then applies patches from the bylaws [upstream-arm64ec branch](https://github.com/bylaws/wine/tree/upstream-arm64ec).
 
-To use this script to generate wine packages, you must have a working docker install on your system. If you haven't set up docker, you can run first-time-docker.sh.
+For building FEXEmu Wine DLLs, it uses this LLVM-Mingw toolchain provided by the [bylaws' branch](https://github.com/bylaws/llvm-mingw).
 
-This script uses this wine branch from bylaws https://github.com/bylaws/wine/tree/upstream-arm64ec
+To use this script to generate wine packages, you must have a working docker install on your system. If you haven't set up docker, you can run ```first-time-docker.sh```.
 
-Also this LLVM MinGW branch from bylaws https://github.com/bylaws/llvm-mingw
+The RPMs built using this script are available on my [Copr repo](https://copr.fedorainfracloud.org/coprs/lacamar/wine-arm64ec/).
 
-Source for the FEX arm64ec and wow64 DLLs https://launchpad.net/~fex-emu/+archive/ubuntu/fex/+packages
+Add the Copr repo and install the packages it provides to use Wine without having to build them.
+
+```
+sudo dnf copr enable lacamar/wine-arm64ec
+sudo dnf install fex-emu-wine wine-*
+```
