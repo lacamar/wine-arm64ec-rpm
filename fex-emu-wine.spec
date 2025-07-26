@@ -3,12 +3,12 @@
 %undefine _hardened_build
 %undefine _auto_set_build_flags
 
-%global my_ldflags -Wl,--gc-sections -static
-%global my_cflags -O3 -g -pipe -Wall -Wextra
+%global fex_ldflags -Wl,--gc-sections -static
+%global fex_cflags -O3 -g -pipe -Wall -Wextra
 
 Name:       fex-emu-wine
-Version:    2505%{?commit:^%{date}git%{commit}}
-Release:    %autorelease
+Version:    2507.1
+Release:    1%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -23,10 +23,6 @@ Source0:    %{forgeurl}/archive/%{srcname}-%{version}/%{srcname}-%{srcname}-%{ve
 
 Source100:  https://github.com/bylaws/llvm-mingw/releases/download/20250305/llvm-mingw-20250305-ucrt-ubuntu-20.04-aarch64.tar.xz
 
-# Bundled dependencies managed as git submodules upstream
-# These are too entangled with the build system to unbundle for now
-# https://github.com/FEX-Emu/FEX/issues/2996
-# https://github.com/FEX-Emu/FEX/issues/4267
 %{lua:
 local externals = {
   { name="cpp-optparse", ref="9f94388", owner="Sonicadvance1", path="../Source/Common/cpp-optparse", license="MIT" },
@@ -98,7 +94,6 @@ BuildRequires:  libdrm-devel
 BuildRequires:  libglvnd-devel
 BuildRequires:  libX11-devel
 BuildRequires:  libXrandr-devel
-BuildRequires:  llvm-devel
 BuildRequires:  openssl-devel
 BuildRequires:  wayland-devel
 BuildRequires:  zlib-devel
@@ -109,12 +104,9 @@ Requires:       systemd-udev
 %description
 FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 
+
 %prep
-%if %{defined commit}
-%setup -q -n %{srcname}-%{commit}
-%else
 %setup -q -n %{srcname}-%{srcname}-%{version}
-%endif
 
 # Unpack bundled libraries
 %{lua: print_setup_externals()}
@@ -125,9 +117,9 @@ tar -xJf %{SOURCE100} -C %{_builddir}
 
 
 %build
-export CFLAGS="%{my_cflags}"
+export CFLAGS="%{fex_cflags}"
 export CXXFLAGS="$CFLAGS"
-export LDFLAGS="%{my_ldflags}"
+export LDFLAGS="%{fex_ldflags}"
 export PATH="%{_builddir}/llvm-mingw-20250305-ucrt-ubuntu-20.04-aarch64/bin:$PATH"
 
 mkdir build-arm64ec && pushd build-arm64ec
@@ -137,8 +129,9 @@ cmake -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CFLAGS" \
   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
   -DCMAKE_INSTALL_LIBDIR=%{_libdir}/wine/aarch64-windows \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_TOOLCHAIN_FILE=../toolchain_mingw.cmake \
+  -DCMAKE_TOOLCHAIN_FILE=../Data/CMake/toolchain_mingw.cmake \
   -DENABLE_LTO=False \
+  -DTUNE_CPU=none \
   -DMINGW_TRIPLE=arm64ec-w64-mingw32 \
   -DBUILD_TESTS=False \
   -DENABLE_JEMALLOC_GLIBC_ALLOC=False \
@@ -153,10 +146,11 @@ cmake -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CFLAGS" \
   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
   -DCMAKE_INSTALL_LIBDIR=%{_libdir}/wine/aarch64-windows \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_TOOLCHAIN_FILE=../toolchain_mingw.cmake \
-  -DENABLE_LTO=OFF \
+  -DCMAKE_TOOLCHAIN_FILE=../Data/CMake/toolchain_mingw.cmake \
+  -DENABLE_LTO=False \
+  -DTUNE_CPU=none \
   -DMINGW_TRIPLE=aarch64-w64-mingw32 \
-  -DBUILD_TESTS=OFF \
+  -DBUILD_TESTS=False \
   -DENABLE_JEMALLOC_GLIBC_ALLOC=OFF \
   ..
 sed -i 's/aarch64-w64-mingw32-dlltool/llvm-dlltool -m arm64/g' build.ninja
