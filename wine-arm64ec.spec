@@ -3,7 +3,7 @@
 
 %global no64bit   0
 %global winegecko 2.47.4
-%global winemono  9.4.0
+%global winemono  10.0.0
 %if 0%{?fedora}
 %global opencl    1
 %endif
@@ -128,7 +128,7 @@ BuildRequires:  libpcap-devel
 # modular x
 BuildRequires:  libX11-devel
 BuildRequires:  mesa-libGL-devel mesa-libGLU-devel
-%if 0%{?fedora} >= 43 || 0%{?rhel} >= 11
+%if 0%{?fedora} >= 42 || 0%{?rhel} >= 11
 BuildRequires:  mesa-compat-libOSMesa-devel
 %else
 BuildRequires:  mesa-libOSMesa-devel

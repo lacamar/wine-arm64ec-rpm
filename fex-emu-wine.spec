@@ -7,7 +7,7 @@
 %global fex_cflags -O3 -g -pipe -Wall -Wextra
 
 Name:       fex-emu-wine
-Version:    2507.1
+Version:    2508
 Release:    1%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
@@ -25,14 +25,17 @@ Source100:  https://github.com/bylaws/llvm-mingw/releases/download/20250305/llvm
 
 %{lua:
 local externals = {
+  { name="Catch2", ref="8ac8190", owner="catchorg", license="BSL-1.0" },
   { name="cpp-optparse", ref="9f94388", owner="Sonicadvance1", path="../Source/Common/cpp-optparse", license="MIT" },
-  { name="drm-headers", ref="0675d2f", owner="FEX-Emu", package="kernel", version="6.13", license="GPL-2.0-only" },
-  { name="jemalloc", ref="02ca52b", owner="FEX-Emu", version="5.3.0", license="MIT" },
-  { name="jemalloc", ref="4043539", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
-  { name="robin-map", ref="d5683d9", owner="FEX-Emu", version="1.3.0", license="MIT" },
   { name="Vulkan-Headers", ref="cacef30", owner="KhronosGroup", package="vulkan-headers", version="1.4.310", license="Apache-2.0" },
+  { name="drm-headers", ref="0675d2f", owner="FEX-Emu", package="kernel", version="6.13", license="GPL-2.0-only" },
+  { name="fmt", ref="20c8fda", owner="fmtlib", path="fmt" },
+  { name="jemalloc", ref="ce24593", owner="FEX-Emu", version="5.3.0", license="MIT" },
+  { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
+  { name="robin-map", ref="d5683d9", owner="FEX-Emu", version="1.3.0", license="MIT" },
+  { name="tracy", ref="650c98e", owner="wolfpld", license="BSD-2-Clause" },
+  { name="vixl", ref="84bc10c", owner="FEX-Emu", license="BSD-3-Clause" },
   { name="xxhash", ref="bbb27a5", owner="Cyan4973", path="xxhash", version="0.8.2",  license="BSD-2-Clause" },
-  { name="fmt", ref="1239137", owner="fmtlib", path="fmt" },
 }
 
 for i, s in ipairs(externals) do
