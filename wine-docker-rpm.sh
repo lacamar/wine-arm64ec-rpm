@@ -1,8 +1,8 @@
 #!/usr/bin/sh
 read -p "Wine ARM64EC Docker build script. Fedora 42 required. Press enter to continue."
 PACKAGE=wine
-VERSION=10.8
-RELEASE=2
+VERSION=10.12
+RELEASE=1.arm64ec
 TARGET="${PACKAGE}-${VERSION}-${RELEASE}"
 SCRIPT_DIR="${PWD}/${TARGET}"
 mkdir -p $SCRIPT_DIR
