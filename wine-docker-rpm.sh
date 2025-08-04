@@ -1,66 +1,85 @@
 #!/usr/bin/sh
-read -p "Wine ARM64EC Docker build script. Fedora 42 required. Press enter to continue."
-PACKAGE=wine
-VERSION=10.12
-RELEASE=1.arm64ec
-TARGET="${PACKAGE}-${VERSION}-${RELEASE}"
-SCRIPT_DIR="${PWD}/${TARGET}"
+read -p "Wine ARM64EC Docker build script
+Fedora 42 required
+Press enter to continue
+"
+
+FEDORA_VERSION=42
+
+WINE_VERSION=10.12
+WINE_RELEASE=1.arm64ec
+WINE_TARGET="wine-${WINE_VERSION}-${WINE_RELEASE}"
+
+FEX_VERSION=2508
+FEX_RELEASE=1
+FEX_TARGET="fex-emu-wine-${FEX_VERSION}-${FEX_RELEASE}"
+
+SCRIPT_DIR="${PWD}/${WINE_TARGET}_${FEX_TARGET}"
 mkdir -p $SCRIPT_DIR
 
-set -eouv
-#-----------------------------------#
-#   Wine ARM64EC RPM build script   #
-#-----------------------------------#
+set -eu
+echo "Building ${WINE_TARGET} and ${FEX_TARGET}
+"
 
-
-#   Create temporary nested script to run inside docker   #
-cp 2025.07.27_bylaws-wine_upstream-arm64ec.patch $SCRIPT_DIR
-cp wine-arm64ec.spec $SCRIPT_DIR/wine.spec
-cp fex-emu-wine.spec $SCRIPT_DIR
+# Copying needed files to build output directory visible in docker
+cp wine/*.patch $SCRIPT_DIR
+cp wine/${WINE_TARGET}.spec $SCRIPT_DIR/wine.spec
+cp fex-emu-wine/${FEX_TARGET}.spec $SCRIPT_DIR/fex-emu-wine.spec
 cd $SCRIPT_DIR
 
-TMP_SCRIPT="docker-${TARGET}.sh"
+#   Create temporary nested script to run inside docker   #
+TMP_SCRIPT="docker-${WINE_TARGET}_${FEX_TARGET}.sh"
 cat > "$TMP_SCRIPT" <<'EOF'
 #!/bin/bash
-set -euov pipefail
+set -euo pipefail
 export BUILD_DIR=~/rpmbuild
 echo "max_parallel_downloads=20" >> /etc/dnf/dnf.conf
 dnf install rpm-build zip rpmdevtools gcc make wget llvm-devel clang mingw64-gcc mingw32-gcc libnetapi-devel libxkbcommon-devel wayland-devel ffmpeg-free-devel -y
 rpmdev-setuptree
 cd "${BUILD_DIR}"
-dnf download --source ${PACKAGE}
-rpm -ivh ${PACKAGE}-*.src.rpm
+dnf download --source wine
+rpm -ivh wine-*.src.rpm
 
-cp "/host/2025.07.27_bylaws-wine_upstream-arm64ec.patch" "${BUILD_DIR}/SOURCES/2025.07.27_bylaws-wine_upstream-arm64ec.patch"
-dnf builddep -y "/host/${PACKAGE}.spec" --allowerasing
+cp /host/*.patch "${BUILD_DIR}/SOURCES/"
 dnf builddep -y "/host/fex-emu-wine.spec" --allowerasing
+dnf builddep -y "/host/wine.spec" --allowerasing
 
-spectool -g -R "/host/${PACKAGE}.spec"
 spectool -g -R "/host/fex-emu-wine.spec"
-rpmbuild --nodebuginfo -ba "/host/fex-emu-wine.spec"
-rpmbuild --nodebuginfo -ba "/host/${PACKAGE}.spec"
+spectool -g -R "/host/wine.spec"
+rpmbuild -ba "/host/fex-emu-wine.spec"
+rpmbuild -ba "/host/wine.spec"
 cp -r ${BUILD_DIR}/RPMS/aarch64/* /out/
 cp -r ${BUILD_DIR}/RPMS/noarch/* /out/
 exit
 EOF
 chmod +x "$TMP_SCRIPT"
 
-#   Create setup script for installing the Wine ARM64EC build, installing the FEX DLLs, and importing the registry entries.   #
+#   Create setup script for installing the built packages.   #
 cat > "setup-wine.sh" <<'EOF'
+read -p "Installing wine and fex-emu-wine packages
+"
 sudo dnf install ./*arch*.rpm --skip-unavailable
+
+read -p "Updating current wine prefix
+"
 wineboot -u
 EOF
 
-#   Starting docker   #
-docker run -e PACKAGE=${PACKAGE} -e VERSION=${VERSION} -e RELEASE=${RELEASE} -e TARGET=${TARGET} -it --rm -v "$PWD:/out:z" -v "$PWD:/host:z" fedora:42 ./host/$TMP_SCRIPT
+echo "Starting docker
+"
+docker run -e -it --rm -v "$PWD:/out:z" -v "$PWD:/host:z" fedora:${FEDORA_VERSION} ./host/$TMP_SCRIPT
 
-#   Exiting to host   #
+echo "Exiting docker
+"
 rm "$TMP_SCRIPT"
-rm 2025.07.27_bylaws-wine_upstream-arm64ec.patch
+rm *.patch
 rm *.spec
 
-#   Execute setup script   #
+echo "Executing setup script
+"
 chmod +x setup-wine.sh
 ./setup-wine.sh
 
-#   Done!   #
+echo "
+Done!
+"

@@ -1,0 +1,1479 @@
+From 16c338819255121716b3d8844590b09477dffabf Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Thu, 27 Jul 2023 08:00:43 -0700
+Subject: [PATCH 01/14] ntdll: Implement WOW64 thread suspension helpers.
+
+---
+ dlls/ntdll/loader.c         |  2 ++
+ dlls/ntdll/ntdll.spec       |  1 +
+ dlls/ntdll/ntdll_misc.h     |  1 +
+ dlls/ntdll/signal_arm64.c   | 17 +++++++++++++++++
+ dlls/ntdll/signal_arm64ec.c |  7 +++++++
+ dlls/ntdll/signal_x86_64.c  |  7 +++++++
+ include/winternl.h          |  1 +
+ 7 files changed, 36 insertions(+)
+
+diff --git a/dlls/ntdll/loader.c b/dlls/ntdll/loader.c
+index 6b089c990b57..7a307b33f22b 100644
+--- a/dlls/ntdll/loader.c
++++ b/dlls/ntdll/loader.c
+@@ -4273,6 +4273,7 @@ static void build_wow64_main_module(void)
+ static void (WINAPI *pWow64LdrpInitialize)( CONTEXT *ctx );
+
+ void (WINAPI *pWow64PrepareForException)( EXCEPTION_RECORD *rec, CONTEXT *context ) = NULL;
++NTSTATUS (WINAPI *pWow64SuspendLocalThread)( HANDLE thread, ULONG *count ) = NULL;
+
+ static void init_wow64( CONTEXT *context )
+ {
+@@ -4297,6 +4298,7 @@ static void init_wow64( CONTEXT *context )
+
+         GET_PTR( Wow64LdrpInitialize );
+         GET_PTR( Wow64PrepareForException );
++        GET_PTR( Wow64SuspendLocalThread );
+ #undef GET_PTR
+         imports_fixup_done = TRUE;
+     }
+diff --git a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
+index c76e27f7ef15..faa1d96d895f 100644
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -1141,6 +1141,7 @@
+ @ stdcall -arch=win64 RtlWow64PushCrossProcessWorkOntoWorkList(ptr ptr ptr)
+ @ stdcall -arch=win64 RtlWow64RequestCrossProcessHeavyFlush(ptr)
+ @ stdcall -arch=win64 RtlWow64SetThreadContext(long ptr)
++@ stdcall -arch=win64 RtlWow64SuspendThread(long ptr)
+ @ stub RtlWriteMemoryStream
+ @ stdcall RtlWriteRegistryValue(long ptr wstr long ptr long)
+ @ stub RtlZeroHeap
+diff --git a/dlls/ntdll/ntdll_misc.h b/dlls/ntdll/ntdll_misc.h
+index f82edef6b65d..d6ad6238fa15 100644
+--- a/dlls/ntdll/ntdll_misc.h
++++ b/dlls/ntdll/ntdll_misc.h
+@@ -74,6 +74,7 @@ extern void WINAPI KiUserApcDispatcher(CONTEXT*,ULONG_PTR,ULONG_PTR,ULONG_PTR,PN
+ extern void WINAPI KiUserCallbackDispatcher(ULONG,void*,ULONG);
+ extern void WINAPI KiUserCallbackDispatcherReturn(void);
+ extern void (WINAPI *pWow64PrepareForException)( EXCEPTION_RECORD *rec, CONTEXT *context );
++extern NTSTATUS (WINAPI *pWow64SuspendLocalThread)( HANDLE thread, ULONG *count );
+
+ /* debug helpers */
+ extern LPCSTR debugstr_us( const UNICODE_STRING *str );
+diff --git a/dlls/ntdll/signal_arm64.c b/dlls/ntdll/signal_arm64.c
+index bc981289ea5a..548f87a3a6ee 100644
+--- a/dlls/ntdll/signal_arm64.c
++++ b/dlls/ntdll/signal_arm64.c
+@@ -643,6 +643,23 @@ BOOLEAN WINAPI RtlIsProcessorFeaturePresent( UINT feature )
+             user_shared_data->ProcessorFeatures[feature]);
+ }
+
++/***********************************************************************
++ *              RtlWow64SuspendThread (NTDLL.@)
++ */
++NTSTATUS WINAPI RtlWow64SuspendThread( HANDLE thread, ULONG *count )
++{
++    THREAD_BASIC_INFORMATION tbi;
++
++    NTSTATUS ret = NtQueryInformationThread( thread, ThreadBasicInformation, &tbi, sizeof(tbi), NULL);
++    if (ret) return ret;
++
++    if (tbi.ClientId.UniqueProcess != NtCurrentTeb()->ClientId.UniqueProcess) {
++        FIXME( "Non-local process thread suspend\n" );
++        return STATUS_SUCCESS;
++    }
++
++    return pWow64SuspendLocalThread( thread, count );
++}
+
+ /*************************************************************************
+  *		RtlWalkFrameChain (NTDLL.@)
+diff --git a/dlls/ntdll/signal_arm64ec.c b/dlls/ntdll/signal_arm64ec.c
+index 1f5abbdfc6dd..393ca2b51db0 100644
+--- a/dlls/ntdll/signal_arm64ec.c
++++ b/dlls/ntdll/signal_arm64ec.c
+@@ -1769,6 +1769,13 @@ BOOLEAN WINAPI RtlIsProcessorFeaturePresent( UINT feature )
+     return emulated_processor_features[feature];
+ }
+
++/***********************************************************************
++ *              RtlWow64SuspendThread (NTDLL.@)
++ */
++NTSTATUS WINAPI RtlWow64SuspendThread( HANDLE thread, ULONG *count )
++{
++    return NtSuspendThread( thread, count );
++}
+
+ /*************************************************************************
+  *		RtlWalkFrameChain (NTDLL.@)
+diff --git a/dlls/ntdll/signal_x86_64.c b/dlls/ntdll/signal_x86_64.c
+index 50911fa2ce9a..f31bc01dda74 100644
+--- a/dlls/ntdll/signal_x86_64.c
++++ b/dlls/ntdll/signal_x86_64.c
+@@ -844,6 +844,13 @@ BOOLEAN WINAPI RtlIsProcessorFeaturePresent( UINT feature )
+     return feature < PROCESSOR_FEATURE_MAX && user_shared_data->ProcessorFeatures[feature];
+ }
+
++/***********************************************************************
++ *              RtlWow64SuspendThread (NTDLL.@)
++ */
++NTSTATUS WINAPI RtlWow64SuspendThread( HANDLE thread, ULONG *count )
++{
++    return NtSuspendThread( thread, count );
++}
+
+ /*************************************************************************
+  *		RtlWalkFrameChain (NTDLL.@)
+diff --git a/include/winternl.h b/include/winternl.h
+index de43946a41a4..3f8a7342c367 100644
+--- a/include/winternl.h
++++ b/include/winternl.h
+@@ -5155,6 +5155,7 @@ NTSYSAPI USHORT    WINAPI RtlWow64GetCurrentMachine(void);
+ NTSYSAPI NTSTATUS  WINAPI RtlWow64GetProcessMachines(HANDLE,USHORT*,USHORT*);
+ NTSYSAPI NTSTATUS  WINAPI RtlWow64GetSharedInfoProcess(HANDLE,BOOLEAN*,WOW64INFO*);
+ NTSYSAPI NTSTATUS  WINAPI RtlWow64IsWowGuestMachineSupported(USHORT,BOOLEAN*);
++NTSYSAPI NTSTATUS  WINAPI RtlWow64SuspendThread(HANDLE,ULONG*);
+ NTSYSAPI NTSTATUS  WINAPI RtlWriteRegistryValue(ULONG,PCWSTR,PCWSTR,ULONG,PVOID,ULONG);
+ NTSYSAPI NTSTATUS  WINAPI RtlZombifyActivationContext(HANDLE);
+ NTSYSAPI NTSTATUS  WINAPI RtlpNtCreateKey(PHANDLE,ACCESS_MASK,const OBJECT_ATTRIBUTES*,ULONG,const UNICODE_STRING*,ULONG,PULONG);
+
+From 5dda08b473720f50050396fcb090ab4fcb166827 Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Thu, 27 Jul 2023 08:20:59 -0700
+Subject: [PATCH 02/14] wow64: Support running a BT module provided suspend
+ routine.
+
+Suspension in JITs cannot easily be handled on the unix side, so allow BT
+modules to provide their own suspend helper.
+---
+ dlls/wow64/process.c  |  2 +-
+ dlls/wow64/syscall.c  | 10 ++++++++++
+ dlls/wow64/wow64.spec |  2 +-
+ 3 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/dlls/wow64/process.c b/dlls/wow64/process.c
+index 1843bdf5e841..c9513117fa9f 100644
+--- a/dlls/wow64/process.c
++++ b/dlls/wow64/process.c
+@@ -1078,7 +1078,7 @@ NTSTATUS WINAPI wow64_NtSuspendThread( UINT *args )
+     HANDLE handle = get_handle( &args );
+     ULONG *count = get_ptr( &args );
+
+-    return NtSuspendThread( handle, count );
++    return RtlWow64SuspendThread( handle, count );
+ }
+
+
+diff --git a/dlls/wow64/syscall.c b/dlls/wow64/syscall.c
+index d2a977ee5adb..fbc687cc02a2 100644
+--- a/dlls/wow64/syscall.c
++++ b/dlls/wow64/syscall.c
+@@ -102,6 +102,7 @@ static void     (WINAPI *pBTCpuProcessInit)(void);
+ static NTSTATUS (WINAPI *pBTCpuSetContext)(HANDLE,HANDLE,void *,void *);
+ static void     (WINAPI *pBTCpuThreadInit)(void);
+ static void     (WINAPI *pBTCpuSimulate)(void) __attribute__((used));
++static NTSTATUS (WINAPI *pBTCpuSuspendLocalThread)(HANDLE,ULONG *);
+ static void *   (WINAPI *p__wine_get_unix_opcode)(void);
+ static void *   (WINAPI *pKiRaiseUserExceptionDispatcher)(void);
+ void     (WINAPI *pBTCpuFlushInstructionCache2)( const void *, SIZE_T ) = NULL;
+@@ -839,6 +840,7 @@ static DWORD WINAPI process_init( RTL_RUN_ONCE *once, void *param, void **contex
+     GET_PTR( BTCpuProcessInit );
+     GET_PTR( BTCpuThreadInit );
+     GET_PTR( BTCpuResetToConsistentState );
++    GET_PTR( BTCpuSuspendLocalThread );
+     GET_PTR( BTCpuSetContext );
+     GET_PTR( BTCpuSimulate );
+     GET_PTR( BTCpuFlushInstructionCache2 );
+@@ -1525,3 +1527,11 @@ NTSTATUS WINAPI Wow64RaiseException( int code, EXCEPTION_RECORD *rec )
+
+     return STATUS_SUCCESS;
+ }
++
++/**********************************************************************
++ *            Wow64SuspendLocalThread (wow64.@)
++ */
++NTSTATUS WINAPI Wow64SuspendLocalThread( HANDLE thread, ULONG *count )
++{
++    return pBTCpuSuspendLocalThread( thread, count );
++}
+diff --git a/dlls/wow64/wow64.spec b/dlls/wow64/wow64.spec
+index 5b4e565e5936..8f95dfcdbe52 100644
+--- a/dlls/wow64/wow64.spec
++++ b/dlls/wow64/wow64.spec
+@@ -22,7 +22,7 @@
+ @ stub Wow64ShallowThunkAllocSecurityQualityOfService32TO64_FNC
+ @ stub Wow64ShallowThunkSIZE_T32TO64
+ @ stub Wow64ShallowThunkSIZE_T64TO32
+-@ stub Wow64SuspendLocalThread
++@ stdcall Wow64SuspendLocalThread(long ptr)
+ @ stdcall -norelay Wow64SystemServiceEx(long ptr)
+ @ stub Wow64ValidateUserCallTarget
+ @ stub Wow64ValidateUserCallTargetFilter
+
+From 909d6e96b01b2e80871dd74daa15df73c29eaec5 Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Fri, 12 Apr 2024 20:54:16 +0000
+Subject: [PATCH 03/14] HACK: server: Map within the 39-bit address space on
+ arm64.
+
+---
+ server/mapping.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/server/mapping.c b/server/mapping.c
+index 247b28cf6f52..755ae01968e8 100644
+--- a/server/mapping.c
++++ b/server/mapping.c
+@@ -265,7 +265,11 @@ void init_memory(void)
+ {
+     host_page_mask = sysconf( _SC_PAGESIZE ) - 1;
+     free_map_addr( 0x60000000, 0x1c000000 );
++#ifdef __aarch64__
++    free_map_addr( 0x4000000000, 0x1000000000 );
++#else
+     free_map_addr( 0x600000000000, 0x100000000000 );
++#endif
+ }
+
+ static void ranges_dump( struct object *obj, int verbose )
+
+From 624729057b72ed7dfcb117abb2f792e46c89cc42 Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Wed, 17 Apr 2024 18:50:05 +0000
+Subject: [PATCH 04/14] ntdll: Force all wow64 host allocations outside of the
+ 32-bit AS.
+
+---
+ dlls/ntdll/unix/virtual.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
+index 202894750a06..9d52186d149a 100644
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -4900,6 +4900,9 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
+     {
+         base = NULL;
+         size = ROUND_SIZE( 0, size, page_mask );
++#ifdef _WIN64
++        if (is_wow64() && (!limit_high || limit_high > limit_4g)) limit_low = limit_4g;
++#endif
+     }
+
+     /* Compute the alloc type flags */
+
+From df63e2437be0feedb49ccd56889aed85b90ea31b Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Fri, 19 Apr 2024 20:25:30 +0000
+Subject: [PATCH 05/14] HACK: Use x86 mono on aarch64.
+
+---
+ dlls/appwiz.cpl/addons.c | 4 ++--
+ dlls/mscoree/metahost.c  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/dlls/appwiz.cpl/addons.c b/dlls/appwiz.cpl/addons.c
+index 19e26ba9d835..5c0e898f8253 100644
+--- a/dlls/appwiz.cpl/addons.c
++++ b/dlls/appwiz.cpl/addons.c
+@@ -48,7 +48,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(appwizcpl);
+ #ifdef __i386__
+ #define GECKO_ARCH "x86"
+ #define GECKO_SHA "26cecc47706b091908f7f814bddb074c61beb8063318e9efc5a7f789857793d6"
+-#elif defined(__x86_64__)
++#elif defined(__x86_64__) || defined(__aarch64__)
+ #define GECKO_ARCH "x86_64"
+ #define GECKO_SHA "e590b7d988a32d6aa4cf1d8aa3aa3d33766fdd4cf4c89c2dcc2095ecb28d066f"
+ #else
+@@ -57,7 +57,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(appwizcpl);
+ #endif
+
+ #define MONO_VERSION "10.0.0"
+-#if defined(__i386__) || defined(__x86_64__)
++#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
+ #define MONO_ARCH "x86"
+ #define MONO_SHA "dbaca73e5d09f7a3a7c157ad04289af9ca47c3ced7012d46544a607046902b87"
+ #else
+diff --git a/dlls/mscoree/metahost.c b/dlls/mscoree/metahost.c
+index e1dd00656e94..569fa21ad325 100644
+--- a/dlls/mscoree/metahost.c
++++ b/dlls/mscoree/metahost.c
+@@ -711,7 +711,7 @@ HRESULT ICLRRuntimeInfo_GetRuntimeHost(ICLRRuntimeInfo *iface, RuntimeHost **res
+
+ #ifdef __i386__
+ static const WCHAR libmono2_arch_dll[] = {'\\','b','i','n','\\','l','i','b','m','o','n','o','-','2','.','0','-','x','8','6','.','d','l','l',0};
+-#elif defined(__x86_64__)
++#elif defined(__x86_64__) || defined(__aarch64__)
+ static const WCHAR libmono2_arch_dll[] = {'\\','b','i','n','\\','l','i','b','m','o','n','o','-','2','.','0','-','x','8','6','_','6','4','.','d','l','l',0};
+ #else
+ static const WCHAR libmono2_arch_dll[] = {'\\','b','i','n','\\','l','i','b','m','o','n','o','-','2','.','0','.','d','l','l',0};
+
+From 62eaf45bc95657cd4f5c0c46967bfd831a21b80b Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Tue, 23 Apr 2024 12:58:04 +0000
+Subject: [PATCH 06/14] configure: Enable vcruntime140_1 and dpnsvcr for arm64x
+ builds.
+
+---
+ configure.ac                            | 4 ++--
+ dlls/vcruntime140_1/vcruntime140_1.spec | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index d1d07bc8f370..9c1eb0e41920 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -2356,7 +2356,7 @@ esac
+
+ dnl *** Check for modules to disable by default
+
+-enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec}
++enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec,aarch64}
+
+ if test -n "$PE_ARCHS"
+ then
+@@ -2386,7 +2386,7 @@ enable_wuauserv=${enable_wuauserv:-$HOST_ARCH}
+ dnl Explicitly enable some programs for arm64ec
+ enable_cmd=${enable_cmd:-yes}
+ enable_dllhost=${enable_dllhost:-yes}
+-enable_dpnsvr=${enable_dpnsvr:-i386,x86_64,arm64ec}
++enable_dpnsvr=${enable_dpnsvr:-i386,x86_64,arm64ec,aarch64}
+ enable_dxdiag=${enable_dxdiag:-yes}
+ enable_msiexec=${enable_msiexec:-yes}
+ enable_netsh=${enable_netsh:-yes}
+diff --git a/dlls/vcruntime140_1/vcruntime140_1.spec b/dlls/vcruntime140_1/vcruntime140_1.spec
+index 0b126fa95d46..af295940a61a 100644
+--- a/dlls/vcruntime140_1/vcruntime140_1.spec
++++ b/dlls/vcruntime140_1/vcruntime140_1.spec
+@@ -1,3 +1,3 @@
+-@ cdecl __CxxFrameHandler4(ptr long ptr ptr)
++@ cdecl -arch=arm64ec,x86_64 __CxxFrameHandler4(ptr long ptr ptr)
+ @ stub __NLG_Dispatch2
+ @ stub __NLG_Return2
+
+From b37b42f95871f8cddb9617a773b78d74d84da6df Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Mon, 19 Aug 2024 20:29:50 +0000
+Subject: [PATCH 07/14] include: Add arm64 SVE xstate headers.
+
+---
+ include/winnt.h | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/include/winnt.h b/include/winnt.h
+index 31d836029f1c..78833c2b1195 100644
+--- a/include/winnt.h
++++ b/include/winnt.h
+@@ -1475,6 +1475,10 @@ typedef struct _KNONVOLATILE_CONTEXT_POINTERS
+ #define XSTATE_MASK_LEGACY                  (XSTATE_MASK_LEGACY_FLOATING_POINT | XSTATE_MASK_LEGACY_SSE)
+ #define XSTATE_MASK_GSSE                    (1 << XSTATE_GSSE)
+
++#define XSTATE_ARM64_SVE 2
++
++#define XSTATE_MASK_ARM64_SVE (1 << XSTATE_ARM64_SVE)
++
+ typedef struct _XSTATE_FEATURE
+ {
+     ULONG Offset;
+@@ -1505,6 +1509,13 @@ typedef struct _XSAVE_AREA_HEADER
+ }
+ XSAVE_AREA_HEADER, *PXSAVE_AREA_HEADER;
+
++typedef struct _XSAVE_ARM64_SVE_HEADER {
++    ULONG VectorLength;
++    ULONG VectorRegisterOffset;
++    ULONG PredicateRegisterOffset;
++    ULONG Reserved[5];
++} XSAVE_ARM64_SVE_HEADER, *PXSAVE_ARM64_SVE_HEADER;
++
+ typedef struct _YMMCONTEXT
+ {
+     M128A Ymm0;
+@@ -1685,6 +1696,7 @@ typedef struct _KNONVOLATILE_CONTEXT_POINTERS
+ #define CONTEXT_ARM64_FLOATING_POINT  (CONTEXT_ARM64 | 0x00000004)
+ #define CONTEXT_ARM64_DEBUG_REGISTERS (CONTEXT_ARM64 | 0x00000008)
+ #define CONTEXT_ARM64_X18       (CONTEXT_ARM64 | 0x00000010)
++#define CONTEXT_ARM64_XSTATE    (CONTEXT_ARM64 | 0x00000020)
+ #define CONTEXT_ARM64_FULL (CONTEXT_ARM64_CONTROL | CONTEXT_ARM64_INTEGER | CONTEXT_ARM64_FLOATING_POINT)
+ #define CONTEXT_ARM64_ALL  (CONTEXT_ARM64_FULL | CONTEXT_ARM64_DEBUG_REGISTERS | CONTEXT_ARM64_X18)
+
+@@ -1964,6 +1976,7 @@ typedef struct DECLSPEC_ALIGN(16) _ARM64EC_NT_CONTEXT
+ #define CONTEXT_INTEGER CONTEXT_ARM64_INTEGER
+ #define CONTEXT_FLOATING_POINT CONTEXT_ARM64_FLOATING_POINT
+ #define CONTEXT_DEBUG_REGISTERS CONTEXT_ARM64_DEBUG_REGISTERS
++#define CONTEXT_XSTATE CONTEXT_ARM64_XSTATE
+ #define CONTEXT_FULL CONTEXT_ARM64_FULL
+ #define CONTEXT_ALL CONTEXT_ARM64_ALL
+ #define CONTEXT_RET_TO_GUEST CONTEXT_ARM64_RET_TO_GUEST
+
+From ad32db20e3ea8dfebfcf20979137a4eea0d2c380 Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Wed, 21 Aug 2024 22:26:28 +0000
+Subject: [PATCH 08/14] FEX specific AVX support for arm64ec
+
+---
+ dlls/ntdll/signal_arm64ec.c  | 56 +++++++++++++++++++++++-------------
+ dlls/ntdll/signal_x86_64.c   |  2 +-
+ dlls/ntdll/unwind.h          | 16 +++++++++++
+ include/winnt.h              |  5 ++--
+ programs/wineboot/wineboot.c | 15 ++++++++++
+ 5 files changed, 71 insertions(+), 23 deletions(-)
+
+diff --git a/dlls/ntdll/signal_arm64ec.c b/dlls/ntdll/signal_arm64ec.c
+index 393ca2b51db0..2dee95d6186c 100644
+--- a/dlls/ntdll/signal_arm64ec.c
++++ b/dlls/ntdll/signal_arm64ec.c
+@@ -36,6 +36,11 @@
+ #include "wine/debug.h"
+ #include "ntsyscalls.h"
+
++union ARM64EC_NT_XCONTEXT {
++    ARM64EC_NT_CONTEXT context;
++    BYTE buffer[0x800];
++};
++
+ WINE_DEFAULT_DEBUG_CHANNEL(seh);
+ WINE_DECLARE_DEBUG_CHANNEL(relay);
+
+@@ -1221,7 +1226,11 @@ NTSTATUS call_seh_handlers( EXCEPTION_RECORD *rec, CONTEXT *orig_context )
+  */
+ void dispatch_emulation( ARM64_NT_CONTEXT *arm_ctx )
+ {
+-    context_arm_to_x64( get_arm64ec_cpu_area()->ContextAmd64, arm_ctx );
++    ARM64EC_NT_CONTEXT *context = get_arm64ec_cpu_area()->ContextAmd64;
++    CONTEXT_EX *xctx;
++
++    RtlInitializeExtendedContext( context, ctx_flags_arm_to_x64( arm_ctx->ContextFlags), &xctx );
++    context_arm_to_x64( context, arm_ctx );
+     get_arm64ec_cpu_area()->InSimulation = 1;
+     pBeginSimulation();
+ }
+@@ -1251,11 +1260,13 @@ static void dispatch_syscall( ARM64_NT_CONTEXT *context )
+ }
+
+
+-static void * __attribute__((used)) prepare_exception_arm64ec( EXCEPTION_RECORD *rec, ARM64EC_NT_CONTEXT *context, ARM64_NT_CONTEXT *arm_ctx )
++static void * __attribute__((used)) prepare_exception_arm64ec( EXCEPTION_RECORD *rec, union ARM64EC_NT_XCONTEXT *context, ARM64_NT_CONTEXT *arm_ctx )
+ {
++    CONTEXT_EX *xctx;
+     if (rec->ExceptionCode == STATUS_EMULATION_SYSCALL) dispatch_syscall( arm_ctx );
+-    context_arm_to_x64( context, arm_ctx );
+-    if (pResetToConsistentState) pResetToConsistentState( rec, &context->AMD64_Context, arm_ctx );
++    RtlInitializeExtendedContext( context, ctx_flags_arm_to_x64( arm_ctx->ContextFlags ), &xctx );
++    context_arm_to_x64( &context->context, arm_ctx );
++    if (pResetToConsistentState) pResetToConsistentState( rec, &context->context.AMD64_Context, arm_ctx );
+     /* call x64 dispatcher if the thunk or the function pointer was modified */
+     if (pWow64PrepareForException || memcmp( KiUserExceptionDispatcher_thunk, KiUserExceptionDispatcher_orig,
+                                              sizeof(KiUserExceptionDispatcher_orig) ))
+@@ -1270,12 +1281,13 @@ void __attribute__((naked)) KiUserExceptionDispatcher( EXCEPTION_RECORD *rec, CO
+ {
+     asm( ".seh_proc \"#KiUserExceptionDispatcher\"\n\t"
+          ".seh_context\n\t"
+-         "sub sp, sp, #0x4d0\n\t"       /* sizeof(ARM64EC_NT_CONTEXT) */
+-         ".seh_stackalloc 0x4d0\n\t"
++         "sub sp, sp, #0xcd0\n\t"       /* sizeof(union ARM64EC_NT_XCONTEXT) */
++         ".seh_stackalloc 0xcd0\n\t"
+          ".seh_endprologue\n\t"
+-         "add x0, sp, #0x3b0+0x4d0\n\t" /* rec */
++         "add x0, sp, #0xcd0\n\t"
++         "add x0, x0, #0x3b0\n\t"       /* rec */
+          "mov x1, sp\n\t"               /* context */
+-         "add x2, sp, #0x4d0\n\t"       /* arm_ctx (context + 1) */
++         "add x2, sp, #0xcd0\n\t"       /* arm_ctx (context + 1) */
+          "bl \"#prepare_exception_arm64ec\"\n\t"
+          "cbz x0, 1f\n\t"
+          /* bypass exit thunk to avoid messing up the stack */
+@@ -1283,8 +1295,9 @@ void __attribute__((naked)) KiUserExceptionDispatcher( EXCEPTION_RECORD *rec, CO
+          "ldr x16, [x16, #:lo12:__os_arm64x_dispatch_call_no_redirect]\n\t"
+          "mov x9, x0\n\t"
+          "blr x16\n"
+-         "1:\tadd x0, sp, #0x3b0+0x4d0\n\t" /* rec */
+-         "mov x1, sp\n\t"                   /* context */
++         "1:\tadd x0, sp, #0xcd0\n\t"
++         "add x0, x0, #0x3b0\n\t"       /* rec */
++         "mov x1, sp\n\t"               /* context */
+          "bl #dispatch_exception\n\t"
+          "brk #1\n\t"
+          ".seh_endproc" );
+@@ -1298,11 +1311,12 @@ static void __attribute__((used)) dispatch_apc( void (CALLBACK *func)(ULONG_PTR,
+                                                 ULONG_PTR arg1, ULONG_PTR arg2, ULONG_PTR arg3,
+                                                 BOOLEAN alertable, ARM64_NT_CONTEXT *arm_ctx )
+ {
+-    ARM64EC_NT_CONTEXT context;
+-
+-    context_arm_to_x64( &context, arm_ctx );
+-    func( arg1, arg2, arg3, &context.AMD64_Context );
+-    NtContinue( &context.AMD64_Context, alertable );
++    union ARM64EC_NT_XCONTEXT context;
++    CONTEXT_EX *xctx;
++    RtlInitializeExtendedContext( &context, ctx_flags_arm_to_x64( arm_ctx->ContextFlags), &xctx );
++    context_arm_to_x64( &context.context, arm_ctx );
++    func( arg1, arg2, arg3, &context.context.AMD64_Context );
++    NtContinue( &context.context.AMD64_Context, alertable );
+ }
+ __ASM_GLOBAL_FUNC( "#KiUserApcDispatcher",
+                    ".seh_context\n\t"
+@@ -2057,7 +2071,9 @@ void __attribute__((naked)) RtlUserThreadStart( PRTL_THREAD_START_ROUTINE entry,
+  */
+ void WINAPI LdrInitializeThunk( CONTEXT *arm_context, ULONG_PTR unk2, ULONG_PTR unk3, ULONG_PTR unk4 )
+ {
+-    ARM64EC_NT_CONTEXT context;
++    union ARM64EC_NT_XCONTEXT context;
++    CONTEXT_EX *xctx;
++    RtlInitializeExtendedContext( &context, ctx_flags_arm_to_x64( arm_context->ContextFlags), &xctx );
+
+     if (!__os_arm64x_check_call)
+     {
+@@ -2068,10 +2084,10 @@ void WINAPI LdrInitializeThunk( CONTEXT *arm_context, ULONG_PTR unk2, ULONG_PTR
+         __os_arm64x_set_x64_information = LdrpSetX64Information;
+     }
+
+-    context_arm_to_x64( &context, (ARM64_NT_CONTEXT *)arm_context );
+-    loader_init( &context.AMD64_Context, (void **)&context.X0 );
+-    TRACE_(relay)( "\1Starting thread proc %p (arg=%p)\n", (void *)context.X0, (void *)context.X1 );
+-    NtContinue( &context.AMD64_Context, TRUE );
++    context_arm_to_x64( &context.context, (ARM64_NT_CONTEXT *)arm_context );
++    loader_init( &context.context.AMD64_Context, (void **)&context.context.X0 );
++    TRACE_(relay)( "\1Starting thread proc %p (arg=%p)\n", (void *)context.context.X0, (void *)context.context.X1 );
++    NtContinue( &context.context.AMD64_Context, TRUE );
+ }
+
+
+diff --git a/dlls/ntdll/signal_x86_64.c b/dlls/ntdll/signal_x86_64.c
+index f31bc01dda74..5cce97103ab7 100644
+--- a/dlls/ntdll/signal_x86_64.c
++++ b/dlls/ntdll/signal_x86_64.c
+@@ -83,7 +83,7 @@ __ASM_GLOBAL_FUNC( "EXP+#KiUserExceptionDispatcher",
+                    "test %rax,%rax\n\t"
+                    "jz 1f\n\t"
+                    "subq $0x28,%rsp\n\t"
+-                   "leaq 0x30+0x3b0+0x4d0(%rsp),%rcx\n\t" /* rec */
++                   "leaq 0x30+0x3b0+0xcd0(%rsp),%rcx\n\t" /* rec */
+                    "leaq 0x30(%rsp),%rdx\n\t"             /* context */
+                    "call *%rax\n"
+                    "addq $0x28,%rsp\n"
+diff --git a/dlls/ntdll/unwind.h b/dlls/ntdll/unwind.h
+index faca8a259fb6..71a4d23da043 100644
+--- a/dlls/ntdll/unwind.h
++++ b/dlls/ntdll/unwind.h
+@@ -36,6 +36,7 @@ static inline ULONG ctx_flags_x64_to_arm( ULONG flags )
+     if (flags & CONTEXT_AMD64_CONTROL) ret |= CONTEXT_ARM64_CONTROL;
+     if (flags & CONTEXT_AMD64_INTEGER) ret |= CONTEXT_ARM64_INTEGER;
+     if (flags & CONTEXT_AMD64_FLOATING_POINT) ret |= CONTEXT_ARM64_FLOATING_POINT;
++    if (flags & CONTEXT_AMD64_XSTATE) ret |= CONTEXT_ARM64_FEX_YMMSTATE;
+     return ret;
+ }
+
+@@ -47,6 +48,7 @@ static inline ULONG ctx_flags_arm_to_x64( ULONG flags )
+     if (flags & CONTEXT_ARM64_CONTROL) ret |= CONTEXT_AMD64_CONTROL;
+     if (flags & CONTEXT_ARM64_INTEGER) ret |= CONTEXT_AMD64_INTEGER;
+     if (flags & CONTEXT_ARM64_FLOATING_POINT) ret |= CONTEXT_AMD64_FLOATING_POINT;
++    if (flags & CONTEXT_ARM64_FEX_YMMSTATE) ret |= CONTEXT_AMD64_XSTATE;
+     return ret;
+ }
+
+@@ -166,6 +168,13 @@ static inline void context_x64_to_arm( ARM64_NT_CONTEXT *arm_ctx, const ARM64EC_
+     fpcsr = mxcsr_to_fpcsr( ec_ctx->AMD64_MxCsr );
+     arm_ctx->Fpcr = fpcsr;
+     arm_ctx->Fpsr = fpcsr >> 32;
++
++    if ((ec_ctx->ContextFlags & CONTEXT_XSTATE) == CONTEXT_XSTATE)
++    {
++        CONTEXT_EX *ec_xctx = (CONTEXT_EX *)(ec_ctx + 1);
++        YMMCONTEXT *ec_ymm = RtlLocateExtendedFeature( ec_xctx, XSTATE_AVX, NULL );
++        memcpy( arm_ctx->V + 16, ec_ymm, sizeof(*ec_ymm) );
++    }
+ }
+
+ static inline void context_arm_to_x64( ARM64EC_NT_CONTEXT *ec_ctx, const ARM64_NT_CONTEXT *arm_ctx )
+@@ -216,6 +225,13 @@ static inline void context_arm_to_x64( ARM64EC_NT_CONTEXT *ec_ctx, const ARM64_N
+     ec_ctx->X17_3 = arm_ctx->X17 >> 48;
+
+     memcpy( ec_ctx->V, arm_ctx->V, sizeof(ec_ctx->V) );
++
++    if ((arm_ctx->ContextFlags & CONTEXT_ARM64_FEX_YMMSTATE) == CONTEXT_ARM64_FEX_YMMSTATE)
++    {
++        CONTEXT_EX *ec_xctx = (CONTEXT_EX *)(ec_ctx + 1);
++        YMMCONTEXT *ec_ymm = RtlLocateExtendedFeature( ec_xctx, XSTATE_AVX, NULL );
++        memcpy( ec_ymm, arm_ctx->V + 16, sizeof(*ec_ymm) );
++    }
+ }
+
+ #endif /* __aarch64__ || __arm64ec__ */
+diff --git a/include/winnt.h b/include/winnt.h
+index 78833c2b1195..961e115a831e 100644
+--- a/include/winnt.h
++++ b/include/winnt.h
+@@ -1695,8 +1695,9 @@ typedef struct _KNONVOLATILE_CONTEXT_POINTERS
+ #define CONTEXT_ARM64_INTEGER         (CONTEXT_ARM64 | 0x00000002)
+ #define CONTEXT_ARM64_FLOATING_POINT  (CONTEXT_ARM64 | 0x00000004)
+ #define CONTEXT_ARM64_DEBUG_REGISTERS (CONTEXT_ARM64 | 0x00000008)
+-#define CONTEXT_ARM64_X18       (CONTEXT_ARM64 | 0x00000010)
+-#define CONTEXT_ARM64_XSTATE    (CONTEXT_ARM64 | 0x00000020)
++#define CONTEXT_ARM64_X18             (CONTEXT_ARM64 | 0x00000010)
++#define CONTEXT_ARM64_XSTATE          (CONTEXT_ARM64 | 0x00000020)
++#define CONTEXT_ARM64_FEX_YMMSTATE   (CONTEXT_ARM64 | 0x00000040)
+ #define CONTEXT_ARM64_FULL (CONTEXT_ARM64_CONTROL | CONTEXT_ARM64_INTEGER | CONTEXT_ARM64_FLOATING_POINT)
+ #define CONTEXT_ARM64_ALL  (CONTEXT_ARM64_FULL | CONTEXT_ARM64_DEBUG_REGISTERS | CONTEXT_ARM64_X18)
+
+diff --git a/programs/wineboot/wineboot.c b/programs/wineboot/wineboot.c
+index 2a50d38275d5..fec7bf39535e 100644
+--- a/programs/wineboot/wineboot.c
++++ b/programs/wineboot/wineboot.c
+@@ -376,6 +376,21 @@ static UINT64 read_tsc_frequency(void)
+
+ static void initialize_xstate_features(struct _KUSER_SHARED_DATA *data)
+ {
++    XSTATE_CONFIGURATION *xstate = &data->XState;
++
++    xstate->EnabledFeatures = (1 << XSTATE_LEGACY_FLOATING_POINT) | (1 << XSTATE_LEGACY_SSE) | (1 << XSTATE_AVX);
++    xstate->EnabledVolatileFeatures = xstate->EnabledFeatures;
++    xstate->AllFeatureSize = 0x340;
++
++    xstate->OptimizedSave = 0;
++    xstate->CompactionEnabled = 0;
++
++    xstate->Features[0].Size = xstate->AllFeatures[0] = offsetof(XSAVE_FORMAT, XmmRegisters);
++    xstate->Features[1].Size = xstate->AllFeatures[1] = sizeof(M128A) * 16;
++    xstate->Features[1].Offset = xstate->Features[0].Size;
++    xstate->Features[2].Offset = 0x240;
++    xstate->Features[2].Size = 0x100;
++    xstate->Size = 0x340;
+ }
+
+ static UINT64 read_tsc_frequency(void)
+
+From 9a12b778fbd7399eb8c8df59b88317d5e1937bbf Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Fri, 27 Sep 2024 11:29:21 +0000
+Subject: [PATCH 09/14] HACK: define some extra arm64ec symbols to workaround
+ llvm bugs
+
+---
+ aclocal.m4 | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/aclocal.m4 b/aclocal.m4
+index 598a82d1e6b2..b3981a0377a4 100644
+--- a/aclocal.m4
++++ b/aclocal.m4
+@@ -204,6 +204,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }]])],
+                [AS_VAR_SET(ac_var,yes)], [AS_VAR_SET(ac_var,no)])
+ CFLAGS=$ac_wine_try_cflags_saved
+
+From c10cfacb2c0c066024ddf7ffe6f280ab9ff40463 Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Wed, 17 Apr 2024 23:44:33 +0000
+Subject: [PATCH 10/14] Use FEX wow64/ARM64EC dll names
+
+---
+ dlls/ntdll/loader.c  | 3 +--
+ dlls/wow64/syscall.c | 2 +-
+ loader/wine.inf.in   | 4 ++--
+ 3 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/dlls/ntdll/loader.c b/dlls/ntdll/loader.c
+index 7a307b33f22b..c9a91f192b69 100644
+--- a/dlls/ntdll/loader.c
++++ b/dlls/ntdll/loader.c
+@@ -4223,7 +4223,7 @@ static void load_arm64ec_module(void)
+     ULONG buffer[16];
+     KEY_VALUE_PARTIAL_INFORMATION *info = (KEY_VALUE_PARTIAL_INFORMATION *)buffer;
+     UNICODE_STRING nameW = RTL_CONSTANT_STRING( L"\\Registry\\Machine\\Software\\Microsoft\\Wow64\\amd64" );
+-    WCHAR module[64] = L"C:\\windows\\system32\\xtajit64.dll";
++    WCHAR module[64] = L"C:\\windows\\system32\\libarm64ecfex.dll";
+     OBJECT_ATTRIBUTES attr;
+     WINE_MODREF *wm;
+     NTSTATUS status;
+@@ -4307,7 +4307,6 @@ static void init_wow64( CONTEXT *context )
+     pWow64LdrpInitialize( context );
+ }
+
+-
+ #else
+
+ void *Wow64Transition = NULL;
+diff --git a/dlls/wow64/syscall.c b/dlls/wow64/syscall.c
+index fbc687cc02a2..a71945411c48 100644
+--- a/dlls/wow64/syscall.c
++++ b/dlls/wow64/syscall.c
+@@ -745,7 +745,7 @@ static const WCHAR *get_cpu_dll_name(void)
+     {
+     case IMAGE_FILE_MACHINE_I386:
+         RtlInitUnicodeString( &nameW, L"\\Registry\\Machine\\Software\\Microsoft\\Wow64\\x86" );
+-        ret = (native_machine == IMAGE_FILE_MACHINE_ARM64 ? L"xtajit.dll" : L"wow64cpu.dll");
++        ret = (native_machine == IMAGE_FILE_MACHINE_ARM64 ? L"libwow64fex.dll" : L"wow64cpu.dll");
+         break;
+     case IMAGE_FILE_MACHINE_ARMNT:
+         RtlInitUnicodeString( &nameW, L"\\Registry\\Machine\\Software\\Microsoft\\Wow64\\arm" );
+diff --git a/loader/wine.inf.in b/loader/wine.inf.in
+index 0ce106749170..90c33160746a 100644
+--- a/loader/wine.inf.in
++++ b/loader/wine.inf.in
+@@ -439,9 +439,9 @@ HKLM,%CurrentVersion%,"ProgramFilesDir (x86)",,"%16426%"
+ HKLM,%CurrentVersion%,"CommonFilesDir (x86)",,"%16428%"
+ HKLM,%CurrentVersion%,"ProgramFilesDir (Arm)",,"C:\Program Files (Arm)"
+ HKLM,%CurrentVersion%,"CommonFilesDir (Arm)",,"C:\Program Files (Arm)\Common Files"
+-HKLM,Software\Microsoft\Wow64\amd64,,2,"xtajit64.dll"
++HKLM,Software\Microsoft\Wow64\amd64,,2,"libarm64ecfex.dll"
+ HKLM,Software\Microsoft\Wow64\arm,,2,"wowarmhw.dll"
+-HKLM,Software\Microsoft\Wow64\x86,,2,"xtajit.dll"
++HKLM,Software\Microsoft\Wow64\x86,,2,"libwow64fex.dll"
+
+ [CurrentVersionWow64.ntx86]
+ HKLM,%CurrentVersion%,"ProgramFilesDir (x86)",,"%16422%"
+
+From 7366fb7c1bde6d275a2f54c71f2bc8c8d3ae898d Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Tue, 1 Oct 2024 14:34:37 +0000
+Subject: [PATCH 11/14] Avoid MS-style inline ASM on i386 clang.
+
+---
+ dlls/dinput/dinput.c    | 4 ++--
+ dlls/riched20/txthost.c | 6 +++---
+ dlls/riched20/txtsrv.c  | 6 +++---
+ 3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/dlls/dinput/dinput.c b/dlls/dinput/dinput.c
+index f851e17a2448..0b65f667cc77 100644
+--- a/dlls/dinput/dinput.c
++++ b/dlls/dinput/dinput.c
+@@ -45,7 +45,7 @@ static inline struct dinput *impl_from_IDirectInput8W( IDirectInput8W *iface )
+     return CONTAINING_RECORD( iface, struct dinput, IDirectInput8W_iface );
+ }
+
+-#if defined __i386__ && defined _MSC_VER
++#if defined __i386__ && defined _MSC_VER && !defined __clang__
+ __declspec(naked) BOOL enum_callback_wrapper(void *callback, const void *instance, void *ref)
+ {
+     __asm
+@@ -59,7 +59,7 @@ __declspec(naked) BOOL enum_callback_wrapper(void *callback, const void *instanc
+         ret
+     }
+ }
+-#elif defined __i386__ && defined __GNUC__
++#elif defined __i386__
+ extern BOOL enum_callback_wrapper(void *callback, const void *instance, void *ref);
+ __ASM_GLOBAL_FUNC( enum_callback_wrapper,
+     "pushl %ebp\n\t"
+diff --git a/dlls/riched20/txthost.c b/dlls/riched20/txthost.c
+index 8ae804377733..6afd85ea200d 100644
+--- a/dlls/riched20/txthost.c
++++ b/dlls/riched20/txthost.c
+@@ -623,7 +623,7 @@ HRESULT __thiscall ITextHostImpl_TxGetHorzExtent( ITextHost2 *iface, LONG *horz_
+ #ifdef __ASM_USE_THISCALL_WRAPPER
+
+ #define STDCALL(func) (void *) __stdcall_ ## func
+-#ifdef _MSC_VER
++#if defined(_MSC_VER) && !defined(__clang__)
+ #define DEFINE_STDCALL_WRAPPER(num,func,args) \
+     __declspec(naked) HRESULT __stdcall_##func(void) \
+     { \
+@@ -633,7 +633,7 @@ HRESULT __thiscall ITextHostImpl_TxGetHorzExtent( ITextHost2 *iface, LONG *horz_
+         __asm mov eax, [ecx] \
+         __asm jmp dword ptr [eax + 4*num] \
+     }
+-#else /* _MSC_VER */
++#else /* defined(_MSC_VER) && !defined(__clang__) */
+ #define DEFINE_STDCALL_WRAPPER(num,func,args) \
+    extern HRESULT __stdcall_ ## func(void); \
+    __ASM_GLOBAL_FUNC(__stdcall_ ## func, \
+@@ -642,7 +642,7 @@ HRESULT __thiscall ITextHostImpl_TxGetHorzExtent( ITextHost2 *iface, LONG *horz_
+                    "pushl %eax\n\t" \
+                    "movl (%ecx), %eax\n\t" \
+                    "jmp *(4*(" #num "))(%eax)" )
+-#endif /* _MSC_VER */
++#endif /* defined(_MSC_VER) && !defined(__clang__) */
+
+ DEFINE_STDCALL_WRAPPER(3,ITextHostImpl_TxGetDC,4)
+ DEFINE_STDCALL_WRAPPER(4,ITextHostImpl_TxReleaseDC,8)
+diff --git a/dlls/riched20/txtsrv.c b/dlls/riched20/txtsrv.c
+index 5c63b3daf9af..ef1189c9a8ad 100644
+--- a/dlls/riched20/txtsrv.c
++++ b/dlls/riched20/txtsrv.c
+@@ -483,7 +483,7 @@ HRESULT __thiscall fnTextSrv_TxGetCachedSize(ITextServices *iface, DWORD *pdwWid
+ #ifdef __ASM_USE_THISCALL_WRAPPER
+
+ #define STDCALL(func) (void *) __stdcall_ ## func
+-#ifdef _MSC_VER
++#if defined(_MSC_VER) && !defined(__clang__)
+ #define DEFINE_STDCALL_WRAPPER(num,func) \
+     __declspec(naked) HRESULT __stdcall_##func(void) \
+     { \
+@@ -493,7 +493,7 @@ HRESULT __thiscall fnTextSrv_TxGetCachedSize(ITextServices *iface, DWORD *pdwWid
+         __asm mov eax, [ecx] \
+         __asm jmp dword ptr [eax + 4*num] \
+     }
+-#else /* _MSC_VER */
++#else /* defined(_MSC_VER) && !defined(__clang__) */
+ #define DEFINE_STDCALL_WRAPPER(num,func) \
+    extern HRESULT __stdcall_ ## func(void); \
+    __ASM_GLOBAL_FUNC(__stdcall_ ## func, \
+@@ -502,7 +502,7 @@ HRESULT __thiscall fnTextSrv_TxGetCachedSize(ITextServices *iface, DWORD *pdwWid
+                    "pushl %eax\n\t" \
+                    "movl (%ecx), %eax\n\t" \
+                    "jmp *(4*(" #num "))(%eax)" )
+-#endif /* _MSC_VER */
++#endif /* defined(_MSC_VER) && !defined(__clang__) */
+
+ DEFINE_STDCALL_WRAPPER(3, ITextServices_TxSendMessage)
+ DEFINE_STDCALL_WRAPPER(4, ITextServices_TxDraw)
+
+From 2685fb83be3de44654b5ab6c79479abc2f9c73ba Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Fri, 12 Apr 2024 20:04:31 +0000
+Subject: [PATCH 12/14] WIP: ntdll: ARM64EC thread suspension support
+
+---
+ dlls/ntdll/unix/signal_arm64.c | 31 ++++++++++++++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/dlls/ntdll/unix/signal_arm64.c b/dlls/ntdll/unix/signal_arm64.c
+index f0aac627604e..a083a146d0a6 100644
+--- a/dlls/ntdll/unix/signal_arm64.c
++++ b/dlls/ntdll/unix/signal_arm64.c
+@@ -229,6 +229,11 @@ void set_process_instrumentation_callback( void *callback )
+     if (callback) FIXME( "Not supported.\n" );
+ }
+
++static BOOLEAN is_arm64ec_emulator_stack( void *stack_ptr )
++{
++    return (ULONG64)stack_ptr <= NtCurrentTeb()->ChpeV2CpuAreaInfo->EmulatorStackBase &&
++           (ULONG64)stack_ptr > NtCurrentTeb()->ChpeV2CpuAreaInfo->EmulatorStackLimit;
++}
+
+ /***********************************************************************
+  *           syscall_frame_fixup_for_fastpath
+@@ -338,7 +343,19 @@ NTSTATUS signal_set_full_context( CONTEXT *context )
+     struct syscall_frame *frame = arm64_thread_data()->syscall_frame;
+     NTSTATUS status = NtSetContextThread( GetCurrentThread(), context );
+
+-    if (!status && (context->ContextFlags & CONTEXT_INTEGER) == CONTEXT_INTEGER)
++    if (is_arm64ec()) {
++        ULONG suspend_count;
++        NtQueryInformationThread( GetCurrentThread(), ThreadSuspendCount, &suspend_count, sizeof(suspend_count), NULL );
++        if (suspend_count) {
++            CONTEXT suspend_context;
++            suspend_context.ContextFlags = CONTEXT_FULL | CONTEXT_EXCEPTION_REPORTING; /* TODO: check */
++            NtGetContextThread( GetCurrentThread(), &suspend_context );
++            wait_suspend( &suspend_context );
++            NtSetContextThread( GetCurrentThread(), &suspend_context );
++        }
++    }
++
++    if (!status && (context->ContextFlags & CONTEXT_INTEGER) == CONTEXT_INTEGER) /* TODO: also check with susp */
+         frame->restore_flags |= CONTEXT_INTEGER;
+
+     if (is_arm64ec() && !is_ec_code( frame->pc ))
+@@ -433,7 +450,14 @@ NTSTATUS WINAPI NtGetContextThread( HANDLE handle, CONTEXT *context )
+
+     if (!self)
+     {
++        /* Avoid exposing JIT code pointers to other processes on ARM64EC */
+         NTSTATUS ret = get_thread_context( handle, context, &self, IMAGE_FILE_MACHINE_ARM64 );
++        if (is_arm64ec() && !self) {
++            NtSuspendThread( handle, NULL );
++            ret = get_thread_context( handle, context, &self, IMAGE_FILE_MACHINE_ARM64 );
++            NtResumeThread( handle, NULL );
++            return ret;
++        }
+         if (ret || !self) return ret;
+     }
+
+@@ -1291,9 +1315,14 @@ static void usr1_handler( int signal, siginfo_t *siginfo, void *sigcontext )
+         NtGetContextThread( GetCurrentThread(), &context );
+         wait_suspend( &context );
+         NtSetContextThread( GetCurrentThread(), &context );
++        /* TODO: check */
+     }
+     else
+     {
++        if (is_arm64ec() && NtCurrentTeb()->ChpeV2CpuAreaInfo->InSimulation) {
++            *NtCurrentTeb()->ChpeV2CpuAreaInfo->SuspendDoorbell = 1;
++            return;
++        }
+         save_context( &context, sigcontext );
+         context.ContextFlags |= CONTEXT_EXCEPTION_REPORTING;
+         wait_suspend( &context );
+
+From 9f371edafdfd9cd1edb2aa9e98276d8352d6b55f Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Wed, 21 Aug 2024 22:27:49 +0000
+Subject: [PATCH 13/14] ntdll: Setup the FEX SVE predicate reg after handling
+ signals.
+
+No WOA devices ship with SVE, so implementing this correctly by
+preserving the SVE state in xstate isn't really viable for now so just
+hardcode the FEX values.
+---
+ dlls/ntdll/unix/signal_arm64.c | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/dlls/ntdll/unix/signal_arm64.c b/dlls/ntdll/unix/signal_arm64.c
+index a083a146d0a6..96711bccf791 100644
+--- a/dlls/ntdll/unix/signal_arm64.c
++++ b/dlls/ntdll/unix/signal_arm64.c
+@@ -84,10 +84,20 @@ WINE_DEFAULT_DEBUG_CHANNEL(seh);
+ static struct _aarch64_ctx *get_extended_sigcontext( const ucontext_t *sigcontext, unsigned int magic )
+ {
+     struct _aarch64_ctx *ctx = (struct _aarch64_ctx *)sigcontext->uc_mcontext.__reserved;
+-    while ((char *)ctx < (char *)(&sigcontext->uc_mcontext + 1) && ctx->magic && ctx->size)
++    BOOL extra = FALSE;
++    while ((extra || (char *)ctx < (char *)(&sigcontext->uc_mcontext + 1)) && ctx->magic && ctx->size)
+     {
+         if (ctx->magic == magic) return ctx;
+-        ctx = (struct _aarch64_ctx *)((char *)ctx + ctx->size);
++
++        if (ctx->magic == EXTRA_MAGIC)
++        {
++            ctx = (struct _aarch64_ctx *)((struct extra_context *)ctx)->datap;
++            extra = TRUE;
++        }
++        else
++        {
++            ctx = (struct _aarch64_ctx *)((char *)ctx + ctx->size);
++        }
+     }
+     return NULL;
+ }
+@@ -97,6 +107,11 @@ static struct fpsimd_context *get_fpsimd_context( const ucontext_t *sigcontext )
+     return (struct fpsimd_context *)get_extended_sigcontext( sigcontext, FPSIMD_MAGIC );
+ }
+
++static struct sve_context *get_sve_context( const ucontext_t *sigcontext )
++{
++    return (struct sve_context *)get_extended_sigcontext( sigcontext, SVE_MAGIC );
++}
++
+ static DWORD64 get_fault_esr( ucontext_t *sigcontext )
+ {
+     struct esr_context *esr = (struct esr_context *)get_extended_sigcontext( sigcontext, ESR_MAGIC );
+@@ -1354,12 +1369,21 @@ static void usr2_handler( int signal, siginfo_t *siginfo, void *sigcontext )
+ #ifdef linux
+     {
+         struct fpsimd_context *fp = get_fpsimd_context( sigcontext );
++        struct sve_context *sve = get_sve_context( sigcontext );
+         if (fp)
+         {
+             fp->fpcr = frame->fpcr;
+             fp->fpsr = frame->fpsr;
+             memcpy( fp->vregs, frame->v, sizeof(fp->vregs) );
+         }
++
++        if (sve)
++        {
++            /* setup FEX SVE state */
++            ULONG64 vq = sve_vq_from_vl(sve->vl);
++            *(UINT16 *)((BYTE *)sve + SVE_SIG_PREG_OFFSET(vq, 2)) = 0x155;
++            *(UINT16 *)((BYTE *)sve + SVE_SIG_PREG_OFFSET(vq, 6)) = 0xffff;
++        }
+     }
+ #elif defined(__APPLE__)
+     context->uc_mcontext->__ns.__fpcr = frame->fpcr;
+
+From c1bb2b51a60a43a86eb4f63b9a25cc4d0b2fc7b6 Mon Sep 17 00:00:00 2001
+From: Billy Laws <blaws05@gmail.com>
+Date: Wed, 30 Apr 2025 14:50:10 +0100
+Subject: [PATCH 14/14] autoreconf
+
+---
+ configure | 220 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 218 insertions(+), 2 deletions(-)
+
+diff --git a/configure b/configure
+index a0a8c0d01622..6a3ceae84b5d 100755
+--- a/configure
++++ b/configure
+@@ -7756,6 +7756,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -7797,6 +7803,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8021,6 +8033,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8061,6 +8079,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8101,6 +8125,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8141,6 +8171,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8181,6 +8217,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8221,6 +8263,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8261,6 +8309,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8301,6 +8355,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8341,6 +8401,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8381,6 +8447,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8421,6 +8493,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8461,6 +8539,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8501,6 +8585,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8541,6 +8631,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8581,6 +8677,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8621,6 +8723,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8661,6 +8769,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8701,6 +8815,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8741,6 +8861,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8781,6 +8907,12 @@ const unsigned int _load_config_used0x50 = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8823,6 +8955,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8864,6 +9002,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8906,6 +9050,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8948,6 +9098,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -8988,6 +9144,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -9028,6 +9190,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -9068,6 +9236,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -9108,6 +9282,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -9148,6 +9328,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -9188,6 +9374,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -9251,6 +9443,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -9292,6 +9490,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -9332,6 +9536,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -9376,6 +9586,12 @@ const unsigned int _load_config_used[0x50] = { sizeof(_load_config_used) };
+ #if defined(__clang_major__) && defined(MIN_CLANG_VERSION) && __clang_major__ < MIN_CLANG_VERSION
+ #error Too old clang version
+ #endif
++void *__os_arm64x_dispatch_call_no_redirect = 0;
++void *memcpy() {};
++void *__os_arm64x_check_icall =0;
++void *memset() {};
++void *memmove() {};
++
+ int __cdecl mainCRTStartup(void) { return 0; }
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+@@ -22055,7 +22271,7 @@ fi ;;
+ esac
+
+
+-enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec}
++enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec,aarch64}
+
+ if test -n "$PE_ARCHS"
+ then
+@@ -22083,7 +22299,7 @@ enable_wuauserv=${enable_wuauserv:-$HOST_ARCH}
+
+ enable_cmd=${enable_cmd:-yes}
+ enable_dllhost=${enable_dllhost:-yes}
+-enable_dpnsvr=${enable_dpnsvr:-i386,x86_64,arm64ec}
++enable_dpnsvr=${enable_dpnsvr:-i386,x86_64,arm64ec,aarch64}
+ enable_dxdiag=${enable_dxdiag:-yes}
+ enable_msiexec=${enable_msiexec:-yes}
+ enable_netsh=${enable_netsh:-yes}
