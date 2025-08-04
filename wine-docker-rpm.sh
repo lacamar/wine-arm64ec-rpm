@@ -14,7 +14,7 @@ set -eouv
 
 
 #   Create temporary nested script to run inside docker   #
-cp wine-arm64ec-compat.patch $SCRIPT_DIR
+cp 2025.07.27_bylaws-wine_upstream-arm64ec.patch $SCRIPT_DIR
 cp wine-arm64ec.spec $SCRIPT_DIR/wine.spec
 cp fex-emu-wine.spec $SCRIPT_DIR
 cd $SCRIPT_DIR
@@ -31,7 +31,7 @@ cd "${BUILD_DIR}"
 dnf download --source ${PACKAGE}
 rpm -ivh ${PACKAGE}-*.src.rpm
 
-cp "/host/wine-arm64ec-compat.patch" "${BUILD_DIR}/SOURCES/wine-arm64ec-compat.patch"
+cp "/host/2025.07.27_bylaws-wine_upstream-arm64ec.patch" "${BUILD_DIR}/SOURCES/2025.07.27_bylaws-wine_upstream-arm64ec.patch"
 dnf builddep -y "/host/${PACKAGE}.spec" --allowerasing
 dnf builddep -y "/host/fex-emu-wine.spec" --allowerasing
 
@@ -56,7 +56,7 @@ docker run -e PACKAGE=${PACKAGE} -e VERSION=${VERSION} -e RELEASE=${RELEASE} -e 
 
 #   Exiting to host   #
 rm "$TMP_SCRIPT"
-rm wine-arm64ec-compat.patch
+rm 2025.07.27_bylaws-wine_upstream-arm64ec.patch
 rm *.spec
 
 #   Execute setup script   #
