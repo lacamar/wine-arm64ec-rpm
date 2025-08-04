@@ -17,5 +17,5 @@ Add the Copr repo and install the packages it provides to use Wine without havin
 
 ```
 sudo dnf copr enable lacamar/wine-arm64ec
-sudo dnf install fex-emu-wine "wine-*"
+sudo dnf install fex-emu-wine wine
 ```
