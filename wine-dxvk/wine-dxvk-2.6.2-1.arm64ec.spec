@@ -1,41 +1,14 @@
 %global debug_package %{nil}
-%{?mingw_package_header}
 
-
-%ifarch x86_64
-%global winepedir x86_64-windows
-%global target_x86_type 64
-%global mingw_sysroot %mingw64_sysroot
-%global mingw_build_win64 1
-%global mingw_build_win32 0
-%endif
-
-%ifarch %{ix86}
-%global winepedir i386-windows
-%global target_x86_type 32
-%global mingw_sysroot %mingw32_sysroot
-%global mingw_build_win64 0
-%global mingw_build_win32 1
-%endif
-
-%ifarch aarch64
 %global winepedir aarch64-windows
-%global winepedirs %{winepedir}
-%global target_x86_type 64
-%global mingw_sysroot %mingw64_sysroot
-%global mingw_build_win64 1
-%global mingw_build_win32 0
 %global __brp_llvm_compile_lto_elf %nil
 %global __brp_strip_lto %nil
 %global __brp_strip_static_archive %nil
-%endif
-
-
 
 Name:           wine-dxvk
 Version:        2.6.2
 Release:        1.arm64ec%{?dist}
-Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine
+Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 
 License:        zlib AND MIT
 URL:            https://github.com/doitsujin/dxvk
@@ -78,7 +51,6 @@ BuildRequires:  glslang
 BuildRequires:  meson
 BuildRequires:  wine-devel
 
-%ifarch x86_64 aarch64
 BuildRequires:  mingw64-filesystem
 BuildRequires:  mingw64-binutils
 BuildRequires:  mingw64-headers
@@ -88,38 +60,24 @@ BuildRequires:  mingw64-gcc-c++
 BuildRequires:  mingw64-winpthreads-static
 BuildRequires:  mingw64-vulkan-headers
 BuildRequires:  mingw64-spirv-headers
-%else
-BuildRequires:  mingw32-filesystem
-BuildRequires:  mingw32-binutils
-BuildRequires:  mingw32-headers
-BuildRequires:  mingw32-cpp
-BuildRequires:  mingw32-gcc
-BuildRequires:  mingw32-gcc-c++
-BuildRequires:  mingw32-winpthreads-static
-BuildRequires:  mingw32-vulkan-headers
-BuildRequires:  mingw32-spirv-headers
-%endif
 
 Requires(pre):  vulkan-tools
 
-Requires:       wine-core%{?_isa}
-Requires:       wine-dxvk-dxgi%{?_isa} = %{version}-%{release}
-Requires:       vulkan-loader%{?_isa}
+Requires:       wine-core
+Requires:       wine-dxvk-dxgi = %{version}-%{release}
+Requires:       vulkan-loader
 
 # We want x86_64 users to always have also 32 bit lib, it's the same what wine does
-%ifarch x86_64
-Requires:       wine-dxvk(x86-32) = %{version}-%{release}
-%endif
 
 # Recommend also d3d8, d3d9, and d3d10
-Recommends:     wine-dxvk-d3d8%{?_isa}  = %{version}-%{release}
-Recommends:     wine-dxvk-d3d9%{?_isa}  = %{version}-%{release}
-Recommends:     wine-dxvk-d3d10%{?_isa} = %{version}-%{release}
+Recommends:     wine-dxvk-d3d8  = %{version}-%{release}
+Recommends:     wine-dxvk-d3d9  = %{version}-%{release}
+Recommends:     wine-dxvk-d3d10 = %{version}-%{release}
 
-Requires(posttrans):   %{_sbindir}/alternatives wine-core%{?_isa}
+Requires(posttrans):   %{_sbindir}/alternatives wine-core
 Requires(preun):       %{_sbindir}/alternatives
 
-ExclusiveArch:  %{ix86} x86_64 aarch64
+ExclusiveArch:  aarch64
 
 Provides:       bundled(libdisplay-info) = 0.3.0~dev^git275e645
 
@@ -128,9 +86,6 @@ Provides:       bundled(libdisplay-info) = 0.3.0~dev^git275e645
 
 %package dxgi
 Summary:        DXVK DXGI implementation
-%ifarch x86_64
-Requires:       wine-dxvk-dxgi(x86-32) = %{version}-%{release}
-%endif
 
 %description dxgi
 %{summary}
@@ -141,12 +96,7 @@ it should be installed and overridden per prefix.
 %package d3d10
 Summary:        DXVK D3D10 implementation
 
-Requires:       wine-dxvk%{?_isa} = %{version}-%{release}
-
-# We want x86_64 users to always have also 32 bit lib, it's the same what wine does
-%ifarch x86_64
-Requires:       wine-dxvk-d3d10(x86-32) = %{version}-%{release}
-%endif
+Requires:       wine-dxvk = %{version}-%{release}
 
 %description d3d10
 %{summary}
@@ -154,12 +104,7 @@ Requires:       wine-dxvk-d3d10(x86-32) = %{version}-%{release}
 %package d3d9
 Summary:        DXVK D3D9 implementation
 
-Requires:       wine-dxvk%{?_isa} = %{version}-%{release}
-
-# We want x86_64 users to always have also 32 bit lib, it's the same what wine does
-%ifarch x86_64
-Requires:       wine-dxvk-d3d9(x86-32) = %{version}-%{release}
-%endif
+Requires:       wine-dxvk = %{version}-%{release}
 
 %description d3d9
 %{summary}
@@ -167,12 +112,7 @@ Requires:       wine-dxvk-d3d9(x86-32) = %{version}-%{release}
 %package d3d8
 Summary:        DXVK D3D8 implementation
 
-Requires:       wine-dxvk%{?_isa} = %{version}-%{release}
-
-# We want x86_64 users to always have also 32 bit lib, it's the same what wine does
-%ifarch x86_64
-Requires:       wine-dxvk-d3d8(x86-32) = %{version}-%{release}
-%endif
+Requires:       wine-dxvk = %{version}-%{release}
 
 %description d3d8
 %{summary}
@@ -261,6 +201,13 @@ else
     %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d9.dll 'wine-d3d9%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d9.dll 20
 fi
 
+%posttrans d3d8
+if vulkaninfo |& grep "ERROR_INITIALIZATION_FAILED\|ERROR_SURFACE_LOST_KHR\|Vulkan support is incomplete" > /dev/null; then
+    %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d8.dll 'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d8.dll 5
+else
+    %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d8.dll 'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d8.dll 20
+fi
+
 %postun
 %{_sbindir}/alternatives --remove 'wine-d3d11%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d11.dll
 
@@ -269,6 +216,9 @@ fi
 
 %postun d3d9
 %{_sbindir}/alternatives --remove 'wine-d3d9%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d9.dll
+
+%postun d3d8
+%{_sbindir}/alternatives --remove 'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d8.dll
 
 %postun dxgi
 %{_sbindir}/alternatives --remove 'wine-dxgi%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
