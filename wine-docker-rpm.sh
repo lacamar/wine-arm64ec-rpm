@@ -7,12 +7,13 @@ Press enter to continue
 FEDORA_VERSION=42
 
 WINE_VERSION=10.12
-WINE_RELEASE=1.arm64ec
-WINE_TARGET="wine-${WINE_VERSION}-${WINE_RELEASE}"
+WINE_TARGET="wine-${WINE_VERSION}"
 
-FEX_VERSION=2508
-FEX_RELEASE=1
-FEX_TARGET="fex-emu-wine-${FEX_VERSION}-${FEX_RELEASE}"
+FEX_VERSION=2508.1
+FEX_TARGET="fex-emu-wine-${FEX_VERSION}"
+
+DXVK_VERSION=2.7
+DXVK_TARGET="wine-dxvk-${DXVK_VERSION}"
 
 SCRIPT_DIR="${PWD}/${WINE_TARGET}_${FEX_TARGET}"
 mkdir -p $SCRIPT_DIR
@@ -25,6 +26,7 @@ echo "Building ${WINE_TARGET} and ${FEX_TARGET}
 cp wine/*.patch $SCRIPT_DIR
 cp wine/${WINE_TARGET}.spec $SCRIPT_DIR/wine.spec
 cp fex-emu-wine/${FEX_TARGET}.spec $SCRIPT_DIR/fex-emu-wine.spec
+cp wine-dxvk/${DXVK_TARGET}.spec $SCRIPT_DIR/wine-dxvk.spec
 cd $SCRIPT_DIR
 
 #   Create temporary nested script to run inside docker   #
@@ -43,11 +45,14 @@ rpm -ivh wine-*.src.rpm
 cp /host/*.patch "${BUILD_DIR}/SOURCES/"
 dnf builddep -y "/host/fex-emu-wine.spec" --allowerasing
 dnf builddep -y "/host/wine.spec" --allowerasing
+# dnf builddep -y "/host/wine-dxvk.spec" --allowerasing
 
 spectool -g -R "/host/fex-emu-wine.spec"
 spectool -g -R "/host/wine.spec"
+# spectool -g -R "/host/wine-dxvk.spec"
 rpmbuild -ba "/host/fex-emu-wine.spec"
 rpmbuild -ba "/host/wine.spec"
+# rpmbuild -ba "/host/wine-dvxk.spec"
 cp -r ${BUILD_DIR}/RPMS/aarch64/* /out/
 cp -r ${BUILD_DIR}/RPMS/noarch/* /out/
 exit
