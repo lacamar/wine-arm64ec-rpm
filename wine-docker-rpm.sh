@@ -1,12 +1,13 @@
 #!/usr/bin/sh
 read -p "Wine ARM64EC Docker build script
-Fedora 42 required
+Fedora 42+ required
+
 Press enter to continue
 "
 
 FEDORA_VERSION=42
 
-WINE_VERSION=10.12
+WINE_VERSION=10.8
 WINE_TARGET="wine-${WINE_VERSION}"
 
 FEX_VERSION=2508.1
@@ -19,7 +20,7 @@ SCRIPT_DIR="${PWD}/${WINE_TARGET}_${FEX_TARGET}"
 mkdir -p $SCRIPT_DIR
 
 set -eu
-echo "Building ${WINE_TARGET} and ${FEX_TARGET}
+echo "Building ${WINE_TARGET} and ${FEX_TARGET} (latest release).
 "
 
 # Copying needed files to build output directory visible in docker
@@ -61,11 +62,59 @@ chmod +x "$TMP_SCRIPT"
 
 #   Create setup script for installing the built packages.   #
 cat > "setup-wine.sh" <<'EOF'
-read -p "Installing wine and fex-emu-wine packages
+read -p "Installing wine and fex-emu-wine packages.
+Press enter
 "
-sudo dnf install ./*arch*.rpm --skip-unavailable
+sudo dnf install \
+--skip-broken \
+--skip-unavailable \
+--allowerasing \
+./fex-emu-wine-*.aarch64.rpm \
+./wine-*.aarch64.rpm \
+./wine-alsa-*.aarch64.rpm \
+./wine-alsa-debuginfo-*.aarch64.rpm \
+./wine-arial-fonts-*.noarch.rpm \
+./wine-cms-*.aarch64.rpm \
+./wine-common-*.noarch.rpm \
+./wine-core-*.aarch64.rpm \
+./wine-core-debuginfo-*.aarch64.rpm \
+./wine-courier-fonts-*.noarch.rpm \
+./wine-debuginfo-*.aarch64.rpm \
+./wine-debugsource-*.aarch64.rpm \
+./wine-desktop-*.noarch.rpm \
+./wine-devel-*.aarch64.rpm \
+./wine-devel-debuginfo-*.aarch64.rpm \
+./wine-filesystem-*.noarch.rpm \
+./wine-fixedsys-fonts-*.noarch.rpm \
+./wine-fonts-*.noarch.rpm \
+./wine-ldap-*.aarch64.rpm \
+./wine-marlett-fonts-*.noarch.rpm \
+./wine-ms-sans-serif-fonts-*.noarch.rpm \
+./wine-opencl-*.aarch64.rpm \
+./wine-opencl-debuginfo-*.aarch64.rpm \
+./wine-pulseaudio-*.aarch64.rpm \
+./wine-pulseaudio-debuginfo-*.aarch64.rpm \
+./wine-small-fonts-*.noarch.rpm \
+./wine-smartcard-*.aarch64.rpm \
+./wine-smartcard-debuginfo-*.aarch64.rpm \
+./wine-symbol-fonts-*.noarch.rpm \
+./wine-systemd-*.noarch.rpm \
+./wine-system-fonts-*.noarch.rpm \
+./wine-tahoma-fonts-*.noarch.rpm \
+./wine-tahoma-fonts-system-*.noarch.rpm \
+./wine-times-new-roman-fonts-*.noarch.rpm \
+./wine-times-new-roman-fonts-system-*.noarch.rpm \
+./wine-twain-*.aarch64.rpm \
+./wine-twain-debuginfo-*.aarch64.rpm \
+./wine-webdings-fonts-*.noarch.rpm \
+./wine-wingdings-fonts-*.noarch.rpm \
+./wine-wingdings-fonts-system-*.noarch.rpm \
+./wine-w*-*.noarch.rpm \
+./wine-*o*64.rpm
 
-read -p "Updating current wine prefix
+read -p "
+Updating current wine prefix.
+Press enter
 "
 wineboot -u
 EOF
