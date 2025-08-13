@@ -295,6 +295,9 @@ Requires(preun):       %{_sbindir}/alternatives
 # require -filesystem
 Requires:       wine-filesystem = %{version}-%{release}
 
+Conflicts:     wine-core
+Provides:      wine-core%{?_isa} wine-core
+
 %ifarch %{ix86}
 # CUPS support uses dlopen - rhbz#1367537
 Requires:       cups-libs(x86-32)
@@ -403,6 +406,9 @@ Requires(post):  systemd
 Requires(postun): systemd
 Obsoletes:      wine-sysvinit < %{version}-%{release}
 
+Conflicts:     wine-systemd
+Provides:      wine-systemd
+
 %description systemd
 Register the wine binary handler for windows executables via systemd binfmt
 handling. See man binfmt.d for further information.
@@ -411,6 +417,9 @@ handling. See man binfmt.d for further information.
 Summary:        Filesystem directories for wine
 BuildArch:      noarch
 
+Conflicts:     wine-filesystem
+Provides:      wine-filesystem
+
 %description filesystem
 Filesystem directories and basic configuration for wine.
 
@@ -418,6 +427,9 @@ Filesystem directories and basic configuration for wine.
 Summary:        Common files
 Requires:       wine-core = %{version}-%{release}
 BuildArch:      noarch
+
+Conflicts:     wine-common
+Provides:      wine-common
 
 %description common
 Common wine files and scripts.
@@ -431,6 +443,9 @@ Requires:       wine-common = %{version}-%{release}
 Requires:       wine-systemd = %{version}-%{release}
 Requires:       hicolor-icon-theme
 BuildArch:      noarch
+
+Conflicts:     wine-desktop
+Provides:      wine-desktop
 
 %description desktop
 Desktop integration features for wine, including mime-types and a binary format
@@ -470,6 +485,9 @@ Requires:      wine-wingdings-fonts = %{version}-%{release}
 Requires:      liberation-sans-fonts liberation-serif-fonts liberation-mono-fonts
 Requires:      liberation-narrow-fonts
 
+Conflicts:     wine-fonts
+Provides:      wine-fonts
+
 %description fonts
 %{summary}
 
@@ -478,6 +496,9 @@ Requires:      liberation-narrow-fonts
 Summary:       Wine Arial font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+
+Conflicts:     wine-arial-fonts
+Provides:      wine-arial-fonts
 
 %description arial-fonts
 %{summary}
@@ -489,6 +510,9 @@ Summary:       Wine Courier font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 
+Conflicts:     wine-courier-fonts
+Provides:      wine-courier-fonts
+
 %description courier-fonts
 %{summary}
 
@@ -496,6 +520,9 @@ Requires:      fontpackages-filesystem
 Summary:       Wine Fixedsys font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+
+Conflicts:     wine-fixedsys-fonts
+Provides:      wine-fixedsys-fonts
 
 %description fixedsys-fonts
 %{summary}
@@ -505,6 +532,9 @@ Summary:       Wine Small font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 
+Conflicts:     wine-small-fonts
+Provides:      wine-small-fonts
+
 %description small-fonts
 %{summary}
 
@@ -512,6 +542,9 @@ Requires:      fontpackages-filesystem
 Summary:       Wine System font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+
+Conflicts:     wine-system-fonts
+Provides:      wine-system-fonts
 
 %description system-fonts
 %{summary}
@@ -522,6 +555,9 @@ Summary:       Wine Marlett font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 
+Conflicts:     wine-marlett-fonts
+Provides:      wine-marlett-fonts
+
 %description marlett-fonts
 %{summary}
 
@@ -530,6 +566,9 @@ Requires:      fontpackages-filesystem
 Summary:       Wine MS Sans Serif font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+
+Conflicts:     wine-ms-sans-serif-fonts
+Provides:      wine-ms-sans-serif-fonts
 
 %description ms-sans-serif-fonts
 %{summary}
@@ -540,6 +579,9 @@ Requires:      fontpackages-filesystem
 Summary:       Wine Tahoma font family
 BuildArch:     noarch
 Requires:      wine-filesystem = %{version}-%{release}
+
+Conflicts:     wine-tahoma-fonts
+Provides:      wine-tahoma-fonts
 
 %description tahoma-fonts
 %{summary}
@@ -552,6 +594,9 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Requires:      wine-tahoma-fonts = %{version}-%{release}
 
+Conflicts:     wine-tahoma-fonts-system
+Provides:      wine-tahoma-fonts-system
+
 %description tahoma-fonts-system
 %{summary}
 
@@ -560,6 +605,9 @@ Requires:      wine-tahoma-fonts = %{version}-%{release}
 Summary:       Wine Times New Roman font family
 BuildArch:     noarch
 Requires:      wine-filesystem = %{version}-%{release}
+
+Conflicts:     wine-times-new-roman-fonts
+Provides:      wine-times-new-roman-fonts
 
 %description times-new-roman-fonts
 %{summary}
@@ -572,6 +620,9 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Requires:      wine-times-new-roman-fonts = %{version}-%{release}
 
+Conflicts:     wine-times-new-roman-fonts-system
+Provides:      wine-times-new-roman-fonts-system
+
 %description times-new-roman-fonts-system
 %{summary}
 %endif
@@ -581,6 +632,9 @@ Summary:       Wine Symbol font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 
+Conflicts:     wine-symbol-fonts
+Provides:      wine-symbol-fonts
+
 %description symbol-fonts
 %{summary}
 
@@ -589,6 +643,9 @@ Summary:       Wine Webdings font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 
+Conflicts:     wine-webdings-fonts
+Provides:      wine-webdings-fonts
+
 %description webdings-fonts
 %{summary}
 
@@ -596,6 +653,9 @@ Requires:      fontpackages-filesystem
 Summary:       Wine Wingdings font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+
+Conflicts:     wine-wingdings-fonts
+Provides:      wine-wingdings-fonts
 
 %description wingdings-fonts
 %{summary}
@@ -608,6 +668,9 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Requires:      wine-wingdings-fonts = %{version}-%{release}
 
+Conflicts:     wine-wingdings-fonts-system
+Provides:      wine-wingdings-fonts-system
+
 %description wingdings-fonts-system
 %{summary}
 
@@ -616,6 +679,9 @@ Requires:      wine-wingdings-fonts = %{version}-%{release}
 Summary: LDAP support for wine
 Requires: wine-core = %{version}-%{release}
 
+Conflicts:     wine-ldap
+Provides:      wine-ldap%{?_isa} wine-ldap
+
 %description ldap
 LDAP support for wine
 
@@ -623,12 +689,18 @@ LDAP support for wine
 Summary: Color Management for wine
 Requires: wine-core = %{version}-%{release}
 
+Conflicts:     wine-cms
+Provides:      wine-cms%{?_isa} wine-cms
+
 %description cms
 Color Management for wine
 
 %package smartcard
 Summary: Smart card support for wine
 Requires: wine-core = %{version}-%{release}
+
+Conflicts:     wine-smartcard
+Provides:      wine-smartcard%{?_isa} wine-smartcard
 
 %description smartcard
 Smart card support for wine
@@ -646,12 +718,18 @@ Requires: sane-backends-libs(x86-64)
 Requires: sane-backends-libs
 %endif
 
+Conflicts:     wine-twain
+Provides:      wine-twain%{?_isa} wine-twain
+
 %description twain
 Twain support for wine
 
 %package devel
 Summary: Wine development environment
 Requires: wine-core = %{version}-%{release}
+
+Conflicts:     wine-devel
+Provides:      wine-devel%{?_isa} wine-devel
 
 %description devel
 Header, include files and library definition files for developing applications
@@ -663,12 +741,18 @@ Requires: wine-core = %{version}-%{release}
 # midi output
 Requires: wine-alsa%{?_isa} = %{version}-%{release}
 
+Conflicts:     wine-pulseaudio
+Provides:      wine-pulseaudio%{?_isa} wine-pulseaudio
+
 %description pulseaudio
 This package adds a pulseaudio driver for wine.
 
 %package alsa
 Summary: Alsa support for wine
 Requires: wine-core = %{version}-%{release}
+
+Conflicts:     wine-alsa
+Provides:      wine-alsa%{?_isa} wine-alsa
 
 %description alsa
 This package adds an alsa driver for wine.
@@ -677,6 +761,9 @@ This package adds an alsa driver for wine.
 %package opencl
 Summary: OpenCL support for wine
 Requires: wine-core = %{version}-%{release}
+
+Conflicts:     wine-opencl
+Provides:      wine-opencl%{?_isa} wine-opencl
 
 %description opencl
 This package adds the opencl driver for wine.
