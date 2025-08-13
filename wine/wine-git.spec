@@ -55,7 +55,7 @@
 %endif
 # 0%%{?fedora}
 
-Name:           wine
+Name:           wine-git
 Version:        %{date}.%{wine_shortcommit}
 Release:        1.arm64ec%{?dist}
 Summary:        A compatibility layer for windows applications
@@ -116,6 +116,9 @@ ExclusiveArch:  %{ix86} x86_64 aarch64
 %else
 ExclusiveArch:  %{ix86}
 %endif
+
+Conflicts:      wine
+Provides:       wine
 
 BuildRequires:  bison
 BuildRequires:  flex
