@@ -4,7 +4,7 @@
 
 # Full commit and short commit reference for wine-git
 %global date 20250813
-%global wine_commit 91d3874b6528cb71b346c1d114914bcfd4e677a2
+%global wine_commit b822e25ed2d52c53df7d9474defc7b704eb2bf1e
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
 %global staging_commit e2390e2637df90c73b6e318d1fcf00b98e1ef380
