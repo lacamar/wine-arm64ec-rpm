@@ -1,4 +1,4 @@
-# wine-aarch64-rpm-builder
+# wine-aarch64-rpm
 This is a script for building Wine and FEXEmu Wine DLLs RPMs with experimental ARM64EC support. The script also installs these packages automatically once the build is finished.
 
 This will let you run Windows 32bit and 64bit software on an aarch64 16k Linux host (e.g. Asahi Linux).
