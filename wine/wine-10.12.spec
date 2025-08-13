@@ -47,7 +47,7 @@
 
 Name:           wine
 Version:        10.12
-Release:        3.arm64ec%{?dist}
+Release:        4.arm64ec%{?dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -91,7 +91,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:      2025.08.07_bylaws-wine_upstream-arm64ec.patch
+Patch600:      2025.08.11_bylaws-wine_upstream-arm64ec.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -673,7 +673,6 @@ This package adds the opencl driver for wine.
 %prep
 %setup -qn wine-%{version}
 %patch -P 511 -p1 -b.cjk
-%patch -P 600 -p1
 
 %if 0%{?wine_staging}
 # setup and apply wine-staging patches
@@ -683,6 +682,9 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
+%patch -P 600 -p1 -F2
+cp -vf dlls/user32/tests/testdll.c dlls/ntdll/tests/
+cp -vf dlls/user32/tests/testdll.spec dlls/ntdll/tests/
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2249,6 +2251,9 @@ fi
 %endif
 
 %changelog
+* Wed Aug 13 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-4.arm64ec
+- Updated bylaws patchset to latest git commit fcc776b
+
 * Sun Aug 10 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-3.arm64ec
 - Updated bylaws patchset to latest git commit b0575a5
 
