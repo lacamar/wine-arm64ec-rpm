@@ -2,16 +2,6 @@
 # https://gitlab.winehq.org/wine/wine/-/releases/wine-9.0#wow64
 %bcond new_wow64 1
 
-# Full commit and short commit reference for wine-git
-%global date 20250813
-%global wine_commit b822e25ed2d52c53df7d9474defc7b704eb2bf1e
-%{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
-
-%global staging_commit e2390e2637df90c73b6e318d1fcf00b98e1ef380
-%{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
-
-
-
 # Compiling the preloader fails with hardening enabled
 %undefine _hardened_build
 
@@ -55,14 +45,15 @@
 %endif
 # 0%%{?fedora}
 
-Name:           wine-git
-Version:        %{date}.%{wine_shortcommit}
+Name:           wine
+Version:        10.13
 Release:        1.arm64ec%{?dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
 URL:            https://www.winehq.org/
-Source0:        https://gitlab.winehq.org/wine/wine/-/archive/%{wine_shortcommit}/wine-%{wine_shortcommit}.tar.gz
+Source0:        https://dl.winehq.org/wine/source/10.x/wine-%{version}.tar.xz
+Source10:       https://dl.winehq.org/wine/source/10.x/wine-%{version}.tar.xz.sign
 
 Source1:        wine.systemd
 Source2:        wine-README-Fedora
@@ -106,7 +97,7 @@ Patch600:      2025.08.11_bylaws-wine_upstream-arm64ec.patch
 %if 0%{?wine_staging}
 # wine-staging patches
 # pulseaudio-patch is covered by that patch-set, too.
-Source900:        https://gitlab.winehq.org/wine/wine-staging/-/archive/%{staging_shortcommit}/wine-staging-%{staging_shortcommit}.tar.gz
+Source900: https://github.com/wine-staging/wine-staging/archive/v%{version}.tar.gz#/wine-staging-%{version}.tar.gz
 %endif
 
 %if !%{?no64bit}
@@ -116,9 +107,6 @@ ExclusiveArch:  %{ix86} x86_64 aarch64
 %else
 ExclusiveArch:  %{ix86}
 %endif
-
-Conflicts:      wine
-Provides:       wine = %{version}-%{release}
 
 BuildRequires:  bison
 BuildRequires:  flex
@@ -295,10 +283,6 @@ Requires(preun):       %{_sbindir}/alternatives
 # require -filesystem
 Requires:       wine-filesystem = %{version}-%{release}
 
-Conflicts:     wine-core
-Provides:      wine-core%{?_isa} = %{version}-%{release}
-Provides:      wine-core = %{version}-%{release}
-
 %ifarch %{ix86}
 # CUPS support uses dlopen - rhbz#1367537
 Requires:       cups-libs(x86-32)
@@ -407,9 +391,6 @@ Requires(post):  systemd
 Requires(postun): systemd
 Obsoletes:      wine-sysvinit < %{version}-%{release}
 
-Conflicts:     wine-systemd
-Provides:      wine-systemd = %{version}-%{release}
-
 %description systemd
 Register the wine binary handler for windows executables via systemd binfmt
 handling. See man binfmt.d for further information.
@@ -418,9 +399,6 @@ handling. See man binfmt.d for further information.
 Summary:        Filesystem directories for wine
 BuildArch:      noarch
 
-Conflicts:     wine-filesystem
-Provides:      wine-filesystem = %{version}-%{release}
-
 %description filesystem
 Filesystem directories and basic configuration for wine.
 
@@ -428,9 +406,6 @@ Filesystem directories and basic configuration for wine.
 Summary:        Common files
 Requires:       wine-core = %{version}-%{release}
 BuildArch:      noarch
-
-Conflicts:     wine-common
-Provides:      wine-common = %{version}-%{release}
 
 %description common
 Common wine files and scripts.
@@ -444,9 +419,6 @@ Requires:       wine-common = %{version}-%{release}
 Requires:       wine-systemd = %{version}-%{release}
 Requires:       hicolor-icon-theme
 BuildArch:      noarch
-
-Conflicts:     wine-desktop
-Provides:      wine-desktop = %{version}-%{release}
 
 %description desktop
 Desktop integration features for wine, including mime-types and a binary format
@@ -486,9 +458,6 @@ Requires:      wine-wingdings-fonts = %{version}-%{release}
 Requires:      liberation-sans-fonts liberation-serif-fonts liberation-mono-fonts
 Requires:      liberation-narrow-fonts
 
-Conflicts:     wine-fonts
-Provides:      wine-fonts = %{version}-%{release}
-
 %description fonts
 %{summary}
 
@@ -497,9 +466,6 @@ Provides:      wine-fonts = %{version}-%{release}
 Summary:       Wine Arial font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
-
-Conflicts:     wine-arial-fonts
-Provides:      wine-arial-fonts = %{version}-%{release}
 
 %description arial-fonts
 %{summary}
@@ -511,9 +477,6 @@ Summary:       Wine Courier font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 
-Conflicts:     wine-courier-fonts
-Provides:      wine-courier-fonts = %{version}-%{release}
-
 %description courier-fonts
 %{summary}
 
@@ -521,9 +484,6 @@ Provides:      wine-courier-fonts = %{version}-%{release}
 Summary:       Wine Fixedsys font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
-
-Conflicts:     wine-fixedsys-fonts
-Provides:      wine-fixedsys-fonts = %{version}-%{release}
 
 %description fixedsys-fonts
 %{summary}
@@ -533,9 +493,6 @@ Summary:       Wine Small font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 
-Conflicts:     wine-small-fonts
-Provides:      wine-small-fonts = %{version}-%{release}
-
 %description small-fonts
 %{summary}
 
@@ -543,9 +500,6 @@ Provides:      wine-small-fonts = %{version}-%{release}
 Summary:       Wine System font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
-
-Conflicts:     wine-system-fonts
-Provides:      wine-system-fonts = %{version}-%{release}
 
 %description system-fonts
 %{summary}
@@ -556,9 +510,6 @@ Summary:       Wine Marlett font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 
-Conflicts:     wine-marlett-fonts
-Provides:      wine-marlett-fonts = %{version}-%{release}
-
 %description marlett-fonts
 %{summary}
 
@@ -567,9 +518,6 @@ Provides:      wine-marlett-fonts = %{version}-%{release}
 Summary:       Wine MS Sans Serif font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
-
-Conflicts:     wine-ms-sans-serif-fonts
-Provides:      wine-ms-sans-serif-fonts = %{version}-%{release}
 
 %description ms-sans-serif-fonts
 %{summary}
@@ -580,9 +528,6 @@ Provides:      wine-ms-sans-serif-fonts = %{version}-%{release}
 Summary:       Wine Tahoma font family
 BuildArch:     noarch
 Requires:      wine-filesystem = %{version}-%{release}
-
-Conflicts:     wine-tahoma-fonts
-Provides:      wine-tahoma-fonts = %{version}-%{release}
 
 %description tahoma-fonts
 %{summary}
@@ -595,9 +540,6 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Requires:      wine-tahoma-fonts = %{version}-%{release}
 
-Conflicts:     wine-tahoma-fonts-system
-Provides:      wine-tahoma-fonts-system = %{version}-%{release}
-
 %description tahoma-fonts-system
 %{summary}
 
@@ -606,9 +548,6 @@ Provides:      wine-tahoma-fonts-system = %{version}-%{release}
 Summary:       Wine Times New Roman font family
 BuildArch:     noarch
 Requires:      wine-filesystem = %{version}-%{release}
-
-Conflicts:     wine-times-new-roman-fonts
-Provides:      wine-times-new-roman-fonts = %{version}-%{release}
 
 %description times-new-roman-fonts
 %{summary}
@@ -621,9 +560,6 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Requires:      wine-times-new-roman-fonts = %{version}-%{release}
 
-Conflicts:     wine-times-new-roman-fonts-system
-Provides:      wine-times-new-roman-fonts-system = %{version}-%{release}
-
 %description times-new-roman-fonts-system
 %{summary}
 %endif
@@ -633,9 +569,6 @@ Summary:       Wine Symbol font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 
-Conflicts:     wine-symbol-fonts
-Provides:      wine-symbol-fonts = %{version}-%{release}
-
 %description symbol-fonts
 %{summary}
 
@@ -644,9 +577,6 @@ Summary:       Wine Webdings font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 
-Conflicts:     wine-webdings-fonts
-Provides:      wine-webdings-fonts = %{version}-%{release}
-
 %description webdings-fonts
 %{summary}
 
@@ -654,9 +584,6 @@ Provides:      wine-webdings-fonts = %{version}-%{release}
 Summary:       Wine Wingdings font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
-
-Conflicts:     wine-wingdings-fonts
-Provides:      wine-wingdings-fonts = %{version}-%{release}
 
 %description wingdings-fonts
 %{summary}
@@ -669,9 +596,6 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Requires:      wine-wingdings-fonts = %{version}-%{release}
 
-Conflicts:     wine-wingdings-fonts-system
-Provides:      wine-wingdings-fonts-system = %{version}-%{release}
-
 %description wingdings-fonts-system
 %{summary}
 
@@ -680,10 +604,6 @@ Provides:      wine-wingdings-fonts-system = %{version}-%{release}
 Summary: LDAP support for wine
 Requires: wine-core = %{version}-%{release}
 
-Conflicts:     wine-ldap
-Provides:      wine-ldap%{?_isa} = %{version}-%{release}
-Provides:      wine-ldap = %{version}-%{release}
-
 %description ldap
 LDAP support for wine
 
@@ -691,20 +611,12 @@ LDAP support for wine
 Summary: Color Management for wine
 Requires: wine-core = %{version}-%{release}
 
-Conflicts:     wine-cms
-Provides:      wine-cms%{?_isa} = %{version}-%{release}
-Provides:      wine-cms = %{version}-%{release}
-
 %description cms
 Color Management for wine
 
 %package smartcard
 Summary: Smart card support for wine
 Requires: wine-core = %{version}-%{release}
-
-Conflicts:     wine-smartcard
-Provides:      wine-smartcard%{?_isa} = %{version}-%{release}
-Provides:      wine-smartcard = %{version}-%{release}
 
 %description smartcard
 Smart card support for wine
@@ -722,20 +634,12 @@ Requires: sane-backends-libs(x86-64)
 Requires: sane-backends-libs
 %endif
 
-Conflicts:     wine-twain
-Provides:      wine-twain%{?_isa} = %{version}-%{release}
-Provides:      wine-twain = %{version}-%{release}
-
 %description twain
 Twain support for wine
 
 %package devel
 Summary: Wine development environment
 Requires: wine-core = %{version}-%{release}
-
-Conflicts:     wine-devel
-Provides:      wine-devel%{?_isa} = %{version}-%{release}
-Provides:      wine-devel = %{version}-%{release}
 
 %description devel
 Header, include files and library definition files for developing applications
@@ -747,20 +651,12 @@ Requires: wine-core = %{version}-%{release}
 # midi output
 Requires: wine-alsa%{?_isa} = %{version}-%{release}
 
-Conflicts:     wine-pulseaudio
-Provides:      wine-pulseaudio%{?_isa} = %{version}-%{release}
-Provides:      wine-pulseaudio = %{version}-%{release}
-
 %description pulseaudio
 This package adds a pulseaudio driver for wine.
 
 %package alsa
 Summary: Alsa support for wine
 Requires: wine-core = %{version}-%{release}
-
-Conflicts:     wine-alsa
-Provides:      wine-alsa%{?_isa} = %{version}-%{release}
-Provides:      wine-alsa = %{version}-%{release}
 
 %description alsa
 This package adds an alsa driver for wine.
@@ -770,16 +666,12 @@ This package adds an alsa driver for wine.
 Summary: OpenCL support for wine
 Requires: wine-core = %{version}-%{release}
 
-Conflicts:     wine-opencl
-Provides:      wine-opencl%{?_isa} = %{version}-%{release}
-Provides:      wine-opencl = %{version}-%{release}
-
 %description opencl
 This package adds the opencl driver for wine.
 %endif
 
 %prep
-%setup -qn wine-%{wine_shortcommit}
+%setup -qn wine-%{version}
 %patch -P 511 -p1 -b.cjk
 
 %if 0%{?wine_staging}
@@ -790,8 +682,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
-%patch -P 600 -p1 -F2
-
+%patch -P 600 -p1 -F10
 cp -vf dlls/user32/tests/testdll.c dlls/ntdll/tests/
 cp -vf dlls/user32/tests/testdll.spec dlls/ntdll/tests/
 
@@ -1811,7 +1702,6 @@ fi
 %{_libdir}/wine/%{winepedirs}/uxtheme.dll
 %{_libdir}/wine/%{winepedirs}/userenv.dll
 %{_libdir}/wine/%{winepedirs}/vbscript.dll
-%{_libdir}/wine/%{winepedirs}/vccorlib140.dll
 %{_libdir}/wine/%{winepedirs}/vcomp.dll
 %{_libdir}/wine/%{winepedirs}/vcomp90.dll
 %{_libdir}/wine/%{winepedirs}/vcomp100.dll
@@ -2361,11 +2251,10 @@ fi
 %endif
 
 %changelog
-* Tue Aug 19 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.b822e25-2.arm64ec
-- Changing "Provides" with subpackages as an attempt to fix git packages being pulled alongside normal wine packages.
+* Sat Aug 16 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-1.arm64ec
+- Updated wine to version 10.13
 
-* Wed Aug 13 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.91d3874-1.arm64ec
-- Altered specfile to enable building from wine and wine-staging git commits.
+* Wed Aug 13 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-4.arm64ec
 - Updated bylaws patchset to latest git commit fcc776b
 
 * Sun Aug 10 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-3.arm64ec

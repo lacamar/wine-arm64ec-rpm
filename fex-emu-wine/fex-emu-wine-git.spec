@@ -1,7 +1,7 @@
 %global srcname FEX
 
-%global date 20250814
-%global commit 2f930b201aed05d25bd2a7d5382596e631429dfb
+%global date 20250815
+%global commit 9072571fc1438252eabaf272678c6528109f34df
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
