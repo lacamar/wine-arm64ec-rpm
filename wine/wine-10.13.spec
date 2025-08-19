@@ -91,7 +91,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:      2025.08.11_bylaws-wine_upstream-arm64ec.patch
+Patch600:      2025.08.20_bylaws-wine_upstream-arm64ec.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -1702,6 +1702,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/uxtheme.dll
 %{_libdir}/wine/%{winepedirs}/userenv.dll
 %{_libdir}/wine/%{winepedirs}/vbscript.dll
+%{_libdir}/wine/%{winepedirs}/vccorlib140.dll
 %{_libdir}/wine/%{winepedirs}/vcomp.dll
 %{_libdir}/wine/%{winepedirs}/vcomp90.dll
 %{_libdir}/wine/%{winepedirs}/vcomp100.dll
