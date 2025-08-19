@@ -3,11 +3,11 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global date 20250813
-%global wine_commit b822e25ed2d52c53df7d9474defc7b704eb2bf1e
+%global date 20250814
+%global wine_commit 52ff7089e8f39c8c510be3ae31da193bbf45a7b0
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit e2390e2637df90c73b6e318d1fcf00b98e1ef380
+%global staging_commit a8a6d7b0ed4fe5217490907cc9222de8f2bdc040
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -2361,6 +2361,10 @@ fi
 %endif
 
 %changelog
+* Tue Aug 19 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.52ff708-1.arm64ec
+- Updated wine commit to 52ff708
+- Updated wine-staging commit to a8a6d7b
+
 * Tue Aug 19 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.b822e25-2.arm64ec
 - Changing "Provides" with subpackages as an attempt to fix git packages being pulled alongside normal wine packages.
 
