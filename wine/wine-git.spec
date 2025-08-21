@@ -100,7 +100,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:      2025.08.21_bylaws-wine_upstream-arm64ec.patch
+Patch600:      2025.08.18_bylaws-wine_upstream-arm64ec.patch
 %endif
 
 %if 0%{?wine_staging}
