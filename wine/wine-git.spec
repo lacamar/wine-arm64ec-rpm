@@ -3,11 +3,11 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global date 20250818
-%global wine_commit 0bdb575ff0a7f327b6d620b1735b85a5e3e693eb
+%global date 20250821
+%global wine_commit 5b7b76432dffa453e75c6336d76fdb856ab8d0c7
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit a8a6d7b0ed4fe5217490907cc9222de8f2bdc040
+%global staging_commit c605cf204a2212a605294f5660263f10b7532379
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -17,7 +17,7 @@
 
 %global no64bit   0
 %global winegecko 2.47.4
-%global winemono  10.1.0
+%global winemono  10.2.0
 %if 0%{?fedora}
 %global opencl    1
 %endif
@@ -100,7 +100,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:      2025.08.18_bylaws-wine_upstream-arm64ec.patch
+Patch600:      2025.08.18_bylaws-wine_upstream-arm64ec_hack.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -790,7 +790,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
-%patch -P 600 -p1 -F2
+%patch -P 600 -p1 -F10
 
 cp -vf dlls/user32/tests/testdll.c dlls/ntdll/tests/
 cp -vf dlls/user32/tests/testdll.spec dlls/ntdll/tests/
@@ -1382,6 +1382,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/cryptowinrt.dll
 %{_libdir}/wine/%{winepedirs}/cryptsp.dll
 %{_libdir}/wine/%{winepedirs}/cryptui.dll
+%{_libdir}/wine/%{winepedirs}/cryptxml.dll
 %{_libdir}/wine/%{winepedirs}/ctapi32.dll
 %{_libdir}/wine/%{winesodir}/ctapi32.so
 %{_libdir}/wine/%{winepedirs}/ctl3d32.dll
@@ -2361,6 +2362,12 @@ fi
 %endif
 
 %changelog
+* Thu Aug 21 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.5b7b764-1.arm64ec
+- Updated wine commit to 5b7b764
+- Updated wine-staging commit to c605cf2
+- Updated mono to 10.2.0
+- modified bylaws patch to fix a patch error
+
 * Tue Aug 19 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.52ff708-1.arm64ec
 - Updated wine commit to 52ff708
 - Updated wine-staging commit to a8a6d7b
