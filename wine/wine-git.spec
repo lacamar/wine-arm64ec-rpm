@@ -57,7 +57,7 @@
 
 Name:           wine-git
 Version:        %{date}.%{wine_shortcommit}
-Release:        1.arm64ec%{?dist}
+Release:        2.arm64ec%{?dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -100,7 +100,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:      2025.08.18_bylaws-wine_upstream-arm64ec_hack.patch
+Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -790,7 +790,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
-%patch -P 600 -p1 -F10
+%patch -P 600 -p1 -F3
 
 cp -vf dlls/user32/tests/testdll.c dlls/ntdll/tests/
 cp -vf dlls/user32/tests/testdll.spec dlls/ntdll/tests/
@@ -2362,6 +2362,9 @@ fi
 %endif
 
 %changelog
+* Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.5b7b764-2.arm64ec
+- updated bylaws patch
+
 * Thu Aug 21 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.5b7b764-1.arm64ec
 - Updated wine commit to 5b7b764
 - Updated wine-staging commit to c605cf2
