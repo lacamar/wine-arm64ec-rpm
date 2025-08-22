@@ -3,8 +3,8 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global date 20250821
-%global wine_commit 5b7b76432dffa453e75c6336d76fdb856ab8d0c7
+%global date 20250822
+%global wine_commit e155f7c04b7c529af9e0f64ee3db8ef3f67558b0
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
 %global staging_commit c605cf204a2212a605294f5660263f10b7532379
@@ -57,7 +57,7 @@
 
 Name:           wine-git
 Version:        %{date}.%{wine_shortcommit}
-Release:        2.arm64ec%{?dist}
+Release:        1.arm64ec%{?dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2362,10 +2362,13 @@ fi
 %endif
 
 %changelog
-* Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.5b7b764-2.arm64ec
+* Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250822.e155f7c-1.arm64ec
+- updated wine commit to e155f7c
+
+* Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250822.5b7b764-2.arm64ec
 - updated bylaws patch
 
-* Thu Aug 21 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.5b7b764-1.arm64ec
+* Thu Aug 21 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250821.5b7b764-1.arm64ec
 - Updated wine commit to 5b7b764
 - Updated wine-staging commit to c605cf2
 - Updated mono to 10.2.0
