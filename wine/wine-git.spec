@@ -3,11 +3,11 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global date 20250822
-%global wine_commit e155f7c04b7c529af9e0f64ee3db8ef3f67558b0
+%global date 20250824
+%global wine_commit 7dcdd7a6549793e8a6469816a5c25226e2d73e9c
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit c605cf204a2212a605294f5660263f10b7532379
+%global staging_commit ce66dea1972157470ae5aed57a2a5595381c8d43
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -1475,6 +1475,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/fontsub.dll
 %{_libdir}/wine/%{winepedirs}/fusion.dll
 %{_libdir}/wine/%{winepedirs}/fwpuclnt.dll
+%{_libdir}/wine/%{winepedirs}/gameinput.dll
 %{_libdir}/wine/%{winepedirs}/gameux.dll
 %{_libdir}/wine/%{winepedirs}/gamingtcui.dll
 %{_libdir}/wine/%{winepedirs}/gdi32.dll
@@ -1843,6 +1844,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/win32k.sys
 %endif
 %{_libdir}/wine/%{winepedirs}/win32u.dll
+%{_libdir}/wine/%{winepedirs}/winbio.dll
 %{_libdir}/wine/%{winepedirs}/windows.applicationmodel.dll
 %{_libdir}/wine/%{winepedirs}/windows.devices.bluetooth.dll
 %{_libdir}/wine/%{winepedirs}/windows.devices.enumeration.dll
@@ -2362,6 +2364,10 @@ fi
 %endif
 
 %changelog
+* Sun Aug 24 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250824.7dcdd7a-1.arm64ec
+- updated wine commit to 7dcdd7a
+- updated wine-staging commit to ce66dea
+
 * Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250822.e155f7c-1.arm64ec
 - updated wine commit to e155f7c
 
