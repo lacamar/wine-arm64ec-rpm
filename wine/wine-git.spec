@@ -57,7 +57,7 @@
 
 Name:           wine-git
 Version:        %{date}.%{wine_shortcommit}
-Release:        1.arm64ec%{?dist}
+Release:        2.arm64ec%{?dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -384,6 +384,7 @@ Requires:       libv4l
 Requires:       unixODBC
 Requires:       SDL2
 Requires:       vulkan-loader
+Requires:       fex-emu-wine
 %if 0%{?wine_staging}
 Requires:       libva
 %endif
@@ -2364,30 +2365,32 @@ fi
 %endif
 
 %changelog
-* Sun Aug 24 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250824.7dcdd7a-1.arm64ec
-- updated wine commit to 7dcdd7a
-- updated wine-staging commit to ce66dea
+* Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 20250824.627a1dc-2.arm64ec
+- Added fex-emu-wine as a requirement for wine core on aarch64
 
-* Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250822.e155f7c-1.arm64ec
+* Fri Aug 24 2025 Lachlan Marie <lchlnm@pm.me> - 20250824.627a1dc-1.arm64ec
+- updated wine commit to 627a1dc
+
+* Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - 20250822.e155f7c-1.arm64ec
 - updated wine commit to e155f7c
 
-* Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250822.5b7b764-2.arm64ec
+* Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - 20250822.5b7b764-2.arm64ec
 - updated bylaws patch
 
-* Thu Aug 21 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250821.5b7b764-1.arm64ec
+* Thu Aug 21 2025 Lachlan Marie <lchlnm@pm.me> - 20250821.5b7b764-1.arm64ec
 - Updated wine commit to 5b7b764
 - Updated wine-staging commit to c605cf2
 - Updated mono to 10.2.0
 - modified bylaws patch to fix a patch error
 
-* Tue Aug 19 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.52ff708-1.arm64ec
+* Tue Aug 19 2025 Lachlan Marie <lchlnm@pm.me> - 20250813.52ff708-1.arm64ec
 - Updated wine commit to 52ff708
 - Updated wine-staging commit to a8a6d7b
 
-* Tue Aug 19 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.b822e25-2.arm64ec
+* Tue Aug 19 2025 Lachlan Marie <lchlnm@pm.me> - 20250813.b822e25-2.arm64ec
 - Changing "Provides" with subpackages as an attempt to fix git packages being pulled alongside normal wine packages.
 
-* Wed Aug 13 2025 Lachlan Marie <lchlnm@pm.me> - wine-20250813.91d3874-1.arm64ec
+* Wed Aug 13 2025 Lachlan Marie <lchlnm@pm.me> - 20250813.91d3874-1.arm64ec
 - Altered specfile to enable building from wine and wine-staging git commits.
 - Updated bylaws patchset to latest git commit fcc776b
 

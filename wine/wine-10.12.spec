@@ -47,7 +47,7 @@
 
 Name:           wine
 Version:        10.12
-Release:        4.arm64ec%{?dist}
+Release:        5.arm64ec%{?dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -368,6 +368,7 @@ Requires:       libv4l
 Requires:       unixODBC
 Requires:       SDL2
 Requires:       vulkan-loader
+Requires:       fex-emu-wine
 %if 0%{?wine_staging}
 Requires:       libva
 %endif
@@ -2251,6 +2252,9 @@ fi
 %endif
 
 %changelog
+* Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-5.arm64ec
+- Added fex-emu-wine as a requirement for wine core on aarch64
+
 * Wed Aug 13 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-4.arm64ec
 - Updated bylaws patchset to latest git commit fcc776b
 
