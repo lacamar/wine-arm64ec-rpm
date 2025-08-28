@@ -3,11 +3,11 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global date 20250824
-%global wine_commit 627a1dc459cb9bc7a247d520ea871454d0c63fba
+%global date 20250828
+%global wine_commit d74d97cbf878fff3cd32bbb813732d0a9663dd1c
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit ce66dea1972157470ae5aed57a2a5595381c8d43
+%global staging_commit e250393ba44f7a33af0a0ac138dc038ca020d9d5
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -57,7 +57,7 @@
 
 Name:           wine-git
 Version:        %{date}.%{wine_shortcommit}
-Release:        2.arm64ec%{?dist}
+Release:        1.arm64ec%{?dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2365,10 +2365,16 @@ fi
 %endif
 
 %changelog
+* Wed Aug 28 2025 Lachlan Marie <lchlnm@pm.me> - 20250826.d74d97c-1.arm64ec
+- Updated wine commit to d74d97c
+
+* Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 20250824.121499b-1.arm64ec
+- Updated wine commit to 121499b
+
 * Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 20250824.627a1dc-2.arm64ec
 - Added fex-emu-wine as a requirement for wine core on aarch64
 
-* Fri Aug 24 2025 Lachlan Marie <lchlnm@pm.me> - 20250824.627a1dc-1.arm64ec
+* Sun Aug 24 2025 Lachlan Marie <lchlnm@pm.me> - 20250824.627a1dc-1.arm64ec
 - updated wine commit to 627a1dc
 
 * Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - 20250822.e155f7c-1.arm64ec
