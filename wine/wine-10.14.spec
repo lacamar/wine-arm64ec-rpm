@@ -7,7 +7,7 @@
 
 %global no64bit   0
 %global winegecko 2.47.4
-%global winemono  10.0.0
+%global winemono  10.2.0
 %if 0%{?fedora}
 %global opencl    1
 %endif
@@ -46,8 +46,8 @@
 # 0%%{?fedora}
 
 Name:           wine
-Version:        10.5
-Release:        4.arm64ec%{?dist}
+Version:        10.14
+Release:        1.arm64ec%{?dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -91,10 +91,10 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:      2025.04.30_bylaws-wine_upstream-arm64ec.patch
+Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec.patch
 %endif
 
-Patch700:      ntsync5-staging_2025.04.12.patch
+Patch700:       ntsync5-staging_2025.08.29.patch
 
 %if 0%{?wine_staging}
 # wine-staging patches
@@ -686,7 +686,9 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 %endif
 # 0%%{?wine_staging}
 %patch -P 700 -p1 -F3
-%patch -P 600 -p1 -F3
+%patch -P 600 -p1 -F10
+cp -vf dlls/user32/tests/testdll.c dlls/ntdll/tests/
+cp -vf dlls/user32/tests/testdll.spec dlls/ntdll/tests/
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -1275,6 +1277,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/cryptowinrt.dll
 %{_libdir}/wine/%{winepedirs}/cryptsp.dll
 %{_libdir}/wine/%{winepedirs}/cryptui.dll
+%{_libdir}/wine/%{winepedirs}/cryptxml.dll
 %{_libdir}/wine/%{winepedirs}/ctapi32.dll
 %{_libdir}/wine/%{winesodir}/ctapi32.so
 %{_libdir}/wine/%{winepedirs}/ctl3d32.dll
@@ -1367,6 +1370,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/fontsub.dll
 %{_libdir}/wine/%{winepedirs}/fusion.dll
 %{_libdir}/wine/%{winepedirs}/fwpuclnt.dll
+%{_libdir}/wine/%{winepedirs}/gameinput.dll
 %{_libdir}/wine/%{winepedirs}/gameux.dll
 %{_libdir}/wine/%{winepedirs}/gamingtcui.dll
 %{_libdir}/wine/%{winepedirs}/gdi32.dll
@@ -1704,6 +1708,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/uxtheme.dll
 %{_libdir}/wine/%{winepedirs}/userenv.dll
 %{_libdir}/wine/%{winepedirs}/vbscript.dll
+%{_libdir}/wine/%{winepedirs}/vccorlib140.dll
 %{_libdir}/wine/%{winepedirs}/vcomp.dll
 %{_libdir}/wine/%{winepedirs}/vcomp90.dll
 %{_libdir}/wine/%{winepedirs}/vcomp100.dll
@@ -1734,6 +1739,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/win32k.sys
 %endif
 %{_libdir}/wine/%{winepedirs}/win32u.dll
+%{_libdir}/wine/%{winepedirs}/winbio.dll
 %{_libdir}/wine/%{winepedirs}/windows.applicationmodel.dll
 %{_libdir}/wine/%{winepedirs}/windows.devices.bluetooth.dll
 %{_libdir}/wine/%{winepedirs}/windows.devices.enumeration.dll
@@ -2253,17 +2259,26 @@ fi
 %endif
 
 %changelog
-* Sat Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 10.5-4.arm64ec
+* Sat Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 10.14-1.arm64ec
+- Updated wine to 10.14
+
+* Sat Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-3.arm64ec
 - Added NTSync patch (wine-tkg-staging)
 
-* Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 10.5-3.arm64ec
+* Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-2.arm64ec
 - Added fex-emu-wine as a requirement for wine core on aarch64
 
-* Sat Aug 09 2025 Lachlan Marie <lchlnm@pm.me> - 10.5-2.arm64ec
-- Backported 10.12 specfile changes to 10.5 to avoid package conflicts when upgrading/switching between versions due to new_wow64 changes
+* Sat Aug 16 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-1.arm64ec
+- Updated wine to version 10.13
+
+* Wed Aug 13 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-4.arm64ec
+- Updated bylaws patchset to latest git commit fcc776b
+
+* Sun Aug 10 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-3.arm64ec
+- Updated bylaws patchset to latest git commit b0575a5
 
 * Thu Aug 07 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-2.arm64ec
-- Updated bylaws patchset to latest git commit
+- Updated bylaws patchset to latest git commit ff92282
 - Fixed new_wow64 switches to reflect aarch64
 - Added aarch64 to mingw buildrequires
 

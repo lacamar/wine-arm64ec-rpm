@@ -3,11 +3,11 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global date 20250828
-%global wine_commit d74d97cbf878fff3cd32bbb813732d0a9663dd1c
+%global date 20250830
+%global wine_commit 1d1e5fb3e51b2acb0143e86c16463dfed1bc90aa
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit e250393ba44f7a33af0a0ac138dc038ca020d9d5
+%global staging_commit e2610f8a45e44ecf2612e8cf71b6b608e5643420
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -98,6 +98,8 @@ Source501:      wine-tahoma.conf
 Source502:      wine-README-tahoma
 
 Patch511:       wine-cjk.patch
+
+Patch700:       ntsync5-staging_2025.08.29.patch
 
 %ifarch aarch64
 Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec.patch
@@ -791,6 +793,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
+%patch -P 700 -p1 -F3
 %patch -P 600 -p1 -F3
 
 cp -vf dlls/user32/tests/testdll.c dlls/ntdll/tests/
@@ -2365,7 +2368,14 @@ fi
 %endif
 
 %changelog
-* Wed Aug 28 2025 Lachlan Marie <lchlnm@pm.me> - 20250826.d74d97c-1.arm64ec
+* Fri Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 20250830.1d1e5fb3-1.arm64ec
+- Updated wine commit to 1d1e5fb3
+- Added NTSync patch (wine-tkg-staging)
+
+* Fri Aug 29 2025 Lachlan Marie <lchlnm@pm.me> - 20250829.5fd9826-1.arm64ec
+- Updated wine commit to 5fd9826
+
+* Thu Aug 28 2025 Lachlan Marie <lchlnm@pm.me> - 20250826.d74d97c-1.arm64ec
 - Updated wine commit to d74d97c
 
 * Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 20250824.121499b-1.arm64ec

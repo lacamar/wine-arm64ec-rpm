@@ -47,7 +47,7 @@
 
 Name:           wine
 Version:        10.13
-Release:        2.arm64ec%{?dist}
+Release:        4.arm64ec%{?dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -93,6 +93,8 @@ Patch511:       wine-cjk.patch
 %ifarch aarch64
 Patch600:      2025.08.20_bylaws-wine_upstream-arm64ec.patch
 %endif
+
+Patch700:       ntsync5-staging_2025.08.17.patch
 
 %if 0%{?wine_staging}
 # wine-staging patches
@@ -683,6 +685,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
+%patch -P 700 -p1 -F3
 %patch -P 600 -p1 -F10
 cp -vf dlls/user32/tests/testdll.c dlls/ntdll/tests/
 cp -vf dlls/user32/tests/testdll.spec dlls/ntdll/tests/
@@ -2253,6 +2256,9 @@ fi
 %endif
 
 %changelog
+* Sat Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-3.arm64ec
+- Added NTSync patch (wine-tkg-staging)
+
 * Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-2.arm64ec
 - Added fex-emu-wine as a requirement for wine core on aarch64
 

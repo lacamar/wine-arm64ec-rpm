@@ -47,7 +47,7 @@
 
 Name:           wine
 Version:        10.10
-Release:        3.arm64ec%{?dist}
+Release:        4.arm64ec%{?dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -99,6 +99,8 @@ Patch600:       2025.07.15_bylaws-wine_upstream-arm64ec.patch
 # pulseaudio-patch is covered by that patch-set, too.
 Source900: https://github.com/wine-staging/wine-staging/archive/v%{version}.tar.gz#/wine-staging-%{version}.tar.gz
 %endif
+
+Patch700:       ntsync5-staging_2025.06.14.patch
 
 %if !%{?no64bit}
 # Fedora 36 Clang doesn't build PE binaries on ARM at the moment
@@ -674,7 +676,6 @@ This package adds the opencl driver for wine.
 %prep
 %setup -qn wine-%{version}
 %patch -P 511 -p1 -b.cjk
-%patch -P 600 -p1 -F2
 
 %if 0%{?wine_staging}
 # setup and apply wine-staging patches
@@ -684,6 +685,9 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
+
+%patch -P 700 -p1 -F3
+%patch -P 600 -p1 -F2
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2250,6 +2254,9 @@ fi
 %endif
 
 %changelog
+* Sat Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 10.10-4.arm64ec
+- Added NTSync patch (wine-tkg-staging)
+
 * Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 10.10-3.arm64ec
 - Added fex-emu-wine as a requirement for wine core on aarch64
 
