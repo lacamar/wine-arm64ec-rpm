@@ -1,8 +1,8 @@
 %global srcname FEX
 
-%global bumpver 6
+%global bumpver 0
 
-%global commit decd112a844cc5bd26ee04cb8fbfab00ecd0d33d
+%global commit a6bd293ae851980cedf93462cd2b0b4ceea72739
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -13,7 +13,7 @@
 %global fex_cflags -O3 -g -pipe -Wall -Wextra
 
 Name:       fex-emu-wine-git
-Version:    2508.1%{?bumpver:^%{bumpver}.git.%{shortcommit}}
+Version:    2509%{?bumpver:^%{bumpver}.git.%{shortcommit}}
 Release:    %autorelease
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
