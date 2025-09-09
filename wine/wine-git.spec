@@ -3,11 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global date 20250830
-%global wine_commit 1d1e5fb3e51b2acb0143e86c16463dfed1bc90aa
+%global bumpver 4
+
+%global wine_commit e6df334f178a9b0058fdee0326c5901082efd0d2
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit e2610f8a45e44ecf2612e8cf71b6b608e5643420
+%global staging_commit 39778538c288d8648816e119a9798b9dee4ad88f
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -56,8 +57,8 @@
 # 0%%{?fedora}
 
 Name:           wine-git
-Version:        %{date}.%{wine_shortcommit}
-Release:        1.arm64ec%{?dist}
+Version:        10.14%{?bumpver:^%{bumpver}.git.%{wine_shortcommit}}
+Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -99,7 +100,7 @@ Source502:      wine-README-tahoma
 
 Patch511:       wine-cjk.patch
 
-Patch700:       ntsync5-staging_2025.08.29.patch
+Patch700:       ntsync5-staging_2025.09.04.patch
 
 %ifarch aarch64
 Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec.patch
@@ -793,7 +794,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
-%patch -P 700 -p1 -F3
+%patch -P 700 -p1 -F10
 %patch -P 600 -p1 -F3
 
 cp -vf dlls/user32/tests/testdll.c dlls/ntdll/tests/
@@ -2368,374 +2369,4 @@ fi
 %endif
 
 %changelog
-* Fri Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 20250830.1d1e5fb3-1.arm64ec
-- Updated wine commit to 1d1e5fb3
-- Added NTSync patch (wine-tkg-staging)
-
-* Fri Aug 29 2025 Lachlan Marie <lchlnm@pm.me> - 20250829.5fd9826-1.arm64ec
-- Updated wine commit to 5fd9826
-
-* Thu Aug 28 2025 Lachlan Marie <lchlnm@pm.me> - 20250826.d74d97c-1.arm64ec
-- Updated wine commit to d74d97c
-
-* Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 20250824.121499b-1.arm64ec
-- Updated wine commit to 121499b
-
-* Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 20250824.627a1dc-2.arm64ec
-- Added fex-emu-wine as a requirement for wine core on aarch64
-
-* Sun Aug 24 2025 Lachlan Marie <lchlnm@pm.me> - 20250824.627a1dc-1.arm64ec
-- updated wine commit to 627a1dc
-
-* Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - 20250822.e155f7c-1.arm64ec
-- updated wine commit to e155f7c
-
-* Fri Aug 22 2025 Lachlan Marie <lchlnm@pm.me> - 20250822.5b7b764-2.arm64ec
-- updated bylaws patch
-
-* Thu Aug 21 2025 Lachlan Marie <lchlnm@pm.me> - 20250821.5b7b764-1.arm64ec
-- Updated wine commit to 5b7b764
-- Updated wine-staging commit to c605cf2
-- Updated mono to 10.2.0
-- modified bylaws patch to fix a patch error
-
-* Tue Aug 19 2025 Lachlan Marie <lchlnm@pm.me> - 20250813.52ff708-1.arm64ec
-- Updated wine commit to 52ff708
-- Updated wine-staging commit to a8a6d7b
-
-* Tue Aug 19 2025 Lachlan Marie <lchlnm@pm.me> - 20250813.b822e25-2.arm64ec
-- Changing "Provides" with subpackages as an attempt to fix git packages being pulled alongside normal wine packages.
-
-* Wed Aug 13 2025 Lachlan Marie <lchlnm@pm.me> - 20250813.91d3874-1.arm64ec
-- Altered specfile to enable building from wine and wine-staging git commits.
-- Updated bylaws patchset to latest git commit fcc776b
-
-* Sun Aug 10 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-3.arm64ec
-- Updated bylaws patchset to latest git commit b0575a5
-
-* Thu Aug 07 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-2.arm64ec
-- Updated bylaws patchset to latest git commit ff92282
-- Fixed new_wow64 switches to reflect aarch64
-- Added aarch64 to mingw buildrequires
-
-* Sun Aug 03 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-1.arm64ec
-- Rebased on wine spec 10.12-4 from fedora.
-
-* Fri Jul 25 2025 Fedora Release Engineering <releng@fedoraproject.org> - 10.12-4
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_43_Mass_Rebuild
-
-* Fri Jul 18 2025 Adam Williamson <awilliam@redhat.com> - 10.12-3
-- Fix alternatives scriptlets on x86_64
-- Ensure scriptlets always exit 0 per policy
-
-* Sat Jul 12 2025 Björn Esser <besser82@fedoraproject.org> - 10.12-2
-- Drop unneeded libOSMesa dependency
-- Use new wow64 mode for Fedora 43 and later, only
-
-* Sat Jul 12 2025 Björn Esser <besser82@fedoraproject.org> - 10.12-1
-- version update
-
-* Mon Jul 07 2025 Michael Cronenworth <mike@cchtml.com> - 10.4-6
-- Deprecate legacy wow32 and wow64 packages
-
-* Wed Jun 25 2025 Teoh Han Hui <teohhanhui@gmail.com> - 10.4-5
-- Add conditional build for new wow64 mode
-
-* Tue Jun 24 2025 José Expósito <jexposit@redhat.com> - 10.4-4
-- Use mesa-compat-libOSMesa on Fedora 42 and later
-
-* Fri Apr 25 2025 Björn Esser <besser82@fedoraproject.org> - 10.4-3
-- Use mesa-compat-libOSMesa on Fedora 43 and later
-  Fixes: rhbz#2362160
-
-* Tue Apr 01 2025 Michael Cronenworth <mike@cchtml.com> - 10.4-2
-- Initial support for new Wow64 mode
-
-* Sat Mar 22 2025 Michael Cronenworth <mike@cchtml.com> - 10.4-1
-- version update
-
-* Sat Mar 01 2025 Peter Robinson <pbrobinson@fedoraproject.org> - 10.2-3
-- Spec cleanups: drop EOL RHEL releases, arm32 support
-- Use %%license fields, updates for some conditionals (mpg123, OpenCL)
-- Force alternatives removal
-
-* Tue Feb 25 2025 Michael Cronenworth <mike@cchtml.com> - 10.2-2
-- Change x86_64 default alternatives from wine32 to wine64
-
-* Mon Feb 24 2025 Michael Cronenworth <mike@cchtml.com> - 10.2-1
-- version update
-
-* Sun Feb 09 2025 Michael Cronenworth <mike@cchtml.com> - 10.1-1
-- version update
-
-* Wed Jan 22 2025 Michael Cronenworth <mike@cchtml.com> - 10.0-1
-- version update
-
-* Sun Jan 19 2025 Michael Cronenworth <mike@cchtml.com> - 10.0-0.8rc6
-- version update
-
-* Sun Jan 19 2025 Fedora Release Engineering <releng@fedoraproject.org> - 10.0-0.8rc4
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_42_Mass_Rebuild
-
-* Mon Jan 06 2025 Michael Cronenworth <mike@cchtml.com> - 10.0-0.7rc4
-- version update
-
-* Fri Dec 27 2024 Zephyr Lykos <fedora@mochaa.ws> - 10.0-0.6rc3
-- Fix wine-mono not loading iconv.dll from mingw bindir
-
-* Thu Dec 26 2024 Michael Cronenworth <mike@cchtml.com> - 10.0-0.5rc3
-- version update
-
-* Mon Dec 16 2024 Michael Cronenworth <mike@cchtml.com> - 10.0-0.4rc2
-- version update
-
-* Tue Dec 10 2024 Michael Cronenworth <mike@cchtml.com> - 10.0-0.3rc1
-- Handle upgrades to convert d3d8.dll to alternatives take 2
-
-* Sun Dec 08 2024 Michael Cronenworth <mike@cchtml.com> - 10.0-0.2rc1
-- Handle upgrades to convert d3d8.dll to alternatives
-
-* Fri Dec 06 2024 Michael Cronenworth <mike@cchtml.com> - 10.0-0.1rc1
-- version update
-
-* Mon Nov 25 2024 Zephyr Lykos <fedora@mochaa.ws> - 9.22-1
-- new version
-
-* Tue Nov 12 2024 Zephyr Lykos <fedora@mochaa.ws> - 9.21-1
-- version update
-
-* Fri Sep 27 2024 Zephyr Lykos <fedora@mochaa.ws> - 9.18-2
-- Pick https://gitlab.winehq.org/wine/wine/-/merge_requests/6547
-
-* Sun Sep 22 2024 Zephyr Lykos <fedora@mochaa.ws> - 9.18-1
-- version update
-
-* Sat Sep 07 2024 Zephyr Lykos <fedora@mochaa.ws> - 9.15-2
-- Adapt alternatives setup to DXVK 2.0
-
-* Tue Aug 13 2024 Michael Cronenworth <mike@cchtml.com> - 9.15-1
-- version update
-
-* Sat Jul 20 2024 Fedora Release Engineering <releng@fedoraproject.org> - 9.5-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_41_Mass_Rebuild
-
-* Thu Mar 28 2024 Michael Cronenworth <mike@cchtml.com> - 9.5-1
-- version update
-
-* Mon Jan 29 2024 Michael Cronenworth <mike@cchtml.com> - 9.1-1
-- version update
-
-* Thu Jan 25 2024 Michael Cronenworth <mike@cchtml.com> - 9.0-3
-- Revert smartcard subpackage (RHBZ#2259936)
-
-* Fri Jan 19 2024 Michael Cronenworth <mike@cchtml.com> - 9.0-2
-- Add smartcard subpackage (RHBZ#2259198)
-
-* Tue Jan 16 2024 Michael Cronenworth <mike@cchtml.com> - 9.0-1
-- version update
-
-* Mon Oct 30 2023 Michael Cronenworth <mike@cchtml.com> - 8.19-1
-- version update
-
-* Sun Oct 15 2023 Michael Cronenworth <mike@cchtml.com> - 8.18-1
-- version update
-
-* Sun Oct 01 2023 Michael Cronenworth <mike@cchtml.com> - 8.17-1
-- version update
-
-* Tue Aug 22 2023 Michael Cronenworth <mike@cchtml.com> - 8.14-1
-- version update
-
-* Thu Aug 17 2023 Michael Cronenworth <mike@cchtml.com> - 8.13-1
-- version update
-
-* Sat Jul 22 2023 Fedora Release Engineering <releng@fedoraproject.org> - 8.12-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_39_Mass_Rebuild
-
-* Mon Jul 10 2023 Michael Cronenworth <mike@cchtml.com> - 8.12-1
-- version update
-
-* Sun Jun 25 2023 Michael Cronenworth <mike@cchtml.com> - 8.11-1
-- version update
-
-* Wed Apr 19 2023 Michael Cronenworth <mike@cchtml.com> - 8.6-1
-- version update
-
-* Sat Apr 01 2023 Michael Cronenworth <mike@cchtml.com> - 8.5-1
-- version update
-
-* Tue Mar 21 2023 Michael Cronenworth <mike@cchtml.com> - 8.4-1
-- version update
-
-* Wed Feb 22 2023 Michael Cronenworth <mike@cchtml.com> - 8.2-3
-- fix missing requires for win-iconv
-
-* Tue Feb 21 2023 Michael Cronenworth <mike@cchtml.com> - 8.2-2
-- fix missing requires for libjpeg and libtiff
-
-* Mon Feb 20 2023 Michael Cronenworth <mike@cchtml.com> - 8.2-1
-- version update
-
-* Mon Feb 06 2023 Michael Cronenworth <mike@cchtml.com> - 8.1-1
-- version update
-
-* Tue Jan 24 2023 Michael Cronenworth <mike@cchtml.com> - 8.0-1
-- version update
-
-* Sat Jan 21 2023 Fedora Release Engineering <releng@fedoraproject.org> - 8.0-0.rc4.1.1
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_38_Mass_Rebuild
-
-* Mon Jan 16 2023 Michael Cronenworth <mike@cchtml.com> - 8.0-0.rc4.1
-- version update
-
-* Mon Nov 28 2022 Michael Cronenworth <mike@cchtml.com> - 7.22-2
-- fix typo in openal obsoletes
-
-* Sun Nov 27 2022 Michael Cronenworth <mike@cchtml.com> - 7.22-1
-- version update
-- drop openal package
-
-* Mon Oct 31 2022 Michael Cronenworth <mike@cchtml.com> - 7.20-1
-- version update
-
-* Mon Oct 24 2022 Michael Cronenworth <mike@cchtml.com> - 7.19-1
-- version update
-
-* Thu Oct 13 2022 Michael Cronenworth <mike@cchtml.com> - 7.18-2
-- Require MinGW FAudio
-
-* Tue Oct 11 2022 Michael Cronenworth <mike@cchtml.com> - 7.18-1
-- version update
-- Drop isdn4k-utils from Recommends
-
-* Sat Jul 23 2022 Fedora Release Engineering <releng@fedoraproject.org> - 7.12-3
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_37_Mass_Rebuild
-
-* Thu Jul 14 2022 Michael Cronenworth <mike@cchtml.com> - 7.12-2
-- Requires on vkd3d
-
-* Tue Jul 05 2022 Michael Cronenworth <mike@cchtml.com> - 7.12-1
-- versuon update
-- Unbundle vkd3d
-
-* Wed Jun 22 2022 Michael Cronenworth <mike@cchtml.com> - 7.11-1
-- version update
-
-* Mon Jun 06 2022 Michael Cronenworth <mike@cchtml.com> - 7.10-2
-- Require new Mono
-
-* Mon Jun 06 2022 Michael Cronenworth <mike@cchtml.com> - 7.10-1
-- version update
-
-* Mon May 23 2022 Michael Cronenworth <mike@cchtml.com> - 7.9-1
-- version update
-
-* Tue Mar 29 2022 Michael Cronenworth <mike@cchtml.com> - 7.5-1
-- version update
-- drop 32-bit ARM
-- require on Fedora MinGW dependencies
-
-* Fri Mar 25 2022 Sandro Mani <manisandro@gmail.com> - 7.3-2
-- Rebuild with mingw-gcc-12
-
-* Fri Mar 11 2022 Michael Cronenworth <mike@cchtml.com> - 7.3-1
-- version update
-
-* Sun Feb 13 2022 Björn Esser <besser82@fedoraproject.org> - 7.2-1
-- version update
-
-* Mon Jan 31 2022 Björn Esser <besser82@fedoraproject.org> - 7.1-2
-- Revert to wine-mono 7.0.0
-
-* Sat Jan 29 2022 Björn Esser <besser82@fedoraproject.org> - 7.1-1
-- version update
-
-* Sat Jan 22 2022 Fedora Release Engineering <releng@fedoraproject.org> - 7.0-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_36_Mass_Rebuild
-
-* Wed Jan 19 2022 Björn Esser <besser82@fedoraproject.org> - 7.0-1
-- version update
-
-* Sat Jan 15 2022 Björn Esser <besser82@fedoraproject.org> - 7.0-0.6rc6
-- version update
-
-* Sun Jan 09 2022 Björn Esser <besser82@fedoraproject.org> - 7.0-0.5rc5
-- version update
-
-* Mon Jan 03 2022 Michael Cronenworth <mike@cchtml.com> 7.0-0.4rc4
-- version update
-
-* Mon Jan 03 2022 FeRD (Frank Dana) <ferdnyc@gmail.com> 7.0-0.3rc3
-- Silence messages from expected failures during rpm scriptlets
-
-* Mon Dec 27 2021 Björn Esser <besser82@fedoraproject.org> - 7.0-0.2rc3
-- version update
-
-* Mon Dec 20 2021 Michael Cronenworth <mike@cchtml.com> 7.0-0.1rc2
-- version update
-
-* Wed Nov 10 2021 Michael Cronenworth <mike@cchtml.com> 6.21-1
-- version update
-
-* Mon Oct 04 2021 Michael Cronenworth <mike@cchtml.com> 6.18-1
-- version update
-
-* Mon Aug 30 2021 Michael Cronenworth <mike@cchtml.com> 6.16-1
-- version update
-
-* Wed Jul 07 2021 Michael Cronenworth <mike@cchtml.com> 6.12-1
-- version update
-
-* Sat Jun 19 2021 Michael Cronenworth <mike@cchtml.com> 6.11-1
-- version update
-
-* Mon Jun 07 2021 Michael Cronenworth <mike@cchtml.com> 6.10-1
-- version update
-
-* Mon May 24 2021 Michael Cronenworth <mike@cchtml.com> 6.9-1
-- version update
-
-* Sat May 08 2021 Michael Cronenworth <mike@cchtml.com> 6.8-1
-- version update
-
-* Sat Apr 24 2021 Michael Cronenworth <mike@cchtml.com> 6.7-1
-- version update
-
-* Sun Apr 11 2021 Michael Cronenworth <mike@cchtml.com> 6.6-1
-- version update
-
-* Mon Mar 15 2021 Michael Cronenworth <mike@cchtml.com> 6.4-1
-- version update
-
-* Sat Feb 27 2021 Michael Cronenworth <mike@cchtml.com> 6.3-1
-- version update
-
-* Sat Feb 13 2021 Michael Cronenworth <mike@cchtml.com> 6.2-1
-- version update
-
-* Mon Feb 01 2021 Michael Cronenworth <mike@cchtml.com> 6.1-1
-- version update
-
-* Wed Jan 27 2021 Fedora Release Engineering <releng@fedoraproject.org> - 6.0-2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_34_Mass_Rebuild
-
-* Thu Jan 14 2021 Michael Cronenworth <mike@cchtml.com> 6.0-1
-- version update
-
-* Sun Jan 10 2021 Michael Cronenworth <mike@cchtml.com> 6.0-0.6rc6
-- version update
-
-* Thu Jan 07 2021 Michael Cronenworth <mike@cchtml.com> 6.0-0.5rc5
-- version update
-
-* Sat Dec 26 2020 Michael Cronenworth <mike@cchtml.com> 6.0-0.4rc4
-- version update
-
-* Sat Dec 19 2020 Michael Cronenworth <mike@cchtml.com> 6.0-0.3rc3
-- version update
-
-* Sat Dec 12 2020 Michael Cronenworth <mike@cchtml.com> 6.0-0.2rc2
-- version update
-
-* Tue Dec 08 2020 Michael Cronenworth <mike@cchtml.com> 6.0-0.1rc1
-- version update
+%autochangelog
