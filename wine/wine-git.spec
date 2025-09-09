@@ -3,12 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 4
+%global bumpver 6
 
-%global wine_commit e6df334f178a9b0058fdee0326c5901082efd0d2
+%global wine_commit 3cfbf9e3cd99dd01d3215c6952ae18ce88207d22
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit 39778538c288d8648816e119a9798b9dee4ad88f
+%global staging_commit 5f55fc20dca193a916db484c9833315d5c1445b4
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -1860,6 +1860,8 @@ fi
 %{_libdir}/wine/%{winepedirs}/windows.media.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.devices.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.mediacontrol.dll
+%{_libdir}/wine/%{winepedirs}/windows.media.playback.backgroundmediaplayer.dll
+%{_libdir}/wine/%{winepedirs}/windows.media.playback.mediaplayer.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.speech.dll
 %if 0%{?wine_staging}
 %{_libdir}/wine/%{winepedirs}/windows.networking.connectivity.dll
