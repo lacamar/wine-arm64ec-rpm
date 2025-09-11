@@ -1,8 +1,8 @@
 %global srcname FEX
 
-%global bumpver 4
+%global bumpver 5
 
-%global commit 30dd9ed267b064844525d6e0c11c210fc3f147c7
+%global commit 8c1e9eda12913e458e63a8fb3a51dc24bbe23b35
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -142,7 +142,7 @@ cmake -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CFLAGS" \
   -DENABLE_LTO=False \
   -DTUNE_CPU=none \
   -DMINGW_TRIPLE=arm64ec-w64-mingw32 \
-  -DBUILD_TESTS=False \
+  -DBUILD_TESTING=False \
   -DENABLE_JEMALLOC_GLIBC_ALLOC=False \
   ..
 sed -i 's/arm64ec-w64-mingw32-dlltool/llvm-dlltool -m arm64ec/g' build.ninja
@@ -159,7 +159,7 @@ cmake -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CFLAGS" \
   -DENABLE_LTO=False \
   -DTUNE_CPU=none \
   -DMINGW_TRIPLE=aarch64-w64-mingw32 \
-  -DBUILD_TESTS=False \
+  -DBUILD_TESTING=False \
   -DENABLE_JEMALLOC_GLIBC_ALLOC=OFF \
   ..
 sed -i 's/aarch64-w64-mingw32-dlltool/llvm-dlltool -m arm64/g' build.ninja
