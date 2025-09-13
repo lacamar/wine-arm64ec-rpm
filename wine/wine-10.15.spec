@@ -47,7 +47,7 @@
 
 Name:           wine
 Version:        10.15
-Release:        1.arm64ec%{?dist}
+Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -91,7 +91,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec.patch
+Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec_hack.patch
 %endif
 
 Patch700:       ntsync5-staging_2025.08.29.patch
@@ -687,8 +687,6 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 # 0%%{?wine_staging}
 %patch -P 700 -p1 -F3
 %patch -P 600 -p1 -F10
-cp -vf dlls/user32/tests/testdll.c dlls/ntdll/tests/
-cp -vf dlls/user32/tests/testdll.spec dlls/ntdll/tests/
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
