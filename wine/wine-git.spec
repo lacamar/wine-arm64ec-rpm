@@ -3,12 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 7
+%global bumpver 0
 
-%global wine_commit 3cfbf9e3cd99dd01d3215c6952ae18ce88207d22
+%global wine_commit fe3c6f4ffb1d6394b6fcc764a2067034b45e3c1b
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit 5f55fc20dca193a916db484c9833315d5c1445b4
+%global staging_commit 978b387c1c5a46dfa36560266c988cf3412bcef5
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -57,7 +57,7 @@
 # 0%%{?fedora}
 
 Name:           wine-git
-Version:        10.14%{?bumpver:^%{bumpver}.git.%{wine_shortcommit}}
+Version:        10.15%{?bumpver:^%{bumpver}.git.%{wine_shortcommit}}
 Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
@@ -103,7 +103,7 @@ Patch511:       wine-cjk.patch
 Patch700:       ntsync5-staging_2025.09.04.patch
 
 %ifarch aarch64
-Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec.patch
+Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec_hack.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -797,8 +797,6 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 %patch -P 700 -p1 -F10
 %patch -P 600 -p1 -F3
 
-cp -vf dlls/user32/tests/testdll.c dlls/ntdll/tests/
-cp -vf dlls/user32/tests/testdll.spec dlls/ntdll/tests/
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
