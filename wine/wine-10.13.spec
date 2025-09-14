@@ -47,7 +47,7 @@
 
 Name:           wine
 Version:        10.13
-Release:        4.arm64ec%{?dist}
+Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later

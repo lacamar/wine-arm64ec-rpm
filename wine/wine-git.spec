@@ -5,7 +5,7 @@
 # Full commit and short commit reference for wine-git
 %global bumpver 0
 
-%global wine_commit fe3c6f4ffb1d6394b6fcc764a2067034b45e3c1b
+%global wine_commit 72dc2afb1a78f88cd930d61a20498838a3bea271
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
 %global staging_commit 978b387c1c5a46dfa36560266c988cf3412bcef5
@@ -794,7 +794,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
-%patch -P 700 -p1 -F10
+%patch -P 700 -p1 -F3
 %patch -P 600 -p1 -F3
 
 

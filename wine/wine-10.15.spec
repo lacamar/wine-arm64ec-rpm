@@ -91,15 +91,15 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec_hack.patch
+Patch600:       2025.08.22_bylaws-wine_upstream-arm64ec_hack.patch
 %endif
 
-Patch700:       ntsync5-staging_2025.08.29.patch
+Patch700:       ntsync5-staging_2025.09.04.patch
 
 %if 0%{?wine_staging}
 # wine-staging patches
 # pulseaudio-patch is covered by that patch-set, too.
-Source900: https://github.com/wine-staging/wine-staging/archive/v%{version}.tar.gz#/wine-staging-%{version}.tar.gz
+Source900:        https://gitlab.winehq.org/wine/wine-staging/-/archive/v%{version}/wine-staging-%{version}.tar.gz
 %endif
 
 %if !%{?no64bit}
@@ -686,7 +686,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 %endif
 # 0%%{?wine_staging}
 %patch -P 700 -p1 -F3
-%patch -P 600 -p1 -F10
+%patch -P 600 -p1 -F3
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
