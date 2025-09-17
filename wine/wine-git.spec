@@ -3,12 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 0
+%global bumpver 2
 
-%global wine_commit 72dc2afb1a78f88cd930d61a20498838a3bea271
+%global wine_commit 915a1e6fc76943913a77b71446c72dc13eadc1a0
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit 978b387c1c5a46dfa36560266c988cf3412bcef5
+%global staging_commit 04570cc4c7f858d439ff9643a69f31500af05964
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -100,7 +100,7 @@ Source502:      wine-README-tahoma
 
 Patch511:       wine-cjk.patch
 
-Patch700:       ntsync5-staging_2025.09.04.patch
+Patch700:       ntsync5-staging_2025.09.18.patch
 
 %ifarch aarch64
 Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec_hack.patch
