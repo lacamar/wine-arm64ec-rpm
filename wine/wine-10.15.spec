@@ -1748,6 +1748,8 @@ fi
 %{_libdir}/wine/%{winepedirs}/windows.media.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.devices.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.mediacontrol.dll
+%{_libdir}/wine/%{winepedirs}/windows.media.playback.backgroundmediaplayer.dll
+%{_libdir}/wine/%{winepedirs}/windows.media.playback.mediaplayer.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.speech.dll
 %if 0%{?wine_staging}
 %{_libdir}/wine/%{winepedirs}/windows.networking.connectivity.dll

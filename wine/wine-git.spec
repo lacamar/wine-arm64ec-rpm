@@ -3,12 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 2
+%global bumpver 3
 
-%global wine_commit 915a1e6fc76943913a77b71446c72dc13eadc1a0
+%global wine_commit 0abb419016e3a38e36ba0bdfe9c0497a29a86fcf
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit 04570cc4c7f858d439ff9643a69f31500af05964
+%global staging_commit 0e9c421030edfb8c23a2a34224b1b2bef12f6a83
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -100,7 +100,7 @@ Source502:      wine-README-tahoma
 
 Patch511:       wine-cjk.patch
 
-Patch700:       ntsync5-staging_2025.09.18.patch
+Patch700:       ntsync5-staging_2025.09.20.patch
 
 %ifarch aarch64
 Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec_hack.patch
@@ -794,7 +794,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
-%patch -P 700 -p1 -F3
+%patch -P 700 -p1 -F10
 %patch -P 600 -p1 -F3
 
 
