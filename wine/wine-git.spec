@@ -3,9 +3,9 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 4
+%global bumpver 5
 
-%global wine_commit fc70990d579a74974c6e4f1550f892188114f5cf
+%global wine_commit bbe2cfb2a64810632f3e07cea6fb26512497f85e
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
 %global staging_commit 64988e15df3baf59b73e383245c84b2e531049f4
