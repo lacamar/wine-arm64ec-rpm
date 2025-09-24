@@ -7,13 +7,13 @@
 
 Name:           wine-dxvk
 Version:        2.7.1
-Release:        1.arm64ec%{?dist}
+Release:        ec.%autorelease
 Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 
 License:        zlib AND MIT
 URL:            https://github.com/doitsujin/dxvk
 Source0:        %{url}/archive/v%{version}/dxvk-%{version}.tar.gz
-Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250305/llvm-mingw-20250305-ucrt-ubuntu-20.04-aarch64.tar.xz
+Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64.tar.xz
 
 
 %{lua:
@@ -148,7 +148,7 @@ EOF
 export CFLAGS="%optflags -DNDEBUG -fPIC -O2 -pthread -fno-strict-aliasing -fuse-linker-plugin -fno-stack-protector -fno-stack-clash-protection -fno-lto"
 export CXXFLAGS="${CFLAGS} -fpermissive"
 export LDFLAGS="-fPIC -Wl,--sort-common -Wl,--gc-sections -Wl,-O1 -fuse-linker-plugin -fno-lto"
-export PATH="$PWD/llvm-mingw-20250305-ucrt-ubuntu-20.04-aarch64/bin:$PATH"
+export PATH="$PWD/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64/bin:$PATH"
 %meson --cross-file build-arm64ec.txt --buildtype=release -Dbuild_id=true
 %meson_build
 
