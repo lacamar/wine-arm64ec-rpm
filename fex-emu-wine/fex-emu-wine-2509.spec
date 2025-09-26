@@ -21,7 +21,7 @@ Source0:    %{forgeurl}/commit/%{commit}/%{srcname}-%{commit}.tar.gz
 Source0:    %{forgeurl}/archive/%{srcname}-%{version}/%{srcname}-%{srcname}-%{version}.tar.gz
 %endif
 
-Source100:  https://github.com/bylaws/llvm-mingw/releases/download/20250305/llvm-mingw-20250305-ucrt-ubuntu-20.04-aarch64.tar.xz
+Source100:  https://github.com/bylaws/llvm-mingw/releases/download/20250920/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64.tar.xz
 
 %{lua:
 local externals = {
@@ -124,7 +124,7 @@ tar -xJf %{SOURCE100} -C %{_builddir}
 export CFLAGS="%{fex_cflags}"
 export CXXFLAGS="$CFLAGS"
 export LDFLAGS="%{fex_ldflags}"
-export PATH="%{_builddir}/llvm-mingw-20250305-ucrt-ubuntu-20.04-aarch64/bin:$PATH"
+export PATH="%{_builddir}/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64/bin:$PATH"
 
 mkdir build-arm64ec && pushd build-arm64ec
 

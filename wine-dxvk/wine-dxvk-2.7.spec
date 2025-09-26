@@ -90,7 +90,7 @@ Summary:        DXVK DXGI implementation
 %description dxgi
 %{summary}
 
-This package doesn't enable the use of this DXGI implementation,
+This package does not enable the use of this DXGI implementation,
 it should be installed and overridden per prefix.
 
 %package d3d10
