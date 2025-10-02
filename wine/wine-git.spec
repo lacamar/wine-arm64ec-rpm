@@ -3,12 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 7
+%global bumpver 8
 
-%global wine_commit 49215aada3031314a1fd745a89dabebb0d9c57eb
+%global wine_commit 7fb9d22a7932aaf32383ecebb59487d57a503754
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit 20ba4773d6a835ef3d2c12b83c555b9cc5adb14e
+%global staging_commit ea30d819230045130e8ab67fa66dad4ad15b1968
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -100,7 +100,7 @@ Source502:      wine-README-tahoma
 
 Patch511:       wine-cjk.patch
 
-Patch700:       ntsync5-staging_2025.09.24.patch
+Patch700:       ntsync5-staging_2025.10.01.patch
 
 %ifarch aarch64
 Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec_hack.patch
@@ -1743,6 +1743,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/rstrtmgr.dll
 %{_libdir}/wine/%{winepedirs}/rtutils.dll
 %{_libdir}/wine/%{winepedirs}/rtworkq.dll
+%{_libdir}/wine/%{winepedirs}/runas.exe
 %{_libdir}/wine/%{winepedirs}/samlib.dll
 %{_libdir}/wine/%{winepedirs}/sapi.dll
 %{_libdir}/wine/%{winepedirs}/sas.dll
