@@ -3,12 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 9
+%global bumpver 0
 
-%global wine_commit 192d335facd5ec6ff2b9acec615efff16385a416
+%global wine_commit 01269452e0fbb1f081d506bd64996590a553e2b9
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit 9c06e8eab3af4a4c57d669101490e3105846f454
+%global staging_commit 38d4b8ca780f51227661211ead02b1283774be0b
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -57,7 +57,7 @@
 # 0%%{?fedora}
 
 Name:           wine-git
-Version:        10.15%{?bumpver:^%{bumpver}.git.%{wine_shortcommit}}
+Version:        10.16%{?bumpver:^%{bumpver}.git.%{wine_shortcommit}}
 Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
@@ -794,7 +794,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
-%patch -P 700 -p1 -F10
+# 0%%patch -P 700 -p1 -F10
 %patch -P 600 -p1 -F3
 
 
@@ -2166,6 +2166,16 @@ fi
 %dir %{_datadir}/wine/fonts
 %{_datadir}/wine/wine.inf
 %{_datadir}/wine/nls/
+%{_datadir}/wine/winmd/windows.applicationmodel.winmd
+%{_datadir}/wine/winmd/windows.globalization.winmd
+%{_datadir}/wine/winmd/windows.graphics.winmd
+%{_datadir}/wine/winmd/windows.media.winmd
+%{_datadir}/wine/winmd/windows.networking.winmd
+%{_datadir}/wine/winmd/windows.perception.winmd
+%{_datadir}/wine/winmd/windows.storage.winmd
+%{_datadir}/wine/winmd/windows.system.winmd
+%{_datadir}/wine/winmd/windows.ui.winmd
+%{_datadir}/wine/winmd/windows.ui.xaml.winmd
 
 %files common
 %{_bindir}/notepad
