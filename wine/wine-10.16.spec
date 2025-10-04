@@ -2270,6 +2270,9 @@ fi
 %endif
 
 %changelog
+* Sat Oct 04 2025 Lachlan Marie <lchlnm@pm.me> - 10.16-ec.1
+- Updated wine to 10.16
+
 * Sat Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 10.14-1.arm64ec
 - Updated wine to 10.14
 
