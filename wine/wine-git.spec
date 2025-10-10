@@ -3,12 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 3
+%global bumpver 4
 
-%global wine_commit c1bafaa02329442df1aba576e2884c0ab699f76e
+%global wine_commit 2827471c57299793d8e0868679184f8d762a5309
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit 6f356eb1f57115404fbf5191810101288853c9b4
+%global staging_commit ec458fc7aeeeec3498b7c2038f80e0c1853681cf
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -1370,6 +1370,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/coml2.dll
 %{_libdir}/wine/%{winepedirs}/compstui.dll
 %{_libdir}/wine/%{winepedirs}/comsvcs.dll
+%{_libdir}/wine/%{winepedirs}/comctl32_v6.dll
 %{_libdir}/wine/%{winepedirs}/concrt140.dll
 %{_libdir}/wine/%{winepedirs}/connect.dll
 %{_libdir}/wine/%{winepedirs}/coremessaging.dll
