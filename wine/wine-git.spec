@@ -3,12 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 4
+%global bumpver 5
 
-%global wine_commit 2827471c57299793d8e0868679184f8d762a5309
+%global wine_commit 486f33ee64121d0331fb3e943791ec42bd98ef51
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit ec458fc7aeeeec3498b7c2038f80e0c1853681cf
+%global staging_commit 31b114a4e34403f713a78863e7e6e499355e71e1
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -1850,6 +1850,7 @@ fi
 %endif
 %{_libdir}/wine/%{winepedirs}/win32u.dll
 %{_libdir}/wine/%{winepedirs}/winbio.dll
+%{_libdir}/wine/%{winepedirs}/winbrand.dll
 %{_libdir}/wine/%{winepedirs}/windows.applicationmodel.dll
 %{_libdir}/wine/%{winepedirs}/windows.devices.bluetooth.dll
 %{_libdir}/wine/%{winepedirs}/windows.devices.enumeration.dll
