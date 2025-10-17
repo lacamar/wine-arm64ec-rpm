@@ -3,12 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 5
+%global bumpver 6
 
-%global wine_commit 486f33ee64121d0331fb3e943791ec42bd98ef51
+%global wine_commit d76b59d5c021ea5da49d1e1430c1d33bee874418
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit 31b114a4e34403f713a78863e7e6e499355e71e1
+%global staging_commit efcf9f948e3f9dd1d2bc31c4f2f5b6531b5a8883
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -18,7 +18,7 @@
 
 %global no64bit   0
 %global winegecko 2.47.4
-%global winemono  10.2.0
+%global winemono  10.3.0
 %if 0%{?fedora}
 %global opencl    1
 %endif
