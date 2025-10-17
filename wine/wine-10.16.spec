@@ -94,8 +94,6 @@ Patch511:       wine-cjk.patch
 Patch600:       2025.08.22_bylaws-wine_upstream-arm64ec_hack_v2.patch
 %endif
 
-Patch700:       ntsync5-staging_2025.10.02.patch
-
 %if 0%{?wine_staging}
 # wine-staging patches
 # pulseaudio-patch is covered by that patch-set, too.
@@ -685,7 +683,6 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
-# 0%%patch -P 700 -p1 -F3
 %patch -P 600 -p1 -F3
 
 %build
