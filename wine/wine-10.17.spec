@@ -1258,6 +1258,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/comctl32.dll
 %{_libdir}/wine/%{winepedirs}/comdlg32.dll
 %{_libdir}/wine/%{winepedirs}/coml2.dll
+%{_libdir}/wine/%{winepedirs}/comctl32_v6.dll
 %{_libdir}/wine/%{winepedirs}/compstui.dll
 %{_libdir}/wine/%{winepedirs}/comsvcs.dll
 %{_libdir}/wine/%{winepedirs}/concrt140.dll
@@ -1739,6 +1740,7 @@ fi
 %endif
 %{_libdir}/wine/%{winepedirs}/win32u.dll
 %{_libdir}/wine/%{winepedirs}/winbio.dll
+%{_libdir}/wine/%{winepedirs}/winbrand.dll
 %{_libdir}/wine/%{winepedirs}/windows.applicationmodel.dll
 %{_libdir}/wine/%{winepedirs}/windows.devices.bluetooth.dll
 %{_libdir}/wine/%{winepedirs}/windows.devices.enumeration.dll
@@ -2270,6 +2272,10 @@ fi
 %endif
 
 %changelog
+* Sat Oct 18 2025 Lachlan Marie <lchlnm@pm.me> - 10.17-ec.1
+- Updated wine to 10.17
+- Increased Mono version to 10.3.0
+
 * Sat Oct 04 2025 Lachlan Marie <lchlnm@pm.me> - 10.16-ec.1
 - Updated wine to 10.16
 
