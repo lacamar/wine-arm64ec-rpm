@@ -3,12 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 6
+%global bumpver 0
 
-%global wine_commit d76b59d5c021ea5da49d1e1430c1d33bee874418
+%global wine_commit d62035da4aa91327c6e38a2c8a66b829eb0983ed
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit efcf9f948e3f9dd1d2bc31c4f2f5b6531b5a8883
+%global staging_commit f686957b39fb341e3586f33c3888160deb8d2478
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -57,7 +57,7 @@
 # 0%%{?fedora}
 
 Name:           wine-git
-Version:        10.16%{?bumpver:^%{bumpver}.git.%{wine_shortcommit}}
+Version:        10.17%{?bumpver:^%{bumpver}.git.%{wine_shortcommit}}
 Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
