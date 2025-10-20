@@ -5,7 +5,7 @@
 # Full commit and short commit reference for wine-git
 %global bumpver 0
 
-%global wine_commit d62035da4aa91327c6e38a2c8a66b829eb0983ed
+%global wine_commit 24851e0df6e2228aeea10f68555eb1708f187940
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
 %global staging_commit f686957b39fb341e3586f33c3888160deb8d2478
