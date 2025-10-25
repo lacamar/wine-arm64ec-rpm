@@ -3,12 +3,12 @@
 %bcond new_wow64 1
 
 # Full commit and short commit reference for wine-git
-%global bumpver 2
+%global bumpver 3
 
-%global wine_commit 833f57698015a9e0c9d0606d8a99254c36c9b9d8
+%global wine_commit 606d2f48bf8149bf45153f11ef3501eece20762c
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
-%global staging_commit 194b2de8dc3971681d33070d5da2b59ee3eba7a2
+%global staging_commit fa2f3233442929ae79f76537d6805bc929026583
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -1798,6 +1798,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/tbs.dll
 %{_libdir}/wine/%{winepedirs}/tdh.dll
 %{_libdir}/wine/%{winepedirs}/tdi.sys
+%{_libdir}/wine/%{winepedirs}/windows.ui.core.textinput.dll
 %{_libdir}/wine/%{winepedirs}/threadpoolwinrt.dll
 %{_libdir}/wine/%{winepedirs}/traffic.dll
 %{_libdir}/wine/%{winepedirs}/twinapi.appcore.dll
