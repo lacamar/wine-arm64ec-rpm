@@ -1,8 +1,8 @@
 %global srcname FEX
 
-%global bumpver 16
+%global bumpver 17
 
-%global commit 96f20779c6639a361b5f3acfc084328355157899
+%global commit d716e224760b796acb941e9de538955307a4dc3c
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
