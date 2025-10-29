@@ -1,8 +1,8 @@
 %global srcname FEX
 
-%global bumpver 19
+%global bumpver 20
 
-%global commit 46d019fe02d9af3ddbd0677406b1b88bb95cb7f2
+%global commit 199effdff7734d32837b1c46a66cb1a074fc8774
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -34,6 +34,7 @@ local externals = {
   { name="fmt", ref="e424e3f", owner="fmtlib", path="fmt" },
   { name="jemalloc", ref="ce24593", owner="FEX-Emu", version="5.3.0", license="MIT" },
   { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
+  { name="rpmalloc", ref="f1b76e1", owner="FEX-Emu", license="0BSD" },
   { name="range-v3", ref="ca1388f", owner="ericniebler", license="MIT" },
   { name="robin-map", ref="d5683d9", owner="FEX-Emu", version="1.3.0", license="Boost-v1" },
   { name="tracy", ref="650c98e", owner="wolfpld", license="BSD-2-Clause" },
