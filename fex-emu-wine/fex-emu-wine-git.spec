@@ -32,8 +32,6 @@ local externals = {
   { name="Vulkan-Headers", ref="cacef30", owner="KhronosGroup", package="vulkan-headers", version="1.4.310", license="Apache-2.0" },
   { name="drm-headers", ref="0675d2f", owner="FEX-Emu", package="kernel", version="6.13", license="GPL-2.0-only" },
   { name="fmt", ref="e424e3f", owner="fmtlib", path="fmt" },
-  { name="jemalloc", ref="ce24593", owner="FEX-Emu", version="5.3.0", license="MIT" },
-  { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
   { name="rpmalloc", ref="f1b76e1", owner="FEX-Emu", license="0BSD" },
   { name="range-v3", ref="ca1388f", owner="ericniebler", license="MIT" },
   { name="robin-map", ref="d5683d9", owner="FEX-Emu", version="1.3.0", license="Boost-v1" },
