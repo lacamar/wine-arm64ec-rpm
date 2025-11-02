@@ -5,7 +5,7 @@
 # Full commit and short commit reference for wine-git
 %global bumpver 0
 
-%global wine_commit cd858d59d6532a0cf624ff1dabc57a370deb43bf
+%global wine_commit 1e998672cff00f8ff7628aaf9cda6026303b5ea3
 %{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
 
 %global staging_commit 23267ac0b6a7aa4982c60bd3ed543a3a1d6be446
@@ -1798,7 +1798,6 @@ fi
 %{_libdir}/wine/%{winepedirs}/tbs.dll
 %{_libdir}/wine/%{winepedirs}/tdh.dll
 %{_libdir}/wine/%{winepedirs}/tdi.sys
-%{_libdir}/wine/%{winepedirs}/windows.ui.core.textinput.dll
 %{_libdir}/wine/%{winepedirs}/threadpoolwinrt.dll
 %{_libdir}/wine/%{winepedirs}/traffic.dll
 %{_libdir}/wine/%{winepedirs}/twinapi.appcore.dll
@@ -1878,6 +1877,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/windows.system.profile.systemid.dll
 %{_libdir}/wine/%{winepedirs}/windows.system.profile.systemmanufacturers.dll
 %{_libdir}/wine/%{winepedirs}/windows.ui.dll
+%{_libdir}/wine/%{winepedirs}/windows.ui.core.textinput.dll
 %{_libdir}/wine/%{winepedirs}/windows.ui.xaml.dll
 %{_libdir}/wine/%{winepedirs}/windows.web.dll
 %{_libdir}/wine/%{winepedirs}/windowscodecs.dll
