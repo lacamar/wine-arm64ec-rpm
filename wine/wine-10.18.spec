@@ -46,7 +46,7 @@
 # 0%%{?fedora}
 
 Name:           wine
-Version:        10.17
+Version:        10.18
 Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
@@ -1764,6 +1764,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/windows.system.profile.systemid.dll
 %{_libdir}/wine/%{winepedirs}/windows.system.profile.systemmanufacturers.dll
 %{_libdir}/wine/%{winepedirs}/windows.ui.dll
+%{_libdir}/wine/%{winepedirs}/windows.ui.core.textinput.dll
 %{_libdir}/wine/%{winepedirs}/windows.ui.xaml.dll
 %{_libdir}/wine/%{winepedirs}/windows.web.dll
 %{_libdir}/wine/%{winepedirs}/windowscodecs.dll
