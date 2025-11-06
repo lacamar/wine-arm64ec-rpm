@@ -1,8 +1,8 @@
 %global srcname FEX
 
-%global bumpver 27
+%global bumpver 28
 
-%global commit 663fd5a98befbf7a0ac585627de15c662715a731
+%global commit 747ea0a1f7a3e5c7a1f4d5d102e54909ec294e91
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -39,7 +39,7 @@ local externals = {
   { name="robin-map", ref="d5683d9", owner="FEX-Emu", version="1.3.0", license="Boost-v1" },
   { name="tracy", ref="650c98e", owner="wolfpld", license="BSD-2-Clause" },
   { name="vixl", ref="ed690c9", owner="FEX-Emu", license="BSD-3-Clause" },
-  { name="xxhash", ref="bbb27a5", owner="Cyan4973", path="xxhash", version="0.8.2",  license="BSD-2-Clause" },
+  { name="xxhash", ref="e626a72", owner="Cyan4973", path="xxhash", version="0.8.3",  license="BSD-2-Clause" },
 }
 
 for i, s in ipairs(externals) do
