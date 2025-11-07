@@ -31,7 +31,7 @@ local externals = {
   { name="cpp-optparse", ref="9f94388", owner="Sonicadvance1", path="../Source/Common/cpp-optparse", license="MIT" },
   { name="Vulkan-Headers", ref="cacef30", owner="KhronosGroup", package="vulkan-headers", version="1.4.310", license="Apache-2.0" },
   { name="drm-headers", ref="3e49836", owner="FEX-Emu", package="kernel", version="6.13", license="GPL-2.0-only" },
-  { name="fmt", ref="e424e3f", owner="fmtlib", path="fmt" },
+  { name="fmt", ref="407c905", owner="fmtlib", path="fmt", version="12.1.0" },
   { name="jemalloc", ref="ce24593", owner="FEX-Emu", version="5.3.0", license="MIT" },
   { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
   { name="rpmalloc", ref="f1b76e1", owner="FEX-Emu", license="MIT" },
