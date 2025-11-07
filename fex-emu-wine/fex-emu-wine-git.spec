@@ -1,8 +1,8 @@
 %global srcname FEX
 
-%global bumpver 0
+%global bumpver 1
 
-%global commit 2febb524e9b70ee68061fc16e19031ab1998a973
+%global commit f4e3e4ad30f3927869498f6fa73e3afecf20c1d4
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -27,7 +27,7 @@ Source100:  https://github.com/bylaws/llvm-mingw/releases/download/20250920/llvm
 
 %{lua:
 local externals = {
-  { name="Catch2", ref="8ac8190", owner="catchorg", license="BSL-1.0" },
+  { name="Catch2", ref="b3fb4b9", owner="catchorg", version="3.11.0", license="BSL-1.0" },
   { name="cpp-optparse", ref="9f94388", owner="Sonicadvance1", path="../Source/Common/cpp-optparse", license="MIT" },
   { name="Vulkan-Headers", ref="cacef30", owner="KhronosGroup", package="vulkan-headers", version="1.4.310", license="Apache-2.0" },
   { name="drm-headers", ref="3e49836", owner="FEX-Emu", package="kernel", version="6.13", license="GPL-2.0-only" },
