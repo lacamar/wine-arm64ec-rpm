@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        10.5
-Release:        ec.2%{dist}
+Release:        ec2%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2314,7 +2314,7 @@ fi
 %endif
 
 %changelog
-* Sat Nov 15 2025 Lachlan Marie <lchlnm@pm.me> - 10.5-ec.2
+* Sat Nov 15 2025 Lachlan Marie <lchlnm@pm.me> - 10.5-ec2
 - Rebased on Fedora upstream wine
 
 * Sun Nov 02 2025 Michael Cronenworth <mike@cchtml.com> - 10.18-2
