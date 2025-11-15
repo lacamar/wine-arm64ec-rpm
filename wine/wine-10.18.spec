@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        10.18
-Release:        ec.2%{dist}
+Release:        ec2%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -190,7 +190,7 @@ BuildRequires:  libva-devel
 
 BuildRequires:  icoutils
 
-%ifarch %{ix86} x86_64 aarch64
+%ifarch %{ix86} x86_64
 BuildRequires:  mingw32-FAudio
 BuildRequires:  mingw64-FAudio
 BuildRequires:  mingw32-gcc
@@ -2322,7 +2322,7 @@ fi
 %endif
 
 %changelog
-* Sat Nov 15 2025 Lachlan Marie <lchlnm@pm.me> - 10.18-ec.2
+* Sat Nov 15 2025 Lachlan Marie <lchlnm@pm.me> - 10.18-ec2
 - Rebased on Fedora upstream wine 10.18-2
 
 * Sun Nov 02 2025 Michael Cronenworth <mike@cchtml.com> - 10.18-2
