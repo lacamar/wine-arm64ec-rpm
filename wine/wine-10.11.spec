@@ -1,6 +1,10 @@
 # The new wow64 mode is disabled by default
 # https://gitlab.winehq.org/wine/wine/-/releases/wine-9.0#wow64
+%if 0%{?fedora} >= 42
 %bcond new_wow64 1
+%else
+%bcond new_wow64 0
+%endif
 
 # Compiling the preloader fails with hardening enabled
 %undefine _hardened_build
@@ -47,7 +51,7 @@
 
 Name:           wine
 Version:        10.11
-Release:        ec.%autorelease
+Release:        ec2%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -82,6 +86,9 @@ Source201:      wine.directory
 # mime types
 Source300:      wine-mime-msi.desktop
 
+# kernel module ntsync
+Source400:      wine-ntsync.conf
+
 # smooth tahoma (#693180)
 # disable embedded bitmaps
 Source501:      wine-tahoma.conf
@@ -99,7 +106,7 @@ Patch700:       ntsync5-staging_2025.07.05.patch
 %if 0%{?wine_staging}
 # wine-staging patches
 # pulseaudio-patch is covered by that patch-set, too.
-Source900: https://github.com/wine-staging/wine-staging/archive/v%{version}.tar.gz#/wine-staging-%{version}.tar.gz
+Source900:      https://gitlab.winehq.org/wine/wine-staging/-/archive/v%{version}/wine-staging-%{version}.tar.gz
 %endif
 
 %if !%{?no64bit}
@@ -113,11 +120,12 @@ ExclusiveArch:  %{ix86}
 BuildRequires:  bison
 BuildRequires:  flex
 %ifarch aarch64
-BuildRequires:  llvm-devel
 BuildRequires:  clang >= 5.0
 BuildRequires:  lld
-%endif
+BuildRequires:  llvm-devel
+%else
 BuildRequires:  gcc
+%endif
 BuildRequires:  autoconf
 BuildRequires:  make
 BuildRequires:  desktop-file-utils
@@ -184,7 +192,7 @@ BuildRequires:  libva-devel
 
 BuildRequires:  icoutils
 
-%ifarch %{ix86} x86_64 aarch64
+%ifarch %{ix86} x86_64
 BuildRequires:  mingw32-FAudio
 BuildRequires:  mingw64-FAudio
 BuildRequires:  mingw32-gcc
@@ -209,7 +217,7 @@ BuildRequires:  mingw64-zlib
 
 Requires:       wine-common = %{version}-%{release}
 Requires:       wine-desktop = %{version}-%{release}
-Requires:       wine-fonts = %{version}-%{release}
+Requires:       wine-winefonts = %{version}-%{release}
 
 # x86-32 parts
 %ifarch %{ix86} x86_64
@@ -226,12 +234,12 @@ Requires:       mesa-dri-drivers(x86-32)
 Recommends:     wine-dxvk(x86-32)
 Recommends:     gstreamer1-plugins-good(x86-32)
 %endif
+%endif
 Requires:       mingw32-wine-gecko = %winegecko
 Requires:       wine-mono = %winemono
 #  wait for rhbz#968860 to require arch-specific samba-winbind-clients
 Requires:       /usr/bin/ntlm_auth
 Recommends:     dosbox-staging
-%endif
 %endif
 
 # x86-64 parts
@@ -379,10 +387,6 @@ Requires:       libva
 Provides:       bundled(libjpeg) = 9f
 Provides:       bundled(mpg123-libs) = 1.32.9
 
-# removed as of 7.21
-Obsoletes:      wine-openal < 7.21
-Provides:       wine-openal = %{version}-%{release}
-
 %description core
 Wine core package includes the basic wine stuff needed by all other packages.
 
@@ -392,7 +396,6 @@ Requires:       systemd >= 23
 BuildArch:      noarch
 Requires(post):  systemd
 Requires(postun): systemd
-Obsoletes:      wine-sysvinit < %{version}-%{release}
 
 %description systemd
 Register the wine binary handler for windows executables via systemd binfmt
@@ -427,112 +430,124 @@ BuildArch:      noarch
 Desktop integration features for wine, including mime-types and a binary format
 handler service.
 
-%package fonts
+%package ntsync
+Summary:       Kernel module load file for ntsync
+BuildArch:     noarch
+
+%description ntsync
+Kernel module load file for ntsync
+
+%package winefonts
 Summary:       Wine font files
 BuildArch:     noarch
+Obsoletes:     wine-fonts < 10.16
 # arial-fonts are available with wine-staging patchset, only.
 %if 0%{?wine_staging}
-Requires:      wine-arial-fonts = %{version}-%{release}
+Requires:      wine-arial-winefonts = %{version}-%{release}
 %else
 # 0%%{?wine_staging}
-Obsoletes:     wine-arial-fonts <= %{version}-%{release}
+Obsoletes:     wine-arial-winefonts <= %{version}-%{release}
 %endif
 # 0%%{?wine_staging}
-Requires:      wine-courier-fonts = %{version}-%{release}
-Requires:      wine-fixedsys-fonts = %{version}-%{release}
-Requires:      wine-small-fonts = %{version}-%{release}
-Requires:      wine-system-fonts = %{version}-%{release}
-Requires:      wine-marlett-fonts = %{version}-%{release}
-Requires:      wine-ms-sans-serif-fonts = %{version}-%{release}
-Requires:      wine-tahoma-fonts = %{version}-%{release}
+Requires:      wine-courier-winefonts = %{version}-%{release}
+Requires:      wine-fixedsys-winefonts = %{version}-%{release}
+Requires:      wine-small-winefonts = %{version}-%{release}
+Requires:      wine-system-winefonts = %{version}-%{release}
+Requires:      wine-marlett-winefonts = %{version}-%{release}
+Requires:      wine-ms-sans-serif-winefonts = %{version}-%{release}
+Requires:      wine-tahoma-winefonts = %{version}-%{release}
 # times-new-roman-fonts are available with wine_staging-patchset, only.
 %if 0%{?wine_staging}
-Requires:      wine-times-new-roman-fonts = %{version}-%{release}
-%else
-# 0%%{?wine_staging}
-Obsoletes:     wine-times-new-roman-fonts <= %{version}-%{release}
-Obsoletes:     wine-times-new-roman-fonts-system <= %{version}-%{release}
+Requires:      wine-times-new-roman-winefonts = %{version}-%{release}
 %endif
 # 0%%{?wine_staging}
-Requires:      wine-symbol-fonts = %{version}-%{release}
-Requires:      wine-webdings-fonts = %{version}-%{release}
-Requires:      wine-wingdings-fonts = %{version}-%{release}
+Requires:      wine-symbol-winefonts = %{version}-%{release}
+Requires:      wine-webdings-winefonts = %{version}-%{release}
+Requires:      wine-wingdings-winefonts = %{version}-%{release}
 # intermediate fix for #593140
 Requires:      liberation-sans-fonts liberation-serif-fonts liberation-mono-fonts
 Requires:      liberation-narrow-fonts
 
-%description fonts
+%description winefonts
 %{summary}
 
 %if 0%{?wine_staging}
-%package arial-fonts
+%package arial-winefonts
 Summary:       Wine Arial font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+Obsoletes:     wine-arial-fonts < 10.16
 
-%description arial-fonts
+%description arial-winefonts
 %{summary}
 %endif
 # 0%%{?wine_staging}
 
-%package courier-fonts
+%package courier-winefonts
 Summary:       Wine Courier font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+Obsoletes:     wine-courier-fonts < 10.16
 
-%description courier-fonts
+%description courier-winefonts
 %{summary}
 
-%package fixedsys-fonts
+%package fixedsys-winefonts
 Summary:       Wine Fixedsys font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+Obsoletes:     wine-fixedsys-fonts < 10.16
 
-%description fixedsys-fonts
+%description fixedsys-winefonts
 %{summary}
 
-%package small-fonts
+%package small-winefonts
 Summary:       Wine Small font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+Obsoletes:     wine-small-fonts < 10.16
 
-%description small-fonts
+%description small-winefonts
 %{summary}
 
-%package system-fonts
+%package system-winefonts
 Summary:       Wine System font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+Obsoletes:     wine-system-fonts < 10.16
 
-%description system-fonts
+%description system-winefonts
 %{summary}
 
 
-%package marlett-fonts
+%package marlett-winefonts
 Summary:       Wine Marlett font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+Obsoletes:     wine-marlett-fonts < 10.16
 
-%description marlett-fonts
+%description marlett-winefonts
 %{summary}
 
 
-%package ms-sans-serif-fonts
+%package ms-sans-serif-winefonts
 Summary:       Wine MS Sans Serif font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+Obsoletes:     wine-ms-sans-serif-fonts < 10.16
 
-%description ms-sans-serif-fonts
+%description ms-sans-serif-winefonts
 %{summary}
 
 # rhbz#693180
 # http://lists.fedoraproject.org/pipermail/devel/2012-June/168153.html
-%package tahoma-fonts
+%package tahoma-winefonts
 Summary:       Wine Tahoma font family
 BuildArch:     noarch
 Requires:      wine-filesystem = %{version}-%{release}
+Obsoletes:     wine-tahoma-fonts < 10.16
 
-%description tahoma-fonts
+%description tahoma-winefonts
 %{summary}
 Please note: If you want system integration for wine tahoma fonts install the
 wine-tahoma-fonts-system package.
@@ -541,18 +556,19 @@ wine-tahoma-fonts-system package.
 Summary:       Wine Tahoma font family system integration
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
-Requires:      wine-tahoma-fonts = %{version}-%{release}
+Requires:      wine-tahoma-winefonts = %{version}-%{release}
 
 %description tahoma-fonts-system
 %{summary}
 
 %if 0%{?wine_staging}
-%package times-new-roman-fonts
+%package times-new-roman-winefonts
 Summary:       Wine Times New Roman font family
 BuildArch:     noarch
 Requires:      wine-filesystem = %{version}-%{release}
+Obsoletes:     wine-times-new-roman-fonts < 10.16
 
-%description times-new-roman-fonts
+%description times-new-roman-winefonts
 %{summary}
 Please note: If you want system integration for wine times new roman fonts install the
 wine-times-new-roman-fonts-system package.
@@ -561,34 +577,37 @@ wine-times-new-roman-fonts-system package.
 Summary:       Wine Times New Roman font family system integration
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
-Requires:      wine-times-new-roman-fonts = %{version}-%{release}
+Requires:      wine-times-new-roman-winefonts = %{version}-%{release}
 
 %description times-new-roman-fonts-system
 %{summary}
 %endif
 
-%package symbol-fonts
+%package symbol-winefonts
 Summary:       Wine Symbol font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+Obsoletes:     wine-symbol-fonts < 10.16
 
-%description symbol-fonts
+%description symbol-winefonts
 %{summary}
 
-%package webdings-fonts
+%package webdings-winefonts
 Summary:       Wine Webdings font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+Obsoletes:     wine-webdings-fonts < 10.16
 
-%description webdings-fonts
+%description webdings-winefonts
 %{summary}
 
-%package wingdings-fonts
+%package wingdings-winefonts
 Summary:       Wine Wingdings font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
+Obsoletes:     wine-wingdings-fonts < 10.16
 
-%description wingdings-fonts
+%description wingdings-winefonts
 %{summary}
 Please note: If you want system integration for wine wingdings fonts install the
 wine-wingdings-fonts-system package.
@@ -597,7 +616,7 @@ wine-wingdings-fonts-system package.
 Summary:       Wine Wingdings font family system integration
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
-Requires:      wine-wingdings-fonts = %{version}-%{release}
+Requires:      wine-wingdings-winefonts = %{version}-%{release}
 
 %description wingdings-fonts-system
 %{summary}
@@ -628,7 +647,7 @@ Smart card support for wine
 Summary: Twain support for wine
 Requires: wine-core = %{version}-%{release}
 %ifarch %{ix86}
-Requires: sane-backends-libs(x86-32)
+Requires:  sane-backends-libs(x86-32)
 %endif
 %ifarch x86_64
 Requires: sane-backends-libs(x86-64)
@@ -716,7 +735,7 @@ export CFLAGS="$(echo "%{optflags}" | sed -e 's/-fcf-protection//' -e 's/-fstack
 # Fedora passes '--as-needed' for all binaries and this is a warning from the linker, now an error, so disable flag for now
 sed -i 's/-Wl,-WX//g' configure
 
-# Remove branch protection flag that breaks wine on Apple M2 architecture (armv8.6-a). M1 can work with this flag this (armv8.4)
+# Remove branch protection flag that breaks wine on Apple M2 architecture (armv8.6-a)
 export CFLAGS="$(echo "$CFLAGS" | sed -e 's/-mbranch-protection=standard//')"
 %endif
 
@@ -728,7 +747,7 @@ unset PKG_CONFIG_PATH
  --x-includes=%{_includedir} --x-libraries=%{_libdir} \
  --with-dbus \
  --with-x \
-%ifarch x86_64 aarch64
+%if %{__isa_bits} == 64
  --enable-win64 \
 %ifarch x86_64
 %if %{with new_wow64}
@@ -757,7 +776,7 @@ unset PKG_CONFIG_PATH
         UPDATE_DESKTOP_DATABASE=/bin/true
 
 # setup for alternatives usage
-%ifarch x86_64 aarch64
+%if %{__isa_bits} == 64
 mv %{buildroot}%{_bindir}/wine %{buildroot}%{_bindir}/wine64
 mv %{buildroot}%{_bindir}/wineserver %{buildroot}%{_bindir}/wineserver64
 %endif
@@ -797,6 +816,9 @@ touch %{buildroot}%{_libdir}/wine/i386-windows/d3d11.dll
 %endif
 
 # setup new wow64
+%if %{with new_wow64}
+#
+%else
 %ifarch x86_64
 ln -sf /usr/lib/wine/i386-unix %{buildroot}%{_libdir}/wine/i386-unix
 ln -sf /usr/lib/wine/i386-windows %{buildroot}%{_libdir}/wine/i386-windows
@@ -805,11 +827,12 @@ ln -sf /usr/lib/wine/i386-windows %{buildroot}%{_libdir}/wine/i386-windows
 ln -sf /usr/lib64/wine/x86_64-unix %{buildroot}%{_libdir}/wine/x86_64-unix
 ln -sf /usr/lib64/wine/x86_64-windows %{buildroot}%{_libdir}/wine/x86_64-windows
 %endif
+%endif
 
 # remove rpath
 chrpath --delete %{buildroot}%{_bindir}/wmc
 chrpath --delete %{buildroot}%{_bindir}/wrc
-%ifarch x86_64 aarch64
+%if %{__isa_bits} == 64
 chrpath --delete %{buildroot}%{_bindir}/wine64
 chrpath --delete %{buildroot}%{_bindir}/wineserver64
 %else
@@ -994,6 +1017,9 @@ mkdir -p %{buildroot}/%{_metainfodir}/
 install -p -m 0644 %{SOURCE150} %{buildroot}/%{_metainfodir}/%{name}.appdata.xml
 appstream-util validate-relax --nonet %{buildroot}/%{_metainfodir}/%{name}.appdata.xml
 
+mkdir -p %{buildroot}%{_modulesloaddir}
+install -m 644 -p %{SOURCE400} %{buildroot}%{_modulesloaddir}/ntsync.conf
+
 %post systemd
 %binfmt_apply wine.conf
 
@@ -1004,11 +1030,39 @@ fi
 
 %ldconfig_post core
 
+%pretrans -p <lua> core
+%if %{with new_wow64}
+%ifarch %{ix86}
+pathA = "%{_libdir}/wine/x86_64-unix"
+pathB = "%{_libdir}/wine/x86_64-windows"
+stA = posix.stat(pathA)
+stB = posix.stat(pathB)
+if stA and stA.type == "link" then
+  os.remove(pathA)
+end
+if stB and stB.type == "link" then
+  os.remove(pathB)
+end
+%endif
+%ifarch x86_64
+pathA = "%{_libdir}/wine/i386-unix"
+pathB = "%{_libdir}/wine/i386-windows"
+stA = posix.stat(pathA)
+stB = posix.stat(pathB)
+if stA and stA.type == "link" then
+  os.remove(pathA)
+end
+if stB and stB.type == "link" then
+  os.remove(pathB)
+end
+%endif
+%endif
+
 %posttrans core
 # handle upgrades for a few package updates
 rm -f %{_libdir}/wine/%{winepedirs}/d3d8.dll
 rm -f %{_bindir}/wine-preloader
-%ifarch x86_64 aarch64
+%if %{__isa_bits} == 64
 %{_sbindir}/alternatives --remove wine %{_bindir}/wine64
 %{_sbindir}/alternatives --install %{_bindir}/wine \
   wine %{_bindir}/wine64 20
@@ -1050,7 +1104,7 @@ rm -f %{_bindir}/wine-preloader
 %postun core
 %{?ldconfig}
 if [ $1 -eq 0 ] ; then
-%ifarch x86_64 aarch64
+%if %{__isa_bits} == 64
   %{_sbindir}/alternatives --remove wine %{_bindir}/wine64
   %{_sbindir}/alternatives --remove wineserver %{_bindir}/wineserver64
 %else
@@ -1115,7 +1169,6 @@ fi
 %{_libdir}/wine/%{winepedirs}/write.exe
 %{_libdir}/wine/%{winepedirs}/wusa.exe
 
-# produced during ARM64EC build
 %ifarch aarch64
 %{_libdir}/wine/%{winepedir}/xtajit64.dll
 %endif
@@ -1125,7 +1178,7 @@ fi
 %{_bindir}/wineserver32
 %endif
 
-%ifarch x86_64 aarch64
+%if %{__isa_bits} == 64
 %{_bindir}/wine64
 %{_bindir}/wineserver64
 %endif
@@ -1203,12 +1256,17 @@ fi
 %{_libdir}/wine/%{winepedirs}/wscript.exe
 %{_libdir}/wine/%{winepedirs}/uninstaller.exe
 
+%if %{with new_wow64}
+#
+%else
 %ifarch %{ix86}
 %{_libdir}/wine/x86_64-unix
 %{_libdir}/wine/x86_64-windows
 %endif
 %ifarch x86_64
 %{_libdir}/wine/i386-unix
+%{_libdir}/wine/i386-windows
+%endif
 %endif
 
 %{_libdir}/wine/%{winepedirs}/acledit.dll
@@ -1712,7 +1770,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/vcomp120.dll
 %{_libdir}/wine/%{winepedirs}/vcomp140.dll
 %{_libdir}/wine/%{winepedirs}/vcruntime140.dll
-%ifarch x86_64 aarch64
+%if %{__isa_bits} == 64
 %{_libdir}/wine/%{winepedirs}/vcruntime140_1.dll
 %endif
 %{_libdir}/wine/%{winepedirs}/vdmdbg.dll
@@ -1816,7 +1874,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/wmphoto.dll
 %{_libdir}/wine/%{winepedirs}/wnaspi32.dll
 %{_libdir}/wine/%{winepedirs}/wofutil.dll
-%ifarch x86_64 aarch64
+%if %{__isa_bits} == 64
 %{_libdir}/wine/%{winepedirs}/wow64.dll
 %{_libdir}/wine/%{winepedirs}/wow64win.dll
 %endif
@@ -1899,7 +1957,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/xpssvcs.dll
 
 %if 0%{?wine_staging}
-%ifarch x86_64 aarch64
+%if %{__isa_bits} == 64
 #%%{_libdir}/wine/%%{winepedirs}/nvapi64.dll
 #%%{_libdir}/wine/%%{winepedirs}/nvencodeapi64.dll
 #%%{_libdir}/wine/%%{winesodir}/nvencodeapi64.dll.so
@@ -2082,25 +2140,25 @@ fi
 %lang(fr) %{_mandir}/fr.UTF-8/man1/wineserver.1*
 %lang(pl) %{_mandir}/pl.UTF-8/man1/wine.1*
 
-%files fonts
+%files winefonts
 # meta package
 
 %if 0%{?wine_staging}
-%files arial-fonts
+%files arial-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/arial*
 %endif
 #0%%{?wine_staging}
 
-%files courier-fonts
+%files courier-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/cou*
 
-%files fixedsys-fonts
+%files fixedsys-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/*vgafix.fon
 
-%files system-fonts
+%files system-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/cvgasys.fon
 %{_datadir}/wine/fonts/hvgasys.fon
@@ -2116,23 +2174,23 @@ fi
 %{_datadir}/wine/fonts/vgasysr.fon
 %{_datadir}/wine/fonts/vgasyst.fon
 
-%files small-fonts
+%files small-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/sma*
 %{_datadir}/wine/fonts/jsma*
 
-%files marlett-fonts
+%files marlett-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/marlett.ttf
 
-%files ms-sans-serif-fonts
+%files ms-sans-serif-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/sse*
 %if 0%{?wine_staging}
 %{_datadir}/wine/fonts/msyh.ttf
 %endif
 
-%files tahoma-fonts
+%files tahoma-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/tahoma*ttf
 
@@ -2143,7 +2201,7 @@ fi
 %{_fontconfig_templatedir}/20-wine-tahoma*conf
 
 %if 0%{?wine_staging}
-%files times-new-roman-fonts
+%files times-new-roman-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/times.ttf
 
@@ -2151,15 +2209,15 @@ fi
 %{_datadir}/fonts/wine-times-new-roman-fonts
 %endif
 
-%files symbol-fonts
+%files symbol-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/symbol.ttf
 
-%files webdings-fonts
+%files webdings-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/webdings.ttf
 
-%files wingdings-fonts
+%files wingdings-winefonts
 %license COPYING.LIB
 %{_datadir}/wine/fonts/wingding.ttf
 
@@ -2183,6 +2241,9 @@ fi
 %config %{_sysconfdir}/xdg/menus/applications-merged/wine.menu
 %{_metainfodir}/%{name}.appdata.xml
 %{_datadir}/icons/hicolor/scalable/apps/*svg
+
+%files ntsync
+%{_modulesloaddir}/ntsync.conf
 
 %files systemd
 %config %{_binfmtdir}/wine.conf
@@ -2254,17 +2315,43 @@ fi
 %endif
 
 %changelog
-* Sat Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 10.11-4.arm64ec
+* Sat Nov 15 2025 Lachlan Marie <lchlnm@pm.me> - 10.11-ec2
+- Rebased on Fedora upstream wine
+
+* Sun Nov 02 2025 Michael Cronenworth <mike@cchtml.com> - 10.18-2
+- wine-mono 10.3.0
+
+* Sun Nov 02 2025 Michael Cronenworth <mike@cchtml.com> - 10.18-1
+- version update
+- reorganize fonts packages (RHBZ#2372648)
+
+* Sat Oct 18 2025 Lachlan Marie <lchlnm@pm.me> - 10.17-ec.1
+- Updated wine to 10.17
+- Increased Mono version to 10.3.0
+
+* Sat Oct 04 2025 Lachlan Marie <lchlnm@pm.me> - 10.16-ec.1
+- Updated wine to 10.16
+
+* Sat Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 10.14-1.arm64ec
+- Updated wine to 10.14
+
+* Sat Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-3.arm64ec
 - Added NTSync patch (wine-tkg-staging)
 
-* Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 10.11-3.arm64ec
+* Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-2.arm64ec
 - Added fex-emu-wine as a requirement for wine core on aarch64
 
-* Sat Aug 09 2025 Lachlan Marie <lchlnm@pm.me> - 10.11-2.arm64ec
-- Backported 10.12 specfile changes to 10.11 to avoid package conflicts when upgrading/switching between versions due to new_wow64 changes
+* Sat Aug 16 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-1.arm64ec
+- Updated wine to version 10.13
+
+* Wed Aug 13 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-4.arm64ec
+- Updated bylaws patchset to latest git commit fcc776b
+
+* Sun Aug 10 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-3.arm64ec
+- Updated bylaws patchset to latest git commit b0575a5
 
 * Thu Aug 07 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-2.arm64ec
-- Updated bylaws patchset to latest git commit
+- Updated bylaws patchset to latest git commit ff92282
 - Fixed new_wow64 switches to reflect aarch64
 - Added aarch64 to mingw buildrequires
 
