@@ -1,6 +1,6 @@
 %global srcname FEX
 
-%global bumpver 9
+%global bumpver 10
 
 %global commit aaef344ae39bb077f213b151a7c7727a709b1637
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
