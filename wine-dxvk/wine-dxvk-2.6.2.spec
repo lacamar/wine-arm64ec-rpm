@@ -7,7 +7,7 @@
 
 Name:           wine-dxvk
 Version:        2.6.2
-Release:        1.arm64ec%{?dist}
+Release:        ec1%{?dist}
 Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 
 License:        zlib AND MIT
