@@ -194,4 +194,7 @@ rm -rf %{buildroot}/usr/share
 * Sat Nov 22 2025 Lachlan Marie <lchlnm@pm.me> - 2511^14.git.e2f4065-1
  - Update to commit e2f406537690a0b258fcdde289594dc2be93382d
 
+* Sat Nov 22 2025 Lachlan Marie <lchlnm@pm.me> - 2511^14.git.e2f4065-1
+ - Update to commit e2f406537690a0b258fcdde289594dc2be93382d
+
 %autochangelog
