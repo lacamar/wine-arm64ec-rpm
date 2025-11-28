@@ -1,6 +1,6 @@
-%global bumpver 2
+%global bumpver 3
 
-%global commit d1db9d290bb87cb01401e811b7cac3dbb2375eae
+%global commit fc848a41bf709542794e963159c2841f44759574
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -267,6 +267,9 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Fri Nov 28 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^3.git.fc848a4-ec1
+ - Update to commit fc848a41bf709542794e963159c2841f44759574
+
 * Thu Nov 27 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^2.git.d1db9d2-ec1
  - Update to commit d1db9d290bb87cb01401e811b7cac3dbb2375eae
 
