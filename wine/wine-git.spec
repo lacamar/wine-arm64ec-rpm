@@ -7,12 +7,12 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global bumpver 2
+%global bumpver 0
 
-%global wine_commit fe1175af410d04f806dda770502d0476a8ccbef6
-%{?wine_commit:%global wine_shortcommit %(c=%{wine_commit}; echo ${c:0:7})}
+%global commit 4dfbf077cf708e4bbffa8e086d78d6652bbd69d8
+%{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 02295978091f250dbe9d6a555ea38e10075867ab
+%global staging_commit b7f859e90d0bb18753a8acc7f7bb01138ebe685e
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -60,13 +60,16 @@
 # 0%%{?fedora}
 
 Name:           wine-git
-Version:        10.18%{?bumpver:^%{bumpver}.git.%{wine_shortcommit}}
+Version:        10.20%{?bumpver:^%{bumpver}.git.%{shortcommit}}
 Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
+Conflicts:      wine
+Provides:       wine = %{version}-%{release}
+
 License:        LGPL-2.1-or-later
 URL:            https://www.winehq.org/
-Source0:        https://gitlab.winehq.org/wine/wine/-/archive/%{wine_shortcommit}/wine-%{wine_shortcommit}.tar.gz
+Source0:        https://gitlab.winehq.org/wine/wine/-/archive/%{shortcommit}/wine-%{shortcommit}.tar.gz
 
 Source1:        wine.systemd
 Source2:        wine-README-Fedora
@@ -123,9 +126,6 @@ ExclusiveArch:  %{ix86} x86_64 aarch64
 %else
 ExclusiveArch:  %{ix86}
 %endif
-
-Conflicts:      wine
-Provides:       wine = %{version}-%{release}
 
 BuildRequires:  bison
 BuildRequires:  flex
@@ -802,7 +802,7 @@ This package adds the opencl driver for wine.
 %endif
 
 %prep
-%setup -qn wine-%{wine_shortcommit}
+%setup -qn wine-%{shortcommit}
 %patch -P 511 -p1 -b.cjk
 
 %if 0%{?wine_staging}
@@ -1565,6 +1565,9 @@ fi
 %{_libdir}/wine/%{winepedirs}/icinfo.exe
 %{_libdir}/wine/%{winepedirs}/icmp.dll
 %{_libdir}/wine/%{winepedirs}/icmui.dll
+%{_libdir}/wine/%{winepedirs}/icu.dll
+%{_libdir}/wine/%{winepedirs}/icuin.dll
+%{_libdir}/wine/%{winepedirs}/icuuc.dll
 %{_libdir}/wine/%{winepedirs}/ieframe.dll
 %{_libdir}/wine/%{winepedirs}/ieproxy.dll
 %{_libdir}/wine/%{winepedirs}/iertutil.dll
@@ -1708,6 +1711,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/msvcrt20.dll
 %{_libdir}/wine/%{winepedirs}/msvcrt40.dll
 %{_libdir}/wine/%{winepedirs}/msvcrtd.dll
+%{_libdir}/wine/%{winepedirs}/msvdsp.dll
 %{_libdir}/wine/%{winepedirs}/msvfw32.dll
 %{_libdir}/wine/%{winepedirs}/msvidc32.dll
 %{_libdir}/wine/%{winepedirs}/msvproc.dll
@@ -1888,6 +1892,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/vdmdbg.dll
 %{_libdir}/wine/%{winepedirs}/version.dll
 %{_libdir}/wine/%{winepedirs}/vga.dll
+%{_libdir}/wine/%{winepedirs}/vidreszr.dll
 %{_libdir}/wine/%{winepedirs}/virtdisk.dll
 %{_libdir}/wine/%{winepedirs}/vssapi.dll
 %{_libdir}/wine/%{winepedirs}/vulkan-1.dll
@@ -2433,4 +2438,10 @@ fi
 %endif
 
 %changelog
+* Sat Nov 29 2025 Lachlan Marie <lchlnm@pm.me> - 10.20^0.git.4dfbf07-ec.1
+ - Update to commit 4dfbf077cf708e4bbffa8e086d78d6652bbd69d8
+
+* Sat Nov 22 2025 Lachlan Marie <lchlnm@pm.me> - 10.19^0.git.548ee6c-ec.1
+ - Update to commit 548ee6cc0f6fec0acd88218700b2d50cddbf0630
+
 %autochangelog
