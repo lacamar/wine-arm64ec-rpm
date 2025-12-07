@@ -7,9 +7,9 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global bumpver 0
+%global bumpver 4
 
-%global commit 4dfbf077cf708e4bbffa8e086d78d6652bbd69d8
+%global commit a3d49dbc8db25fdd5907b497f7993d214bf8d0b8
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global staging_commit b7f859e90d0bb18753a8acc7f7bb01138ebe685e
@@ -21,7 +21,7 @@
 
 %global no64bit   0
 %global winegecko 2.47.4
-%global winemono  10.3.0
+%global winemono  10.4.0
 %if 0%{?fedora}
 %global opencl    1
 %endif
@@ -60,7 +60,7 @@
 # 0%%{?fedora}
 
 Name:           wine-git
-Version:        10.20%{?bumpver:^%{bumpver}.git.%{shortcommit}}
+Version:        11.0rc1%{?bumpver:^%{bumpver}.git.%{shortcommit}}
 Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
@@ -2438,6 +2438,18 @@ fi
 %endif
 
 %changelog
+* Sun Dec 07 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^4.git.a3d49db-ec.1
+ - Update to commit a3d49dbc8db25fdd5907b497f7993d214bf8d0b8
+
+* Thu Dec 04 2025 Lachlan Marie <lchlnm@pm.me> - 10.20^3.git.c823c3d-ec.1
+ - Update to commit c823c3d99679be11f6814888a0f86c247f87cdf1
+
+* Wed Dec 03 2025 Lachlan Marie <lchlnm@pm.me> - 10.20^2.git.a8fb8d4-ec.1
+ - Update to commit a8fb8d484e469691e372cc1198f4631eb059723a
+
+* Tue Dec 02 2025 Lachlan Marie <lchlnm@pm.me> - 10.20^1.git.d671927-ec.1
+ - Update to commit d671927488486b8541cc235a73c94989a21e9caa
+
 * Sat Nov 29 2025 Lachlan Marie <lchlnm@pm.me> - 10.20^0.git.4dfbf07-ec.1
  - Update to commit 4dfbf077cf708e4bbffa8e086d78d6652bbd69d8
 
