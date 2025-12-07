@@ -1,6 +1,6 @@
-%global bumpver 4
+%global bumpver 9
 
-%global commit add6fe452a28f4dd69d467623e21f3e5817f4dfe
+%global commit 0118eaff27d0d9637e4f4b53e114cdab381b480c
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -267,6 +267,21 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Sat Dec 06 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^9.git.0118eaf-ec1
+ - Update to commit 0118eaff27d0d9637e4f4b53e114cdab381b480c
+
+* Fri Dec 05 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^8.git.1855e5e-ec1
+ - Update to commit 1855e5e5209abdac3f5d33a1fc50981f6ae709f4
+
+* Thu Dec 04 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^7.git.36f23aa-ec1
+ - Update to commit 36f23aa729036d51a093c9dbc724135c5c794f5c
+
+* Wed Dec 03 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^6.git.32b79cd-ec1
+ - Update to commit 32b79cd69084c19d7057f327c70638e09bc43392
+
+* Mon Dec 01 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^5.git.8b2f6b9-ec1
+ - Update to commit 8b2f6b9a649f5a44bfeea83033ea9bdf8c8fa3ac
+
 * Sun Nov 30 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^4.git.add6fe4-ec1
  - Update to commit add6fe452a28f4dd69d467623e21f3e5817f4dfe
 
