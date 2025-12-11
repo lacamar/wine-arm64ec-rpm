@@ -29,7 +29,7 @@ local externals = {
   { name="mingw-directx-headers", ref="9df86f2", owner="misyltoad", path="include/native/directx", license="LGPL v2.1" },
   { name="SPIRV-Headers", ref="8b246ff", owner="KhronosGroup", path="include/spirv", version="1.3.280.0", license="CC0" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
-  { name="Vulkan-Headers", ref="2fa2034", owner="KhronosGroup", path="include/vulkan", version="1.4.307", license="Apache-2.0" },
+  { name="Vulkan-Headers", ref="2fa2034", owner="KhronosGroup", path="include/vulkan", version="1.4.335.0", license="Apache-2.0" },
   { name="dxbc-spirv", ref="70fe688", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
 }
