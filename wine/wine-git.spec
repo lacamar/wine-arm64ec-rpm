@@ -7,12 +7,12 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global bumpver 4
+%global bumpver 7
 
-%global commit a3d49dbc8db25fdd5907b497f7993d214bf8d0b8
+%global commit 8545d9d9121150788dd1bcb03fb0784f5c425641
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit b7f859e90d0bb18753a8acc7f7bb01138ebe685e
+%global staging_commit b6ba963ad02c52f44d253ee8ea3a358e12dad34f
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -110,7 +110,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:      2025.08.22_bylaws-wine_upstream-arm64ec_hack_v2.patch
+Patch600:      2025.09.17_bylaws.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -1565,9 +1565,6 @@ fi
 %{_libdir}/wine/%{winepedirs}/icinfo.exe
 %{_libdir}/wine/%{winepedirs}/icmp.dll
 %{_libdir}/wine/%{winepedirs}/icmui.dll
-%{_libdir}/wine/%{winepedirs}/icu.dll
-%{_libdir}/wine/%{winepedirs}/icuin.dll
-%{_libdir}/wine/%{winepedirs}/icuuc.dll
 %{_libdir}/wine/%{winepedirs}/ieframe.dll
 %{_libdir}/wine/%{winepedirs}/ieproxy.dll
 %{_libdir}/wine/%{winepedirs}/iertutil.dll
@@ -1860,6 +1857,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/tdi.sys
 %{_libdir}/wine/%{winepedirs}/threadpoolwinrt.dll
 %{_libdir}/wine/%{winepedirs}/traffic.dll
+%{_libdir}/wine/%{winepedirs}/twaindsm.dll
 %{_libdir}/wine/%{winepedirs}/twinapi.appcore.dll
 %{_libdir}/wine/%{winepedirs}/tzres.dll
 %{_libdir}/wine/%{winepedirs}/ucrtbase.dll
@@ -2438,6 +2436,18 @@ fi
 %endif
 
 %changelog
+* Fri Dec 12 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^7.git.8545d9d-ec.1
+ - Update to commit 8545d9d9121150788dd1bcb03fb0784f5c425641
+
+* Thu Dec 11 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^5.git.9daccb7-ec.1
+ - Update to commit 9daccb73269d4877cf02a6c44526a563ecc219c3
+
+* Wed Dec 10 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^6.git.e5d435e-ec.1
+ - Update to commit e5d435e3b8090c5ea8593bcd1039c78b90220b3e
+
+* Tue Dec 09 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^5.git.d60f828-ec.1
+ - Update to commit d60f8286056559233e992c4084f31990723849b6
+
 * Sun Dec 07 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^4.git.a3d49db-ec.1
  - Update to commit a3d49dbc8db25fdd5907b497f7993d214bf8d0b8
 
@@ -2455,5 +2465,3 @@ fi
 
 * Sat Nov 22 2025 Lachlan Marie <lchlnm@pm.me> - 10.19^0.git.548ee6c-ec.1
  - Update to commit 548ee6cc0f6fec0acd88218700b2d50cddbf0630
-
-%autochangelog
