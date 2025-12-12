@@ -1,6 +1,6 @@
-%global bumpver 12
+%global bumpver 13
 
-%global commit 21eb344f2fd38a2e999706bcdcb0b3cc38cfd752
+%global commit 1a70f104683eda0f265019b8cb2a397ecc04e5ef
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -30,7 +30,7 @@ local externals = {
   { name="SPIRV-Headers", ref="8b246ff", owner="KhronosGroup", path="include/spirv", version="1.3.280.0", license="CC0" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
   { name="Vulkan-Headers", ref="2fa2034", owner="KhronosGroup", path="include/vulkan", version="1.4.335.0", license="Apache-2.0" },
-  { name="dxbc-spirv", ref="70fe688", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
+  { name="dxbc-spirv", ref="2218707", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
 }
 
@@ -267,6 +267,9 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Sat Dec 13 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^13.git.1a70f10-ec1
+ - Update to commit 1a70f104683eda0f265019b8cb2a397ecc04e5ef
+
 * Fri Dec 12 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^12.git.21eb344-ec1
  - Update to commit 21eb344f2fd38a2e999706bcdcb0b3cc38cfd752
 
