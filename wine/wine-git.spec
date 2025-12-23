@@ -7,9 +7,9 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global bumpver 13
+%global bumpver 14
 
-%global commit 72b941ef7393c0052b0288e0dbb7185201296a09
+%global commit 3d9b48bc5e443f83653faf48653573da880d9008
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global staging_commit b6ba963ad02c52f44d253ee8ea3a358e12dad34f
@@ -60,7 +60,7 @@
 # 0%%{?fedora}
 
 Name:           wine-git
-Version:        11.0rc1%{?bumpver:^%{bumpver}.git.%{shortcommit}}
+Version:        11.0rc3%{?bumpver:^%{bumpver}.git.%{shortcommit}}
 Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
@@ -2436,6 +2436,9 @@ fi
 %endif
 
 %changelog
+* Wed Dec 24 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc3^14.git.3d9b48b-ec.1
+ - Update to commit 3d9b48bc5e443f83653faf48653573da880d9008
+
 * Sat Dec 20 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^13.git.72b941e-ec.1
  - Update to commit 72b941ef7393c0052b0288e0dbb7185201296a09
 
