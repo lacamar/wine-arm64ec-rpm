@@ -1,8 +1,8 @@
 %global srcname FEX
 
-%global bumpver 8
+%global bumpver 10
 
-%global commit 974ba78a93b80c6258b858c38f23592cf0cc4ee7
+%global commit ce9824a4796a0ff25c022b3d625d37efe6f327f2
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -32,7 +32,7 @@ local externals = {
   { name="Vulkan-Headers", ref="cacef30", owner="KhronosGroup", package="vulkan-headers", version="1.4.310", license="Apache-2.0" },
   { name="drm-headers", ref="3e49836", owner="FEX-Emu", package="kernel", version="6.13", license="GPL-2.0-only" },
   { name="fmt", ref="407c905", owner="fmtlib", path="fmt", version="12.1.0" },
-  { name="jemalloc", ref="ce24593", owner="FEX-Emu", version="5.3.0", license="MIT" },
+  { name="jemalloc", ref="97d9869", owner="FEX-Emu", version="5.3.0", license="MIT" },
   { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
   { name="rpmalloc", ref="f1b76e1", owner="FEX-Emu", license="MIT" },
   { name="range-v3", ref="ca1388f", owner="ericniebler", license="MIT" },
@@ -191,6 +191,12 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Sun Dec 28 2025 Lachlan Marie <lchlnm@pm.me> - 2512^10.git.ce9824a-1
+ - Update to commit ce9824a4796a0ff25c022b3d625d37efe6f327f2
+
+* Thu Dec 25 2025 Lachlan Marie <lchlnm@pm.me> - 2512^9.git.b41b967-1
+ - Update to commit b41b967ba5892dae6a05dd8acc11bd40f7f3bf58
+
 * Wed Dec 24 2025 Lachlan Marie <lchlnm@pm.me> - 2512^8.git.974ba78-1
  - Update to commit 974ba78a93b80c6258b858c38f23592cf0cc4ee7
 
