@@ -1,6 +1,6 @@
-%global bumpver 13
+%global bumpver 20
 
-%global commit 1a70f104683eda0f265019b8cb2a397ecc04e5ef
+%global commit a26a504cf5052fb1f1e52f420b9c14bc910554e6
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -30,7 +30,7 @@ local externals = {
   { name="SPIRV-Headers", ref="8b246ff", owner="KhronosGroup", path="include/spirv", version="1.3.280.0", license="CC0" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
   { name="Vulkan-Headers", ref="2fa2034", owner="KhronosGroup", path="include/vulkan", version="1.4.335.0", license="Apache-2.0" },
-  { name="dxbc-spirv", ref="2218707", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
+  { name="dxbc-spirv", ref="8c6d5ae", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
 }
 
@@ -267,6 +267,27 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Mon Jan 05 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^20.git.a26a504-ec1
+ - Update to commit a26a504cf5052fb1f1e52f420b9c14bc910554e6
+
+* Thu Jan 01 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^19.git.c774d93-ec1
+ - Update to commit c774d93309ae5108f63c0051505c2eef79b00779
+
+* Fri Dec 19 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^18.git.b650fae-ec1
+ - Update to commit b650faef2604bbb55c769ed5cb0dbff9a5e449fb
+
+* Thu Dec 18 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^17.git.5304f84-ec1
+ - Update to commit 5304f84ed103bfdff2321254e5f6526a643c48ab
+
+* Wed Dec 17 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^16.git.900779d-ec1
+ - Update to commit 900779d8eb0eed701fd7b5b610f46666dd7c106e
+
+* Tue Dec 16 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^15.git.c337a34-ec1
+ - Update to commit c337a344a89becb9980eeef10ca42795dc6b94ec
+
+* Sun Dec 14 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^14.git.fa6b086-ec1
+ - Update to commit fa6b0864c7226ca0154e2acf8f145bd86733f3ed
+
 * Sat Dec 13 2025 Lachlan Marie <lchlnm@pm.me> - 2.7.1^13.git.1a70f10-ec1
  - Update to commit 1a70f104683eda0f265019b8cb2a397ecc04e5ef
 
