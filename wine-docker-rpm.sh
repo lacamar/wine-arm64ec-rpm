@@ -16,7 +16,7 @@ FEX_TARGET="fex-emu-wine-${FEX_VERSION}"
 DXVK_VERSION=git
 DXVK_TARGET="wine-dxvk-${DXVK_VERSION}"
 
-SCRIPT_DIR="${PWD}/${WINE_TARGET}_${FEX_TARGET}"
+SCRIPT_DIR="${PWD}/${WINE_TARGET}_${FEX_TARGET}_${DXVK_TARGET}"
 mkdir -p $SCRIPT_DIR
 
 set -eu
@@ -28,7 +28,6 @@ cp wine/*.patch $SCRIPT_DIR
 cp wine/${WINE_TARGET}.spec $SCRIPT_DIR/wine.spec
 cp fex-emu-wine/${FEX_TARGET}.spec $SCRIPT_DIR/fex-emu-wine.spec
 cp wine-dxvk/${DXVK_TARGET}.spec $SCRIPT_DIR/wine-dxvk.spec
-cp vkd3d/${VKD3D_TARGET}.spec $SCRIPT_DIR/vkd3d.spec
 cd $SCRIPT_DIR
 
 #   Create temporary nested script to run inside docker   #
@@ -49,20 +48,20 @@ cp /host/*.patch "${BUILD_DIR}/SOURCES/"
 dnf builddep -y "/host/fex-emu-wine.spec" --allowerasing
 dnf builddep -y "/host/wine.spec" --allowerasing
 dnf builddep -y "/host/wine-dxvk.spec" --allowerasing
-dnf builddep -y "/host/vkd3d.spec" --allowerasing
 
 spectool -g -R "/host/fex-emu-wine.spec"
 spectool -g -R "/host/wine.spec"
 spectool -g -R "/host/wine-dxvk.spec"
-spectool -g -R "/host/vkd3d.spec"
 rpmbuild -ba "/host/fex-emu-wine.spec"
 rpmbuild -ba "/host/wine.spec"
 rpmbuild -ba "/host/wine-dxvk.spec"
-rpmbuild -ba "/host/vkd3d.spec"
-mkdir -p /out/dxvk-wine
-mv ${BUILD_DIR}/RPMS/aarch64/wine-dxv* /out/dxvk-wine/
-cp -r ${BUILD_DIR}/RPMS/aarch64/* /out/
-cp -r ${BUILD_DIR}/RPMS/noarch/* /out/
+mkdir -p /out/fex-emu-wine
+mkdir -p /out/wine
+mkdir -p /out/wine-dxvk
+mv ${BUILD_DIR}/RPMS/aarch64/wine-dxv* /out/wine-dxvk/
+mv ${BUILD_DIR}/RPMS/aarch64/fex-emu-wine* /out/fex-emu-wine/
+cp -r ${BUILD_DIR}/RPMS/aarch64/wine* /out/wine/
+cp -r ${BUILD_DIR}/RPMS/noarch/wine* /out/wine/
 exit
 EOF
 chmod +x "$TMP_SCRIPT"
@@ -76,48 +75,9 @@ sudo dnf install \
 --skip-broken \
 --skip-unavailable \
 --allowerasing \
-./fex-emu-wine-*.aarch64.rpm \
-./wine-*.aarch64.rpm \
-./wine-alsa-*.aarch64.rpm \
-./wine-alsa-debuginfo-*.aarch64.rpm \
-./wine-arial-fonts-*.noarch.rpm \
-./wine-cms-*.aarch64.rpm \
-./wine-common-*.noarch.rpm \
-./wine-core-*.aarch64.rpm \
-./wine-core-debuginfo-*.aarch64.rpm \
-./wine-courier-fonts-*.noarch.rpm \
-./wine-debuginfo-*.aarch64.rpm \
-./wine-debugsource-*.aarch64.rpm \
-./wine-desktop-*.noarch.rpm \
-./wine-devel-*.aarch64.rpm \
-./wine-devel-debuginfo-*.aarch64.rpm \
-./wine-filesystem-*.noarch.rpm \
-./wine-fixedsys-fonts-*.noarch.rpm \
-./wine-fonts-*.noarch.rpm \
-./wine-ldap-*.aarch64.rpm \
-./wine-marlett-fonts-*.noarch.rpm \
-./wine-ms-sans-serif-fonts-*.noarch.rpm \
-./wine-opencl-*.aarch64.rpm \
-./wine-opencl-debuginfo-*.aarch64.rpm \
-./wine-pulseaudio-*.aarch64.rpm \
-./wine-pulseaudio-debuginfo-*.aarch64.rpm \
-./wine-small-fonts-*.noarch.rpm \
-./wine-smartcard-*.aarch64.rpm \
-./wine-smartcard-debuginfo-*.aarch64.rpm \
-./wine-symbol-fonts-*.noarch.rpm \
-./wine-systemd-*.noarch.rpm \
-./wine-system-fonts-*.noarch.rpm \
-./wine-tahoma-fonts-*.noarch.rpm \
-./wine-tahoma-fonts-system-*.noarch.rpm \
-./wine-times-new-roman-fonts-*.noarch.rpm \
-./wine-times-new-roman-fonts-system-*.noarch.rpm \
-./wine-twain-*.aarch64.rpm \
-./wine-twain-debuginfo-*.aarch64.rpm \
-./wine-webdings-fonts-*.noarch.rpm \
-./wine-wingdings-fonts-*.noarch.rpm \
-./wine-wingdings-fonts-system-*.noarch.rpm \
-./wine-w*-*.noarch.rpm \
-./wine-*o*64.rpm
+./fex-emu-wine/*.rpm \
+./wine-dxvk/*.rpm \
+./wine/*.rpm
 
 read -p "
 Updating current wine prefix.
