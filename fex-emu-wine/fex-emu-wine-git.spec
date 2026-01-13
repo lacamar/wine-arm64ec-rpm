@@ -1,8 +1,8 @@
 %global srcname FEX
 
-%global bumpver 24
+%global bumpver 25
 
-%global commit d7d870cb4caee196595ece036113725ee6678758
+%global commit 6438a838ce875b1e22cc5154b7d610f43ff6bcac
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -29,7 +29,7 @@ Source100:  https://github.com/bylaws/llvm-mingw/releases/download/20250920/llvm
 local externals = {
   { name="Catch2", ref="b3fb4b9", owner="catchorg", version="3.11.0", license="BSL-1.0" },
   { name="cpp-optparse", ref="9f94388", owner="Sonicadvance1", path="../Source/Common/cpp-optparse", license="MIT" },
-  { name="Vulkan-Headers", ref="cacef30", owner="KhronosGroup", package="vulkan-headers", version="1.4.310", license="Apache-2.0" },
+  { name="Vulkan-Headers", ref="450bd22", owner="KhronosGroup", package="vulkan-headers", version="1.4.337", license="Apache-2.0" },
   { name="drm-headers", ref="3e49836", owner="FEX-Emu", package="kernel", version="6.13", license="GPL-2.0-only" },
   { name="fmt", ref="407c905", owner="fmtlib", path="fmt", version="12.1.0" },
   { name="jemalloc", ref="97d9869", owner="FEX-Emu", version="5.3.0", license="MIT" },
@@ -191,6 +191,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Wed Jan 14 2026 Lachlan Marie <lchlnm@pm.me> - 2601^25.git.6438a83-1
+ - Update to commit 6438a838ce875b1e22cc5154b7d610f43ff6bcac
+
 * Tue Jan 13 2026 Lachlan Marie <lchlnm@pm.me> - 2601^24.git.d7d870c-1
  - Update to commit d7d870cb4caee196595ece036113725ee6678758
 
