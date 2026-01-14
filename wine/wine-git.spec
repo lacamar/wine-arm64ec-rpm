@@ -7,12 +7,12 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global bumpver 22
+%global bumpver 23
 
-%global commit b3319fa671a1f9f7b7aa09e9d9016b250cb848cb
+%global commit db11d0fe6a169c457e23d007e20404643d067aa8
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 8d4bda1ea156501751bcef6cd5a5729b905050ca
+%global staging_commit 6cc805ea57132eeaf44764e9213823c9b8d0d300
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -60,7 +60,7 @@
 # 0%%{?fedora}
 
 Name:           wine-git
-Version:        11.0rc4%{?bumpver:^%{bumpver}.git.%{shortcommit}}
+Version:        11.0%{?bumpver:^%{bumpver}.git.%{shortcommit}}
 Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
@@ -110,7 +110,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:      2025.09.17_bylaws.patch
+Patch600:       2025.09.17_bylaws.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -2436,6 +2436,9 @@ fi
 %endif
 
 %changelog
+* Wed Jan 14 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^23.git.db11d0f-ec.1
+ - Update to commit db11d0fe6a169c457e23d007e20404643d067aa8
+
 * Sat Jan 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.0rc4^22.git.b3319fa-ec.1
  - Update to commit b3319fa671a1f9f7b7aa09e9d9016b250cb848cb
 
