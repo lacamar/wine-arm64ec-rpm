@@ -1,6 +1,6 @@
 %global srcname FEX
 
-%global bumpver 33
+%global bumpver 34
 
 %global commit cc54724ff18fc77a2315b119888b5691c5f04c0e
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
@@ -35,8 +35,6 @@ local externals = {
   { name="jemalloc", ref="97d9869", owner="FEX-Emu", version="5.3.0", license="MIT" },
   { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
   { name="range-v3", ref="ca1388f", owner="ericniebler", license="MIT" },
-  { name="robin-map", ref="d5683d9", owner="FEX-Emu", version="1.3.0", license="Boost-v1" },
-  { name="rpmalloc", ref="f1b76e1", owner="FEX-Emu", license="MIT" },
   { name="tracy", ref="650c98e", owner="wolfpld", license="BSD-2-Clause" },
   { name="unordered_dense", ref="3234af2", owner="martinus", version="4.8.1", license="MIT" },
   { name="vixl", ref="da1ad9f", owner="FEX-Emu", license="BSD-3-Clause" },
@@ -193,7 +191,7 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
-* Sun Jan 25 2026 Lachlan Marie <lchlnm@pm.me> - 2601^33.git.cc54724-1
+* Sun Jan 25 2026 Lachlan Marie <lchlnm@pm.me> - 2601^34.git.cc54724-1
  - Update to commit cc54724ff18fc77a2315b119888b5691c5f04c0e
 
 * Wed Jan 21 2026 Lachlan Marie <lchlnm@pm.me> - 2601^31.git.cf61d73-1
