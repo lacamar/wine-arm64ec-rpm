@@ -7,12 +7,12 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global bumpver 23
+%global bumpver 26
 
-%global commit db11d0fe6a169c457e23d007e20404643d067aa8
+%global commit afba987dda1430dc0d9f36fc6f27cd3584bce79e
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 6cc805ea57132eeaf44764e9213823c9b8d0d300
+%global staging_commit 506f3ece1a6d39442e90b174fe20a7e4ca42fb24
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -1415,6 +1415,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/cards.dll
 %{_libdir}/wine/%{winepedirs}/cdosys.dll
 %{_libdir}/wine/%{winepedirs}/cfgmgr32.dll
+%{_libdir}/wine/%{winepedirs}/chakra.dll
 %{_libdir}/wine/%{winepedirs}/chcp.com
 %{_libdir}/wine/%{winepedirs}/clock.exe
 %{_libdir}/wine/%{winepedirs}/clusapi.dll
@@ -2436,6 +2437,15 @@ fi
 %endif
 
 %changelog
+* Sun Jan 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^26.git.afba987-ec.1
+ - Update to commit afba987dda1430dc0d9f36fc6f27cd3584bce79e
+
+* Wed Jan 21 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^25.git.4de3377-ec.1
+ - Update to commit 4de3377785fd8d14a90ee3b2c1d7886689d241ed
+
+* Sat Jan 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^24.git.905be52-ec.1
+ - Update to commit 905be521d322c85bb63b34ab9230b4bab791fb0b
+
 * Wed Jan 14 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^23.git.db11d0f-ec.1
  - Update to commit db11d0fe6a169c457e23d007e20404643d067aa8
 
