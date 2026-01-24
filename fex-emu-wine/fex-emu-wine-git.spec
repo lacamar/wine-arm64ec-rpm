@@ -1,8 +1,8 @@
 %global srcname FEX
 
-%global bumpver 27
+%global bumpver 33
 
-%global commit 28c486dad5c746607a3c07378aae63601f8a40b8
+%global commit cc54724ff18fc77a2315b119888b5691c5f04c0e
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -27,19 +27,21 @@ Source100:  https://github.com/bylaws/llvm-mingw/releases/download/20250920/llvm
 
 %{lua:
 local externals = {
-  { name="Catch2", ref="b3fb4b9", owner="catchorg", version="3.11.0", license="BSL-1.0" },
   { name="cpp-optparse", ref="9f94388", owner="Sonicadvance1", path="../Source/Common/cpp-optparse", license="MIT" },
+  { name="Catch2", ref="b3fb4b9", owner="catchorg", version="3.11.0", license="BSL-1.0" },
   { name="Vulkan-Headers", ref="450bd22", owner="KhronosGroup", package="vulkan-headers", version="1.4.337", license="Apache-2.0" },
   { name="drm-headers", ref="3e49836", owner="FEX-Emu", package="kernel", version="6.13", license="GPL-2.0-only" },
   { name="fmt", ref="407c905", owner="fmtlib", path="fmt", version="12.1.0" },
   { name="jemalloc", ref="97d9869", owner="FEX-Emu", version="5.3.0", license="MIT" },
   { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
-  { name="rpmalloc", ref="f1b76e1", owner="FEX-Emu", license="MIT" },
   { name="range-v3", ref="ca1388f", owner="ericniebler", license="MIT" },
   { name="robin-map", ref="d5683d9", owner="FEX-Emu", version="1.3.0", license="Boost-v1" },
+  { name="rpmalloc", ref="f1b76e1", owner="FEX-Emu", license="MIT" },
   { name="tracy", ref="650c98e", owner="wolfpld", license="BSD-2-Clause" },
-  { name="vixl", ref="ed690c9", owner="FEX-Emu", license="BSD-3-Clause" },
+  { name="unordered_dense", ref="3234af2", owner="martinus", version="4.8.1", license="MIT" },
+  { name="vixl", ref="da1ad9f", owner="FEX-Emu", license="BSD-3-Clause" },
   { name="xxhash", ref="e626a72", owner="Cyan4973", path="xxhash", version="0.8.3",  license="BSD-2-Clause" },
+  { name="zydis", ref="9bfadd6", owner="zyantific", version="4.1.1",  license="MIT" },
 }
 
 for i, s in ipairs(externals) do
@@ -191,6 +193,21 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Sun Jan 25 2026 Lachlan Marie <lchlnm@pm.me> - 2601^33.git.cc54724-1
+ - Update to commit cc54724ff18fc77a2315b119888b5691c5f04c0e
+
+* Wed Jan 21 2026 Lachlan Marie <lchlnm@pm.me> - 2601^31.git.cf61d73-1
+ - Update to commit cf61d7349a9de3a97eaa9f04b775ace64db801a4
+
+* Wed Jan 21 2026 Lachlan Marie <lchlnm@pm.me> - 2601^30.git.87de3ec-1
+ - Update to commit 87de3ec3e3736a685d49dc285abb743b937ef03d
+
+* Mon Jan 19 2026 Lachlan Marie <lchlnm@pm.me> - 2601^29.git.4428dbf-1
+ - Update to commit 4428dbf885ebbbba6806f13c3f9c27a672ad3ccf
+
+* Sat Jan 17 2026 Lachlan Marie <lchlnm@pm.me> - 2601^28.git.78fd9b4-1
+ - Update to commit 78fd9b4fe47baaf136ae4a551968f8cf6618bfeb
+
 * Wed Jan 14 2026 Lachlan Marie <lchlnm@pm.me> - 2601^27.git.28c486d-1
  - Update to commit 28c486dad5c746607a3c07378aae63601f8a40b8
 
