@@ -1,8 +1,8 @@
 %global srcname FEX
 
-%global bumpver 34
+%global bumpver 35
 
-%global commit cc54724ff18fc77a2315b119888b5691c5f04c0e
+%global commit 4968dc4bab80f3a8b296a59df7b9b42ebf40429e
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -32,12 +32,12 @@ local externals = {
   { name="Vulkan-Headers", ref="450bd22", owner="KhronosGroup", package="vulkan-headers", version="1.4.337", license="Apache-2.0" },
   { name="drm-headers", ref="3e49836", owner="FEX-Emu", package="kernel", version="6.13", license="GPL-2.0-only" },
   { name="fmt", ref="407c905", owner="fmtlib", path="fmt", version="12.1.0" },
-  { name="jemalloc", ref="97d9869", owner="FEX-Emu", version="5.3.0", license="MIT" },
   { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
   { name="range-v3", ref="ca1388f", owner="ericniebler", license="MIT" },
+  { name="rpmalloc", ref="1f6fb49", owner="FEX-Emu", license="0BSD" },
   { name="tracy", ref="650c98e", owner="wolfpld", license="BSD-2-Clause" },
   { name="unordered_dense", ref="3234af2", owner="martinus", version="4.8.1", license="MIT" },
-  { name="vixl", ref="da1ad9f", owner="FEX-Emu", license="BSD-3-Clause" },
+  { name="vixl", ref="5f41844", owner="FEX-Emu", license="BSD-3-Clause" },
   { name="xxhash", ref="e626a72", owner="Cyan4973", path="xxhash", version="0.8.3",  license="BSD-2-Clause" },
   { name="zydis", ref="9bfadd6", owner="zyantific", version="4.1.1",  license="MIT" },
 }
@@ -191,6 +191,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Sun Mar 01 2026 Lachlan Marie <lchlnm@pm.me> - 2601^35.git.4968dc4-1
+ - Update to commit 4968dc4bab80f3a8b296a59df7b9b42ebf40429e
+
 * Sun Jan 25 2026 Lachlan Marie <lchlnm@pm.me> - 2601^34.git.cc54724-1
  - Update to commit cc54724ff18fc77a2315b119888b5691c5f04c0e
 
