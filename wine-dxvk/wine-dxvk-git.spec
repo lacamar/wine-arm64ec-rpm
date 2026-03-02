@@ -1,6 +1,6 @@
-%global bumpver 27
+%global bumpver 30
 
-%global commit c27ef1c43a93741ec1e8d1dc55b6bcf2444a471f
+%global commit e86d70d36681dcf8185c938534b555341b6fbdcd
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -27,10 +27,10 @@ Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/
 %{lua:
 local externals = {
   { name="mingw-directx-headers", ref="9df86f2", owner="misyltoad", path="include/native/directx", license="LGPL v2.1" },
-  { name="SPIRV-Headers", ref="8b246ff", owner="KhronosGroup", path="include/spirv", version="1.3.280.0", license="CC0" },
+  { name="SPIRV-Headers", ref="04f10f6", owner="KhronosGroup", path="include/spirv", version="1.3.341.0", license="CC0" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
-  { name="Vulkan-Headers", ref="2fa2034", owner="KhronosGroup", path="include/vulkan", version="1.4.335.0", license="Apache-2.0" },
-  { name="dxbc-spirv", ref="8c6d5ae", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
+  { name="Vulkan-Headers", ref="5d94bb4", owner="KhronosGroup", path="include/vulkan", version="1.4.344.0", license="Apache-2.0" },
+  { name="dxbc-spirv", ref="ca8e29e", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
 }
 
@@ -267,6 +267,12 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Mon Mar 02 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^30.git.e86d70d-ec1
+ - Update to commit e86d70d36681dcf8185c938534b555341b6fbdcd
+
+* Sat Feb 28 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^28.git.a00a8f7-ec1
+ - Update to commit a00a8f70d4f7ad7a677cf298c6a6919fcdaed08f
+
 * Sun Jan 25 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^27.git.c27ef1c-ec1
  - Update to commit c27ef1c43a93741ec1e8d1dc55b6bcf2444a471f
 
