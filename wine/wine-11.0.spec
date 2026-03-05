@@ -1305,6 +1305,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/cdosys.dll
 %{_libdir}/wine/%{winepedirs}/cfgmgr32.dll
 %{_libdir}/wine/%{winepedirs}/chcp.com
+%{_libdir}/wine/%{winepedirs}/cldapi.dll
 %{_libdir}/wine/%{winepedirs}/clock.exe
 %{_libdir}/wine/%{winepedirs}/clusapi.dll
 %{_libdir}/wine/%{winepedirs}/cng.sys
