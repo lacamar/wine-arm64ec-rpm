@@ -871,7 +871,9 @@ unset PKG_CONFIG_PATH
 %ifarch %{ix86}
  --with-system-dllpath=%{mingw32_bindir} \
 %endif
-%{?wine_staging: --with-xattr --with-wayland} \
+%if 0%{?wine_staging}
+ --with-xattr --with-wayland \
+%endif
  --disable-tests
 
 %make_build TARGETFLAGS=""
