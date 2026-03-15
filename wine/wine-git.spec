@@ -1,18 +1,19 @@
 # The new wow64 mode is disabled by default
 # https://gitlab.winehq.org/wine/wine/-/releases/wine-9.0#wow64
-%if 0%{?fedora} >= 42
+%if 0%{?fedora} >= 41
 %bcond new_wow64 1
 %else
 %bcond new_wow64 0
 %endif
 
 # Full commit and short commit reference for wine-git
-%global bumpver 26
+%global tag 11.4
+%global bumpver 1
 
-%global commit afba987dda1430dc0d9f36fc6f27cd3584bce79e
+%global commit 3d128be6400b3869119d293d0c8fa9e7702978f8
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 506f3ece1a6d39442e90b174fe20a7e4ca42fb24
+%global staging_commit b4c0e7f0936b0a53c7f7b2b37db757d340c6f724
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -60,7 +61,7 @@
 # 0%%{?fedora}
 
 Name:           wine-git
-Version:        11.0%{?bumpver:^%{bumpver}.git.%{shortcommit}}
+Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
 Release:        ec.%autorelease
 Summary:        A compatibility layer for windows applications
 
@@ -110,7 +111,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:       2025.09.17_bylaws.patch
+Patch600:       2026.03.15_bylaws.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -1417,6 +1418,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/cfgmgr32.dll
 %{_libdir}/wine/%{winepedirs}/chakra.dll
 %{_libdir}/wine/%{winepedirs}/chcp.com
+%{_libdir}/wine/%{winepedirs}/cldapi.dll
 %{_libdir}/wine/%{winepedirs}/clock.exe
 %{_libdir}/wine/%{winepedirs}/clusapi.dll
 %{_libdir}/wine/%{winepedirs}/cng.sys
@@ -1566,6 +1568,9 @@ fi
 %{_libdir}/wine/%{winepedirs}/icinfo.exe
 %{_libdir}/wine/%{winepedirs}/icmp.dll
 %{_libdir}/wine/%{winepedirs}/icmui.dll
+%{_libdir}/wine/%{winepedirs}/icu.dll
+%{_libdir}/wine/%{winepedirs}/icuin.dll
+%{_libdir}/wine/%{winepedirs}/icuuc.dll
 %{_libdir}/wine/%{winepedirs}/ieframe.dll
 %{_libdir}/wine/%{winepedirs}/ieproxy.dll
 %{_libdir}/wine/%{winepedirs}/iertutil.dll
@@ -1598,7 +1603,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/ktmw32.dll
 %{_libdir}/wine/%{winepedirs}/l3codeca.acm
 %{_libdir}/wine/%{winepedirs}/l3codecx.ax
-%{_libdir}/wine/%{winepedirs}/light.msstyles
+%{_libdir}/wine/%{winepedirs}/aero.msstyles
 %{_libdir}/wine/%{winepedirs}/loadperf.dll
 %{_libdir}/wine/%{winesodir}/localspl.so
 %{_libdir}/wine/%{winepedirs}/localspl.dll
@@ -1749,6 +1754,7 @@ fi
 #%%{_libdir}/wine/%%{winesodir}/nvcuvid.dll.so
 %endif
 %{_libdir}/wine/%{winepedirs}/objsel.dll
+%{_libdir}/wine/%{winepedirs}/odbcad32.exe
 %{_libdir}/wine/%{winesodir}/odbc32.so
 %{_libdir}/wine/%{winepedirs}/odbc32.dll
 %{_libdir}/wine/%{winepedirs}/odbcbcp.dll
@@ -1918,6 +1924,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/windows.gaming.ui.gamebar.dll
 %{_libdir}/wine/%{winepedirs}/windows.gaming.input.dll
 %{_libdir}/wine/%{winepedirs}/windows.globalization.dll
+%{_libdir}/wine/%{winepedirs}/windows.graphics.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.devices.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.mediacontrol.dll
@@ -1979,6 +1986,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/wmi.dll
 %{_libdir}/wine/%{winepedirs}/wmic.exe
 %{_libdir}/wine/%{winepedirs}/wmilib.sys
+%{_libdir}/wine/%{winepedirs}/wminet_utils.dll
 %{_libdir}/wine/%{winepedirs}/wmiutils.dll
 %{_libdir}/wine/%{winepedirs}/wmp.dll
 %{_libdir}/wine/%{winepedirs}/wmvcore.dll
@@ -2423,11 +2431,9 @@ fi
 
 
 %files pulseaudio
-%{_libdir}/wine/%{winepedirs}/winepulse.drv
 %{_libdir}/wine/%{winesodir}/winepulse.so
 
 %files alsa
-%{_libdir}/wine/%{winepedirs}/winealsa.drv
 %{_libdir}/wine/%{winesodir}/winealsa.so
 
 %if 0%{?opencl}
@@ -2437,6 +2443,24 @@ fi
 %endif
 
 %changelog
+* Mon Mar 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.4^1.git.3d128be-ec.1
+ - Update to commit 3d128be6400b3869119d293d0c8fa9e7702978f8
+
+* Sat Mar 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.3^32.git.cc893ef-ec.1
+ - Update to commit cc893ef9cb17b994bfd1f1a1f7355be55e615623
+
+* Fri Mar 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.3^31.git.ec692c9-ec.1
+ - Update to commit ec692c965f792f1cd453e0aa35fca8189d1f0b56
+
+* Thu Mar 05 2026 Lachlan Marie <lchlnm@pm.me> - 11.3^30.git.6df3c8f-ec.1
+ - Update to commit 6df3c8fb34be21c1de2d8375ea25c9fe7cbdc242
+
+* Tue Mar 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^29.git.5e5bc09-ec.1
+ - Update to commit 5e5bc095ed7fa8f5790eff86487a7b46e3fbc3ae
+
+* Sun Mar 01 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^28.git.739ca45-ec.1
+ - Update to commit 739ca45017f7385340d82c9f8c35716ca6466473
+
 * Sun Jan 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^26.git.afba987-ec.1
  - Update to commit afba987dda1430dc0d9f36fc6f27cd3584bce79e
 
