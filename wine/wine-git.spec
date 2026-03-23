@@ -7,13 +7,13 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global tag 11.4
+%global tag 11.5
 %global bumpver 1
 
-%global commit 3d128be6400b3869119d293d0c8fa9e7702978f8
+%global commit 1dbc94083d1b508c3708c857b1715f9d379aa78a
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit b4c0e7f0936b0a53c7f7b2b37db757d340c6f724
+%global staging_commit b70caa17726c3532b210a5ddf53af8024bc35b34
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -112,6 +112,7 @@ Patch511:       wine-cjk.patch
 
 %ifarch aarch64
 Patch600:       2026.03.15_bylaws.patch
+Patch601:       wine-mono-arm.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -815,6 +816,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 %endif
 # 0%%{?wine_staging}
 %patch -P 600 -p1 -F3
+%patch -P 601 -p0 -F3
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2443,6 +2445,9 @@ fi
 %endif
 
 %changelog
+* Mon Mar 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^1.git.1dbc940-ec.1
+ - Update to commit 1dbc94083d1b508c3708c857b1715f9d379aa78a
+
 * Mon Mar 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.4^1.git.3d128be-ec.1
  - Update to commit 3d128be6400b3869119d293d0c8fa9e7702978f8
 
