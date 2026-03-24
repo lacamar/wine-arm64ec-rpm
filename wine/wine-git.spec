@@ -8,12 +8,12 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.5
-%global bumpver 1
+%global bumpver 2
 
-%global commit 1dbc94083d1b508c3708c857b1715f9d379aa78a
+%global commit 91b081763ce78a7323d886ad3441f0b9e1fd7909
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit b70caa17726c3532b210a5ddf53af8024bc35b34
+%global staging_commit ef91d566f0471b73a2df054df2f8bd73ff697467
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -1922,6 +1922,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/windows.applicationmodel.dll
 %{_libdir}/wine/%{winepedirs}/windows.devices.bluetooth.dll
 %{_libdir}/wine/%{winepedirs}/windows.devices.enumeration.dll
+%{_libdir}/wine/%{winepedirs}/windows.devices.radios.dll
 %{_libdir}/wine/%{winepedirs}/windows.devices.usb.dll
 %{_libdir}/wine/%{winepedirs}/windows.gaming.ui.gamebar.dll
 %{_libdir}/wine/%{winepedirs}/windows.gaming.input.dll
@@ -2445,6 +2446,9 @@ fi
 %endif
 
 %changelog
+* Tue Mar 24 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^2.git.91b0817-ec.1
+ - Update to commit 91b081763ce78a7323d886ad3441f0b9e1fd7909
+
 * Mon Mar 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^1.git.1dbc940-ec.1
  - Update to commit 1dbc94083d1b508c3708c857b1715f9d379aa78a
 
