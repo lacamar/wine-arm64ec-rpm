@@ -1,9 +1,9 @@
 %global srcname FEX
 %global tag 2603
 
-%global bumpver 45
+%global bumpver 46
 
-%global commit 3ef677537d1573c85dab4b507f805a1e7babe2af
+%global commit b77ddcf1a78b18a13963299a98ecc06a863beae0
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -192,6 +192,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Fri Mar 27 2026 Lachlan Marie <lchlnm@pm.me> - 2603^46.git.b77ddcf-1
+ - Update to commit b77ddcf1a78b18a13963299a98ecc06a863beae0
+
 * Fri Mar 27 2026 Lachlan Marie <lchlnm@pm.me> - 2603^45.git.3ef6775-1
  - Update to commit 3ef677537d1573c85dab4b507f805a1e7babe2af
 
