@@ -1,6 +1,6 @@
 # The new wow64 mode is disabled by default
 # https://gitlab.winehq.org/wine/wine/-/releases/wine-9.0#wow64
-%if 0%{?fedora} >= 41
+%if 0%{?fedora} >= 42
 %bcond new_wow64 1
 %else
 %bcond new_wow64 0
@@ -22,7 +22,7 @@
 
 %global no64bit   0
 %global winegecko 2.47.4
-%global winemono  10.4.0
+%global winemono  11.0.0
 %if 0%{?fedora}
 %global opencl    1
 %endif
