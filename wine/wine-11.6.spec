@@ -1480,6 +1480,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/ir50_32.dll
 %{_libdir}/wine/%{winepedirs}/itircl.dll
 %{_libdir}/wine/%{winepedirs}/itss.dll
+%{_libdir}/wine/%{winepedirs}/iyuv_32.dll
 %{_libdir}/wine/%{winepedirs}/joy.cpl
 %{_libdir}/wine/%{winepedirs}/jscript.dll
 %{_libdir}/wine/%{winepedirs}/jsproxy.dll
