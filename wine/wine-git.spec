@@ -7,13 +7,13 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global tag 11.5
-%global bumpver 8
+%global tag 11.6
+%global bumpver 1
 
-%global commit 4f79f8ff75beeb6ad4a9f5c7c6aa48d6dd700b2a
+%global commit ada7c06102789033fec9ed9bc07e9a863afd8480
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 13290851042b7123a4c030794149b2077eee121c
+%global staging_commit 5d9f3cbb6f18c03c52ad44f7daa8e5cf423f951f
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -1592,6 +1592,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/ir50_32.dll
 %{_libdir}/wine/%{winepedirs}/itircl.dll
 %{_libdir}/wine/%{winepedirs}/itss.dll
+%{_libdir}/wine/%{winepedirs}/iyuv_32.dll
 %{_libdir}/wine/%{winepedirs}/joy.cpl
 %{_libdir}/wine/%{winepedirs}/jscript.dll
 %{_libdir}/wine/%{winepedirs}/jsproxy.dll
@@ -2446,6 +2447,12 @@ fi
 %endif
 
 %changelog
+* Thu Apr 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.6^1.git.ada7c06-ec.1
+ - Update to commit ada7c06102789033fec9ed9bc07e9a863afd8480
+
+* Sat Apr 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.6^0.git.6e073d2-ec.1
+ - Update to 11.6
+
 * Thu Apr 02 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^8.git.4f79f8f-ec.1
  - Update to commit 4f79f8ff75beeb6ad4a9f5c7c6aa48d6dd700b2a
 
