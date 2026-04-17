@@ -2335,7 +2335,7 @@ fi
 %endif
 
 %changelog
-* Sat Mar 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.5-ec1
+* Mon Apr 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.6-ec1
 - Increased wine version to 11.6
 
 * Sat Mar 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.5-ec1
