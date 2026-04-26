@@ -146,6 +146,7 @@ cmake -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CFLAGS" \
   -DMINGW_TRIPLE=arm64ec-w64-mingw32 \
   -DBUILD_TESTING=False \
   -DENABLE_JEMALLOC_GLIBC_ALLOC=False \
+  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
   ..
 sed -i 's/arm64ec-w64-mingw32-dlltool/llvm-dlltool -m arm64ec/g' build.ninja
 ninja
@@ -163,6 +164,7 @@ cmake -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CFLAGS" \
   -DMINGW_TRIPLE=aarch64-w64-mingw32 \
   -DBUILD_TESTING=False \
   -DENABLE_JEMALLOC_GLIBC_ALLOC=OFF \
+  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
   ..
 sed -i 's/aarch64-w64-mingw32-dlltool/llvm-dlltool -m arm64/g' build.ninja
 ninja
