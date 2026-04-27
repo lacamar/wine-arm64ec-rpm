@@ -145,6 +145,9 @@ BuildRequires:  alsa-lib-devel
 BuildRequires:  audiofile-devel
 BuildRequires:  freeglut-devel
 BuildRequires:  libieee1284-devel
+%if 0%{?fedora} >= 45
+BuildRequires:  git-core
+%endif
 
 BuildRequires:  librsvg2
 BuildRequires:  librsvg2-devel
@@ -815,6 +818,11 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
+
+%if 0%{?fedora} >= 45
+sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
+%endif
+
 %patch -P 600 -p1 -F3
 %patch -P 601 -p0 -F3
 
