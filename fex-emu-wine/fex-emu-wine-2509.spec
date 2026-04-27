@@ -8,7 +8,7 @@
 
 Name:       fex-emu-wine
 Version:    2509
-Release:    1%{?dist}
+Release:    2%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
