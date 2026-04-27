@@ -883,7 +883,9 @@ unset PKG_CONFIG_PATH
  --with-system-dllpath=%{mingw32_bindir} \
 %endif
 %if 0%{?wine_staging}
- --with-xattr --with-wayland \
+ --with-wayland \
+%else
+ --without-wayland \
 %endif
  --disable-tests
 
