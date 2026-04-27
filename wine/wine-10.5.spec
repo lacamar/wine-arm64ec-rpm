@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        10.5
-Release:        ec2%{dist}
+Release:        ec3%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -86,8 +86,10 @@ Source201:      wine.directory
 # mime types
 Source300:      wine-mime-msi.desktop
 
+%if 0%{?wine_staging}
 # kernel module ntsync
 Source400:      wine-ntsync.conf
+%endif
 
 # smooth tahoma (#693180)
 # disable embedded bitmaps
@@ -101,12 +103,11 @@ Patch511:       wine-cjk.patch
 Patch600:      2025.04.30_bylaws-wine_upstream-arm64ec.patch
 %endif
 
-Patch700:      ntsync5-staging_2025.04.12.patch
-
 %if 0%{?wine_staging}
 # wine-staging patches
 # pulseaudio-patch is covered by that patch-set, too.
 Source900:      https://gitlab.winehq.org/wine/wine-staging/-/archive/v%{version}/wine-staging-%{version}.tar.gz
+Patch700:      ntsync5-staging_2025.04.12.patch
 %endif
 
 %if !%{?no64bit}
@@ -133,6 +134,10 @@ BuildRequires:  alsa-lib-devel
 BuildRequires:  audiofile-devel
 BuildRequires:  freeglut-devel
 BuildRequires:  libieee1284-devel
+%if 0%{?fedora} >= 45
+BuildRequires:  git-core
+BuildRequires:  patchutils
+%endif
 
 BuildRequires:  librsvg2
 BuildRequires:  librsvg2-devel
@@ -430,12 +435,14 @@ BuildArch:      noarch
 Desktop integration features for wine, including mime-types and a binary format
 handler service.
 
+%if 0%{?wine_staging}
 %package ntsync
 Summary:       Kernel module load file for ntsync
 BuildArch:     noarch
 
 %description ntsync
 Kernel module load file for ntsync
+%endif
 
 %package winefonts
 Summary:       Wine font files
@@ -702,9 +709,21 @@ gzip -dc %{SOURCE900} | tar -xf - --strip-components=1
 
 staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
+%if 0%{?fedora} >= 45
+sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH700}
+%endif
+
+%patch -P 700 -p1 -F3
+
 %endif
 # 0%%{?wine_staging}
-%patch -P 700 -p1 -F3
+
+%if 0%{?fedora} >= 45
+sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
+filterdiff -x '*/configure' %{PATCH600} > %{PATCH600}
+perl -i -0777 -pe 's/(#if defined\(__clang_major__\) && defined\(MIN_CLANG_VERSION\) && __clang_major__ < MIN_CLANG_VERSION\n#error Too old clang version\n#endif)/$1\nvoid *__os_arm64x_dispatch_call_no_redirect = 0;\nvoid *memcpy() {};\nvoid *__os_arm64x_check_icall =0;\nvoid *memset() {};\nvoid *memmove() {};/g' configure
+%endif
+
 %patch -P 600 -p1 -F3
 
 %build
@@ -763,7 +782,11 @@ unset PKG_CONFIG_PATH
 %ifarch %{ix86}
  --with-system-dllpath=%{mingw32_bindir} \
 %endif
-%{?wine_staging: --with-xattr --with-wayland} \
+%if 0%{?wine_staging}
+ --with-xattr --with-wayland \
+%else
+ --without-xattr --without-wayland \
+%endif
  --disable-tests
 
 %make_build TARGETFLAGS=""
@@ -1016,8 +1039,10 @@ mkdir -p %{buildroot}/%{_metainfodir}/
 install -p -m 0644 %{SOURCE150} %{buildroot}/%{_metainfodir}/%{name}.appdata.xml
 appstream-util validate-relax --nonet %{buildroot}/%{_metainfodir}/%{name}.appdata.xml
 
+%if 0%{?wine_staging}
 mkdir -p %{buildroot}%{_modulesloaddir}
 install -m 644 -p %{SOURCE400} %{buildroot}%{_modulesloaddir}/ntsync.conf
+%endif
 
 %post systemd
 %binfmt_apply wine.conf
@@ -1803,9 +1828,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/windows.media.devices.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.mediacontrol.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.speech.dll
-%if 0%{?wine_staging}
 %{_libdir}/wine/%{winepedirs}/windows.networking.connectivity.dll
-%endif
 %{_libdir}/wine/%{winepedirs}/windows.networking.dll
 %{_libdir}/wine/%{winepedirs}/windows.networking.hostname.dll
 %{_libdir}/wine/%{winepedirs}/windows.perception.stub.dll
@@ -2241,8 +2264,10 @@ fi
 %{_metainfodir}/%{name}.appdata.xml
 %{_datadir}/icons/hicolor/scalable/apps/*svg
 
+%if 0%{?wine_staging}
 %files ntsync
 %{_modulesloaddir}/ntsync.conf
+%endif
 
 %files systemd
 %config %{_binfmtdir}/wine.conf
@@ -2314,6 +2339,10 @@ fi
 %endif
 
 %changelog
+* Mon Apr 27 2026 Lachlan Marie <lchlnm@pm.me> - 10.5-ec3
+- Fixed patch errors related to autoconf 2.73 to allow building on Fedora 45.
+- Fixed errors with wine_staging conditions
+
 * Sat Nov 15 2025 Lachlan Marie <lchlnm@pm.me> - 10.5-ec2
 - Rebased on Fedora upstream wine
 

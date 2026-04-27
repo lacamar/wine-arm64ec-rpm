@@ -134,7 +134,10 @@ BuildRequires:  alsa-lib-devel
 BuildRequires:  audiofile-devel
 BuildRequires:  freeglut-devel
 BuildRequires:  libieee1284-devel
+%if 0%{?fedora} >= 45
 BuildRequires:  git-core
+BuildRequires:  patchutils
+%endif
 
 BuildRequires:  librsvg2
 BuildRequires:  librsvg2-devel
@@ -781,6 +784,8 @@ unset PKG_CONFIG_PATH
 %endif
 %if 0%{?wine_staging}
  --with-xattr --with-wayland \
+%else
+ --without-xattr --without-wayland \
 %endif
  --disable-tests
 
@@ -1823,9 +1828,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/windows.media.devices.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.mediacontrol.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.speech.dll
-%if 0%{?wine_staging}
 %{_libdir}/wine/%{winepedirs}/windows.networking.connectivity.dll
-%endif
 %{_libdir}/wine/%{winepedirs}/windows.networking.dll
 %{_libdir}/wine/%{winepedirs}/windows.networking.hostname.dll
 %{_libdir}/wine/%{winepedirs}/windows.perception.stub.dll

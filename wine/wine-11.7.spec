@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.7
-Release:        ec1%{dist}
+Release:        ec2%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -132,6 +132,9 @@ BuildRequires:  alsa-lib-devel
 BuildRequires:  audiofile-devel
 BuildRequires:  freeglut-devel
 BuildRequires:  libieee1284-devel
+%if 0%{?fedora} >= 45
+BuildRequires:  git-core
+%endif
 
 BuildRequires:  librsvg2
 BuildRequires:  librsvg2-devel
@@ -703,6 +706,11 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
+
+%if 0%{?fedora} >= 45
+sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
+%endif
+
 %patch -P 600 -p1 -F3
 %patch -P 601 -p0 -F3
 
@@ -762,7 +770,11 @@ unset PKG_CONFIG_PATH
 %ifarch %{ix86}
  --with-system-dllpath=%{mingw32_bindir} \
 %endif
-%{?wine_staging: --with-xattr --with-wayland} \
+%if 0%{?wine_staging}
+ --with-xattr --with-wayland \
+%else
+ --without-xattr --without-wayland \
+%endif
  --disable-tests
 
 %make_build TARGETFLAGS=""
@@ -1823,9 +1835,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/windows.media.playback.backgroundmediaplayer.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.playback.mediaplayer.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.speech.dll
-%if 0%{?wine_staging}
 %{_libdir}/wine/%{winepedirs}/windows.networking.connectivity.dll
-%endif
 %{_libdir}/wine/%{winepedirs}/windows.networking.dll
 %{_libdir}/wine/%{winepedirs}/windows.networking.hostname.dll
 %{_libdir}/wine/%{winepedirs}/windows.perception.stub.dll
@@ -2335,6 +2345,10 @@ fi
 %endif
 
 %changelog
+* Mon Apr 27 2026 Lachlan Marie <lchlnm@pm.me> - 11.7-ec2
+- Fixed patch errors related to autoconf 2.73 to allow building on Fedora 45.
+- Fixed errors with wine_staging conditions
+
 * Sat Apr 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.7-ec1
 - Increased wine version to 11.7
 
