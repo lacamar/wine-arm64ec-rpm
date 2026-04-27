@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        10.19
-Release:        ec2%{dist}
+Release:        ec3%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -99,6 +99,9 @@ Patch511:       wine-cjk.patch
 
 %ifarch aarch64
 Patch600:       2025.08.22_bylaws-wine_upstream-arm64ec_hack_v2.patch
+%if 0%{?fedora} == 42
+Patch621:       2025.12.14-arm64ec-disable-compiler-exceptions-clang-21.patch
+%endif
 %endif
 
 %if 0%{?wine_staging}
@@ -711,6 +714,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %endif
 
 %patch -P 600 -p1 -F3
+%patch -P 621 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2333,6 +2337,9 @@ fi
 
 
 %changelog
+* Mon Apr 27 2026 Lachlan Marie <lchlnm@pm.me> - 10.19-ec3
+- Backported a commit to fix arm64ec builds on Fedora 42.
+
 * Mon Apr 27 2026 Lachlan Marie <lchlnm@pm.me> - 10.19-ec2
 - Fixed patch errors related to autoconf 2.73 to allow building on Fedora 45.
 - Fixed errors with wine_staging conditions
