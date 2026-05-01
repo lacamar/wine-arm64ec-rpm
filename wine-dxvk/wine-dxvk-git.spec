@@ -1,7 +1,7 @@
-%global bumpver 47
+%global bumpver 48
 %global tag 2.7.1
 
-%global commit ec9111c07d58b74b63e00169f690a835547358c0
+%global commit d1b0151cb40288de31d5af4a2e84173c3889afa2
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -268,6 +268,9 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Sat May 02 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^48.git.d1b0151-ec1
+ - Update to commit d1b0151cb40288de31d5af4a2e84173c3889afa2
+
 * Fri May 01 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^47.git.ec9111c-ec1
  - Update to commit ec9111c07d58b74b63e00169f690a835547358c0
 
