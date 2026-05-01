@@ -1,7 +1,7 @@
-%global bumpver 46
+%global bumpver 47
 %global tag 2.7.1
 
-%global commit bcbc563af48ea11eec7e3631c4648c71c2253f9d
+%global commit ec9111c07d58b74b63e00169f690a835547358c0
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -27,12 +27,12 @@ Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/
 
 %{lua:
 local externals = {
-  { name="mingw-directx-headers", ref="9df86f2", owner="misyltoad", path="include/native/directx", license="LGPL v2.1" },
-  { name="SPIRV-Headers", ref="04f10f6", owner="KhronosGroup", path="include/spirv", version="1.3.341.0", license="CC0" },
+  { name="dxbc-spirv", ref="0e79a70", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
-  { name="Vulkan-Headers", ref="5d94bb4", owner="KhronosGroup", path="include/vulkan", version="1.4.344.0", license="Apache-2.0" },
-  { name="dxbc-spirv", ref="ca8e29e", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
+  { name="SPIRV-Headers", ref="04f10f6", owner="KhronosGroup", path="include/spirv", version="1.3.341.0", license="CC0" },
+  { name="Vulkan-Headers", ref="5d94bb4", owner="KhronosGroup", path="include/vulkan", version="1.4.344.0", license="Apache-2.0" },
+  { name="mingw-directx-headers", ref="9df86f2", owner="misyltoad", path="include/native/directx", license="LGPL v2.1" },
 }
 
 for i, s in ipairs(externals) do
@@ -268,6 +268,9 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Fri May 01 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^47.git.ec9111c-ec1
+ - Update to commit ec9111c07d58b74b63e00169f690a835547358c0
+
 * Tue Apr 28 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^46.git.bcbc563-ec1
  - Update to commit bcbc563af48ea11eec7e3631c4648c71c2253f9d
 
