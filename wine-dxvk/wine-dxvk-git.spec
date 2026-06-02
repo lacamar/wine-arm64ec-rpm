@@ -1,7 +1,7 @@
-%global bumpver 50
+%global bumpver 54
 %global tag 2.7.1
 
-%global commit a9bdb2983641f3b1995fce6824d0922e968a01ed
+%global commit ab25913834c63633cf4bf53661e7407465383653
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -27,11 +27,11 @@ Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/
 
 %{lua:
 local externals = {
-  { name="dxbc-spirv", ref="0e79a70", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
+  { name="dxbc-spirv", ref="2095dcb", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
   { name="SPIRV-Headers", ref="04f10f6", owner="KhronosGroup", path="include/spirv", version="1.3.341.0", license="CC0" },
-  { name="Vulkan-Headers", ref="5d94bb4", owner="KhronosGroup", path="include/vulkan", version="1.4.344.0", license="Apache-2.0" },
+  { name="Vulkan-Headers", ref="8864cdc", owner="KhronosGroup", path="include/vulkan", version="1.4.344.0", license="Apache-2.0" },
   { name="mingw-directx-headers", ref="9df86f2", owner="misyltoad", path="include/native/directx", license="LGPL v2.1" },
 }
 
@@ -268,6 +268,18 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Wed Jun 03 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^54.git.ab25913-ec1
+ - Update to commit ab25913834c63633cf4bf53661e7407465383653
+
+* Sun May 10 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^53.git.6e9b504-ec1
+ - Update to commit 6e9b5047218f6a9e720730140cb97c9abd8ed697
+
+* Fri May 08 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^52.git.2097f56-ec1
+ - Update to commit 2097f566e49882a13d362a06fa5b61366a7dbc52
+
+* Thu May 07 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^51.git.7caa5a9-ec1
+ - Update to commit 7caa5a99dcd48f1cb3b2fef2396667393bc0eb5d
+
 * Wed May 06 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^50.git.a9bdb29-ec1
  - Update to commit a9bdb2983641f3b1995fce6824d0922e968a01ed
 
