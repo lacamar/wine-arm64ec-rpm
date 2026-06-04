@@ -1,7 +1,7 @@
-%global bumpver 54
+%global bumpver 55
 %global tag 2.7.1
 
-%global commit ab25913834c63633cf4bf53661e7407465383653
+%global commit 03e9438d3d186375d9b241279549ea18fd2598ae
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -27,7 +27,7 @@ Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/
 
 %{lua:
 local externals = {
-  { name="dxbc-spirv", ref="2095dcb", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
+  { name="dxbc-spirv", ref="536e865", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
   { name="SPIRV-Headers", ref="04f10f6", owner="KhronosGroup", path="include/spirv", version="1.3.341.0", license="CC0" },
@@ -268,6 +268,9 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Fri Jun 05 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^55.git.03e9438-ec1
+ - Update to commit 03e9438d3d186375d9b241279549ea18fd2598ae
+
 * Wed Jun 03 2026 Lachlan Marie <lchlnm@pm.me> - 2.7.1^54.git.ab25913-ec1
  - Update to commit ab25913834c63633cf4bf53661e7407465383653
 
