@@ -98,7 +98,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:       2026.03.15_bylaws.patch
+Patch600:       2026.03.15_bylaws_2.patch
 Patch601:       wine-mono-arm.patch
 %endif
 
@@ -711,7 +711,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %endif
 
-#patch -P 600 -p1 -F3
+%patch -P 600 -p1 -F3
 %patch -P 601 -p0 -F3
 
 %build
