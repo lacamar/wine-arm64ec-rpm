@@ -11,7 +11,7 @@
 
 %global no64bit   0
 %global winegecko 2.47.4
-%global winemono  11.0.0
+%global winemono  11.1.0
 %if 0%{?fedora}
 %global opencl    1
 %endif
@@ -711,7 +711,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %endif
 
-%patch -P 600 -p1 -F3
+#patch -P 600 -p1 -F3
 %patch -P 601 -p0 -F3
 
 %build
@@ -2345,7 +2345,7 @@ fi
 %endif
 
 %changelog
-* Sat Apr 02 2026 Lachlan Marie <lchlnm@pm.me> - 11.8-ec1
+* Sat May 02 2026 Lachlan Marie <lchlnm@pm.me> - 11.8-ec1
 - Increased wine version to 11.8
 
 * Mon Apr 27 2026 Lachlan Marie <lchlnm@pm.me> - 11.7-ec2
