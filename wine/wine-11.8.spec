@@ -98,7 +98,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:       2026.03.15_bylaws_2.patch
+Patch600:       2026.06.06_bylaws.patch
 Patch601:       wine-mono-arm.patch
 %endif
 
