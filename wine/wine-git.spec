@@ -7,13 +7,13 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global tag 11.7
-%global bumpver 8
+%global tag 11.10
+%global bumpver 0
 
-%global commit 03348fa7f617630a031bdaa187c3df244b79d5ab
+%global commit b9f5aa42b1532a80963583cabeaeec2a4b479d9f
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 6e60f83370de52f2fe1f516b372545aaf0fdb19f
+%global staging_commit 2ef8df76b667ce919c861f9e37c1889ff335621f
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -111,7 +111,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:       2026.03.15_bylaws.patch
+Patch600:       2026.06.06_bylaws.patch
 Patch601:       wine-mono-arm.patch
 %endif
 
@@ -1742,6 +1742,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/mtxdm.dll
 %{_libdir}/wine/%{winepedirs}/nddeapi.dll
 %{_libdir}/wine/%{winepedirs}/ncrypt.dll
+%{_libdir}/wine/%{winepedirs}/ndfapi.dll
 %{_libdir}/wine/%{winepedirs}/ndis.sys
 %{_libdir}/wine/%{winesodir}/netapi32.so
 %{_libdir}/wine/%{winepedirs}/netapi32.dll
@@ -1822,6 +1823,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/rsabase.dll
 %{_libdir}/wine/%{winepedirs}/rsaenh.dll
 %{_libdir}/wine/%{winepedirs}/rstrtmgr.dll
+%{_libdir}/wine/%{winepedirs}/rtscom.dll
 %{_libdir}/wine/%{winepedirs}/rtutils.dll
 %{_libdir}/wine/%{winepedirs}/rtworkq.dll
 %{_libdir}/wine/%{winepedirs}/samlib.dll
@@ -1878,6 +1880,8 @@ fi
 %{_libdir}/wine/%{winepedirs}/tdh.dll
 %{_libdir}/wine/%{winepedirs}/tdi.sys
 %{_libdir}/wine/%{winepedirs}/threadpoolwinrt.dll
+%{_libdir}/wine/%{winepedirs}/thumbcache.dll
+%{_libdir}/wine/%{winepedirs}/tiptsf.dll
 %{_libdir}/wine/%{winepedirs}/traffic.dll
 %{_libdir}/wine/%{winepedirs}/twaindsm.dll
 %{_libdir}/wine/%{winepedirs}/twinapi.appcore.dll
@@ -1947,9 +1951,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/windows.media.playback.backgroundmediaplayer.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.playback.mediaplayer.dll
 %{_libdir}/wine/%{winepedirs}/windows.media.speech.dll
-%if 0%{?wine_staging}
 %{_libdir}/wine/%{winepedirs}/windows.networking.connectivity.dll
-%endif
 %{_libdir}/wine/%{winepedirs}/windows.networking.dll
 %{_libdir}/wine/%{winepedirs}/windows.networking.hostname.dll
 %{_libdir}/wine/%{winepedirs}/windows.perception.stub.dll
@@ -1994,6 +1996,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/winprint.dll
 %{_libdir}/wine/%{winepedirs}/winspool.drv
 %{_libdir}/wine/%{winesodir}/winspool.so
+%{_libdir}/wine/%{winepedirs}/winsqlite3.dll
 %{_libdir}/wine/%{winepedirs}/winsta.dll
 %{_libdir}/wine/%{winepedirs}/wintypes.dll
 %{_libdir}/wine/%{winepedirs}/wldp.dll
@@ -2014,6 +2017,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/wintab32.dll
 %{_libdir}/wine/%{winepedirs}/wintrust.dll
 %{_libdir}/wine/%{winepedirs}/winusb.dll
+%{_libdir}/wine/%{winepedirs}/wkscli.dll
 %{_libdir}/wine/%{winepedirs}/wlanapi.dll
 %{_libdir}/wine/%{winepedirs}/wlanui.dll
 %{_libdir}/wine/%{winepedirs}/wmphoto.dll
@@ -2459,6 +2463,21 @@ fi
 %endif
 
 %changelog
+* Mon Jun 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.10^0.git.b9f5aa4-ec.1
+ - Update to 11.10
+
+* Sat May 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.8^3.git.68dd9ef-ec.1
+ - Update to commit 68dd9ef2cb5605069ab61a299e44f8d225d0f7c0
+
+* Fri May 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.8^2.git.04da356-ec.1
+ - Update to commit 04da356a61047a8793a6586045479d4aa384e3de
+
+* Thu May 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.8^1.git.2231b96-ec.1
+ - Update to commit 2231b967d9e7f9712764c40aac235465d2890a1c
+
+* Wed May 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.8^0.git.e985261-ec.1
+ - Update to 11.8
+
 * Sat May 02 2026 Lachlan Marie <lchlnm@pm.me> - 11.7^8.git.03348fa-ec.1
  - Update to commit 03348fa7f617630a031bdaa187c3df244b79d5ab
 
