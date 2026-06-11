@@ -8,9 +8,9 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.10
-%global bumpver 2
+%global bumpver 3
 
-%global commit 13289668fd1e9ff331e56d36e111d74888f19e40
+%global commit 71958c63809cbc925d994176adc9a11b087c172e
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global staging_commit 84f4e6110415eb04b70c25cf92d2e92e77fec125
@@ -1420,7 +1420,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/avifil32.dll
 %{_libdir}/wine/%{winepedirs}/avrt.dll
 %{_libdir}/wine/%{winepedirs}/bcp47langs.dll
-#{_libdir}/wine/%{winesodir}/bcrypt.so
+#{_libdir}/wine/#{winesodir}/bcrypt.so
 %{_libdir}/wine/%{winepedirs}/bcrypt.dll
 %{_libdir}/wine/%{winepedirs}/bcryptprimitives.dll
 %{_libdir}/wine/%{winepedirs}/bluetoothapis.dll
@@ -2463,6 +2463,9 @@ fi
 %endif
 
 %changelog
+* Thu Jun 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.10^3.git.71958c6-ec.1
+ - Update to commit 71958c63809cbc925d994176adc9a11b087c172e
+
 * Wed Jun 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.10^2.git.1328966-ec.1
  - Update to commit 13289668fd1e9ff331e56d36e111d74888f19e40
 
