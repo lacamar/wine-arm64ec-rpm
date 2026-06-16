@@ -8,12 +8,12 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.11
-%global bumpver 0
+%global bumpver 1
 
-%global commit f6c044e1890e84a4aa5e77e76ba7276a615630e1
+%global commit 205d055e14a1b00e7dd2fdc161bbd6f171ef8707
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 84f4e6110415eb04b70c25cf92d2e92e77fec125
+%global staging_commit 4d000a90047e9e25655f8a9b9192e3c44acdbd4d
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -1525,6 +1525,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/dsound.dll
 %{_libdir}/wine/%{winepedirs}/dsdmo.dll
 %{_libdir}/wine/%{winepedirs}/dsquery.dll
+%{_libdir}/wine/%{winepedirs}/dsrole.dll
 %{_libdir}/wine/%{winepedirs}/dssenh.dll
 %{_libdir}/wine/%{winepedirs}/dsuiext.dll
 %{_libdir}/wine/%{winepedirs}/dswave.dll
@@ -2463,6 +2464,9 @@ fi
 %endif
 
 %changelog
+* Wed Jun 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.11^1.git.205d055-ec.1
+ - Update to commit 205d055e14a1b00e7dd2fdc161bbd6f171ef8707
+
 * Sat Jun 13 2026 Lachlan Marie <lchlnm@pm.me> - 11.11^0.git.f6c044e-ec.1
  - Update to 11.11
 
