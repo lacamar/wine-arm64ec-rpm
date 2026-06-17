@@ -1,9 +1,9 @@
 %global srcname FEX
 %global tag 2605
 
-%global bumpver 20
+%global bumpver 21
 
-%global commit e12bd2710616db6c65544bed4d4005918c51564d
+%global commit 99662b70ffbf24a9ad50f0317f75166e0822f5a4
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -15,7 +15,7 @@
 
 Name:       fex-emu-wine-git
 Version:    %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:    2%{?dist}
+Release:    3%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -35,7 +35,7 @@ local externals = {
   { name="fmt", ref="407c905", owner="fmtlib", path="fmt", version="12.1.0" },
   { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
   { name="range-v3", ref="ca1388f", owner="ericniebler", license="MIT" },
-  { name="rpmalloc", ref="1f6fb49", owner="FEX-Emu", license="0BSD" },
+  { name="rpmalloc", ref="1d85c24", owner="FEX-Emu", license="0BSD" },
   { name="tracy", ref="650c98e", owner="wolfpld", license="BSD-2-Clause" },
   { name="unordered_dense", ref="3234af2", owner="martinus", version="4.8.1", license="MIT" },
   { name="vixl", ref="5f41844", owner="FEX-Emu", license="BSD-3-Clause" },
@@ -191,9 +191,15 @@ rm -rf %{buildroot}/usr/share
 
 %{_libdir}/wine/aarch64-windows/libarm64ecfex.dll
 %{_libdir}/wine/aarch64-windows/libwow64fex.dll
+%{_bindir}/FEXOfflineCompiler.exe
 
 
 %changelog
+* Wed Jun 17 2026 Lachlan Marie <lchlnm@pm.me> - 2605^21.git.99662b7-3
+ - Update to commit 99662b70ffbf24a9ad50f0317f75166e0822f5a4
+
+ - Added FEXOfflineCompiler to installed files
+
 * Sat Jun 13 2026 Lachlan Marie <lchlnm@pm.me> - 2605^20.git.e12bd27-2
  - Update to commit e12bd2710616db6c65544bed4d4005918c51564d
 
