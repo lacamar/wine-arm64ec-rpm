@@ -1,7 +1,7 @@
-%global bumpver 0
+%global bumpver 1
 %global tag 3.0.1
 
-%global commit c850747f1df24180ce97b7a9094603f39da1251d
+%global commit deed3379a0061257504fbdcc2a386cd06fe06ffd
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -268,6 +268,9 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Tue Jul 07 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1^1.git.deed337-ec1
+ - Update to commit deed3379a0061257504fbdcc2a386cd06fe06ffd
+
 * Mon Jul 06 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1^0.git.c850747-ec1
  - Update to 3.0.1
 
