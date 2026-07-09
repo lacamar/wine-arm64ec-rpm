@@ -6,9 +6,11 @@
 %global fex_ldflags -Wl,--gc-sections -static
 %global fex_cflags -O3 -g -pipe -Wall -Wextra
 
+%global __provides_exclude_from ^%{_libdir}/wine/.*$
+
 Name:       fex-emu-wine
 Version:    2607
-Release:    2%{?dist}
+Release:    3%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -164,6 +166,18 @@ sed -i 's/aarch64-w64-mingw32-dlltool/llvm-dlltool -m arm64/g' build.ninja
 ninja
 popd
 
+mkdir build-unixlib && pushd build-unixlib
+LDFLAGS="-Wl,--gc-sections" \
+cmake -GNinja \
+  -DCMAKE_C_COMPILER=/usr/bin/clang \
+  -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+  -DCMAKE_INSTALL_LIBDIR=%{_libdir}/wine/aarch64-unix \
+  ../Source/Windows/UnixLib
+ninja
+popd
+
 %install
 rm -rf %{buildroot}
 
@@ -172,6 +186,10 @@ DESTDIR=%{buildroot} ninja install
 popd
 
 pushd build-wow64
+DESTDIR=%{buildroot} ninja install
+popd
+
+pushd build-unixlib
 DESTDIR=%{buildroot} ninja install
 popd
 
@@ -185,6 +203,8 @@ rm -rf %{buildroot}/usr/share
 
 %{_libdir}/wine/aarch64-windows/libarm64ecfex.dll
 %{_libdir}/wine/aarch64-windows/libwow64fex.dll
+%{_libdir}/wine/aarch64-unix/libarm64ecfex.so
+%{_libdir}/wine/aarch64-unix/libwow64fex.so
 %{_bindir}/FEXOfflineCompiler.exe
 
 
