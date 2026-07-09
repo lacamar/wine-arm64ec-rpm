@@ -10,10 +10,10 @@
 %global tag 11.12
 %global bumpver 0
 
-%global commit 996020f410e7a1aa2dd6b44cf740854ea524d31a
+%global commit 1faed53c48b678892010693416668e4c6504b7fb
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit bc50fb148ca22f8f328e7b75a7a2a7e145d0eec4
+%global staging_commit f31120e932da5a1fc79e284769788b81d9d4c972
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -111,7 +111,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:       2026.06.06_bylaws.patch
+Patch600:       2026_07_09_bylaws_rebased.patch
 Patch601:       wine-mono-arm.patch
 %endif
 
