@@ -1,9 +1,9 @@
 %global srcname FEX
 %global tag 2607
 
-%global bumpver 4
+%global bumpver 5
 
-%global commit 6cd2a489102b5615744c899672d2b7447feb0b21
+%global commit 3370d9af15ca896e0290c46f7a955196a2e0774b
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -215,6 +215,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Thu Jul 09 2026 Lachlan Marie <lchlnm@pm.me> - 2607^5.git.3370d9a-4
+ - Update to commit 3370d9af15ca896e0290c46f7a955196a2e0774b
+
 * Thu Jul 09 2026 Lachlan Marie <lchlnm@pm.me> - 2607^4.git.6cd2a48-4
  - Build and install the Wine unixlibs (libwow64fex.so, libarm64ecfex.so)
    to %%{_libdir}/wine/aarch64-unix
