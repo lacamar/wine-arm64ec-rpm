@@ -1307,6 +1307,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/avifil32.dll
 %{_libdir}/wine/%{winepedirs}/avrt.dll
 %{_libdir}/wine/%{winepedirs}/bcp47langs.dll
+%{_libdir}/wine/%{winepedirs}/bcrypt.dll
 %{_libdir}/wine/%{winepedirs}/bcryptprimitives.dll
 %{_libdir}/wine/%{winepedirs}/bluetoothapis.dll
 %{_libdir}/wine/%{winepedirs}/browseui.dll
