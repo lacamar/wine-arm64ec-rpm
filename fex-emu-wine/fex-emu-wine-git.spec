@@ -1,9 +1,9 @@
 %global srcname FEX
 %global tag 2607
 
-%global bumpver 5
+%global bumpver 6
 
-%global commit 3370d9af15ca896e0290c46f7a955196a2e0774b
+%global commit d2f096187ce74ed6f70617b629bdd86b5e55c75d
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -211,10 +211,14 @@ rm -rf %{buildroot}/usr/share
 %{_libdir}/wine/aarch64-windows/libwow64fex.dll
 %{_libdir}/wine/aarch64-unix/libarm64ecfex.so
 %{_libdir}/wine/aarch64-unix/libwow64fex.so
-%{_bindir}/FEXOfflineCompiler.exe
+%{_bindir}/FEXOfflineCompiler32.exe
+%{_bindir}/FEXOfflineCompiler64.exe
 
 
 %changelog
+* Sat Jul 11 2026 Lachlan Marie <lchlnm@pm.me> - 2607^6.git.d2f0961-4
+ - Update to commit d2f096187ce74ed6f70617b629bdd86b5e55c75d
+
 * Thu Jul 09 2026 Lachlan Marie <lchlnm@pm.me> - 2607^5.git.3370d9a-4
  - Update to commit 3370d9af15ca896e0290c46f7a955196a2e0774b
 
