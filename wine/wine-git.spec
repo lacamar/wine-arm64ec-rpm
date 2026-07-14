@@ -8,12 +8,12 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.13
-%global bumpver 0
+%global bumpver 1
 
-%global commit 6eb2e4c32cc9e271856146df11ed3a5c2cf29234
+%global commit 0b0bef31ea443c54efe0a56c407711cfe194ccd4
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 8c2d3deed7ba87640ca69591284d107132e0f68e
+%global staging_commit 931807275c494c96c8d7e33e8177efe0737cf3e7
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -22,7 +22,7 @@
 
 %global no64bit   0
 %global winegecko 2.47.4
-%global winemono  11.0.0
+%global winemono  11.2.0
 %if 0%{?fedora}
 %global opencl    1
 %endif
@@ -1260,7 +1260,6 @@ fi
 
 %files core
 %license LICENSE
-#license LICENSE.OLD
 %license COPYING.LIB
 %doc ANNOUNCE.md
 %doc AUTHORS
@@ -1420,7 +1419,6 @@ fi
 %{_libdir}/wine/%{winepedirs}/avifil32.dll
 %{_libdir}/wine/%{winepedirs}/avrt.dll
 %{_libdir}/wine/%{winepedirs}/bcp47langs.dll
-#{_libdir}/wine/#{winesodir}/bcrypt.so
 %{_libdir}/wine/%{winepedirs}/bcrypt.dll
 %{_libdir}/wine/%{winepedirs}/bcryptprimitives.dll
 %{_libdir}/wine/%{winepedirs}/bluetoothapis.dll
@@ -2464,6 +2462,9 @@ fi
 %endif
 
 %changelog
+* Tue Jul 14 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^1.git.0b0bef3-ec.1
+ - Update to commit 0b0bef31ea443c54efe0a56c407711cfe194ccd4
+
 * Sat Jul 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^0.git.6eb2e4c-ec.1
  - Update to 11.13
 
