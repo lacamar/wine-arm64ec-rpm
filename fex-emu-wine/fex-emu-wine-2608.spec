@@ -205,7 +205,8 @@ rm -rf %{buildroot}/usr/share
 %{_libdir}/wine/aarch64-windows/libwow64fex.dll
 %{_libdir}/wine/aarch64-unix/libarm64ecfex.so
 %{_libdir}/wine/aarch64-unix/libwow64fex.so
-#{_bindir}/FEXOfflineCompiler.exe
+%{_bindir}/FEXOfflineCompiler32.exe
+%{_bindir}/FEXOfflineCompiler64.exe
 
 
 %changelog
