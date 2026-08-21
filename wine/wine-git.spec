@@ -7,13 +7,13 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global tag 11.14
+%global tag 11.15
 %global bumpver 0
 
-%global commit 1012f3d99507b80d4869eabf0853567660a7ecbb
+%global commit 240b0e8c6f00824ebddd9360fe720e6929bf6428
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 3604946c8ed63f57d1660f7b01ab79779969bfa6
+%global staging_commit 3eb6b5a7135fbd65d1be0356bc598237613f3e59
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -111,7 +111,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:       2026_07_09_bylaws_rebased.patch
+Patch600:       2026_08_17_bylaws_rebased.patch
 Patch601:       wine-mono-arm.patch
 %endif
 
@@ -2054,6 +2054,7 @@ fi
 %{_libdir}/wine/%{winesodir}/opengl32.so
 %{_libdir}/wine/%{winepedirs}/opengl32.dll
 %{_libdir}/wine/%{winepedirs}/wined3d.dll
+%{_libdir}/wine/%{winesodir}/wined3d.so
 %{_libdir}/wine/%{winepedirs}/dnsapi.dll
 %{_libdir}/wine/%{winesodir}/dnsapi.so
 %{_libdir}/wine/%{winepedirs}/iexplore.exe
@@ -2462,6 +2463,9 @@ fi
 %endif
 
 %changelog
+* Fri Aug 21 2026 Lachlan Marie <lchlnm@pm.me> - 11.15^0.git.240b0e8-ec.1
+ - Update to 11.15
+
 * Sun Jul 26 2026 Lachlan Marie <lchlnm@pm.me> - 11.14^0.git.1012f3d-ec.1
  - Update to 11.14
 
