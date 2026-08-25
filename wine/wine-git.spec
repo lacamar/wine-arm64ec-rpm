@@ -8,9 +8,9 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.16
-%global bumpver 0
+%global bumpver 1
 
-%global commit 8da89f8493b21ebfbe344a54dbef0cde23c7ea59
+%global commit 111e5197390aa008789b002222024229fa2b82cf
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global staging_commit 3eb6b5a7135fbd65d1be0356bc598237613f3e59
@@ -2463,6 +2463,9 @@ fi
 %endif
 
 %changelog
+* Tue Aug 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.16^1.git.111e519-ec.1
+ - Update to commit 111e5197390aa008789b002222024229fa2b82cf
+
 * Sun Aug 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.16^0.git.8da89f8-ec.1
  - Update to 11.16
 
