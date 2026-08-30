@@ -6,23 +6,12 @@
 %bcond new_wow64 0
 %endif
 
-# Full commit and short commit reference for wine-git
-%global tag 11.16
-%global bumpver 1
-
-%global commit 111e5197390aa008789b002222024229fa2b82cf
-%{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
-
-%global staging_commit 86dc0c4ec51910a895e8c34d470cbcd732cfd476
-%{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
-
-
 # Compiling the preloader fails with hardening enabled
 %undefine _hardened_build
 
 %global no64bit   0
 %global winegecko 2.47.4
-%global winemono  11.2.0
+%global winemono  11.3.0
 %if 0%{?fedora}
 %global opencl    1
 %endif
@@ -60,17 +49,15 @@
 %endif
 # 0%%{?fedora}
 
-Name:           wine-git
-Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease
+Name:           wine
+Version:        11.16
+Release:        ec1%{dist}
 Summary:        A compatibility layer for windows applications
-
-Conflicts:      wine
-Provides:       wine = %{version}-%{release}
 
 License:        LGPL-2.1-or-later
 URL:            https://www.winehq.org/
-Source0:        https://gitlab.winehq.org/wine/wine/-/archive/%{shortcommit}/wine-%{shortcommit}.tar.gz
+Source0:        https://dl.winehq.org/wine/source/11.x/wine-%{version}.tar.xz
+Source10:       https://dl.winehq.org/wine/source/11.x/wine-%{version}.tar.xz.sign
 
 Source1:        wine.systemd
 Source2:        wine-README-Fedora
@@ -112,14 +99,13 @@ Patch511:       wine-cjk.patch
 
 %ifarch aarch64
 Patch600:       2026_08_17_bylaws_rebased.patch
-Patch601:       wine-mono-arm.patch
 Patch602:       2026_08_30-arm64ec-fex-bootstrap-order.patch
 %endif
 
 %if 0%{?wine_staging}
 # wine-staging patches
 # pulseaudio-patch is covered by that patch-set, too.
-Source900:        https://gitlab.winehq.org/wine/wine-staging/-/archive/%{staging_shortcommit}/wine-staging-%{staging_shortcommit}.tar.gz
+Source900:      https://gitlab.winehq.org/wine/wine-staging/-/archive/v%{version}/wine-staging-%{version}.tar.gz
 %endif
 
 %if !%{?no64bit}
@@ -309,10 +295,6 @@ Requires(preun):       %{_sbindir}/alternatives
 # require -filesystem
 Requires:       wine-filesystem = %{version}-%{release}
 
-Conflicts:     wine-core
-Provides:      wine-core%{?_isa} = %{version}-%{release}
-Provides:      wine-core = %{version}-%{release}
-
 %ifarch %{ix86}
 # CUPS support uses dlopen - rhbz#1367537
 Requires:       cups-libs(x86-32)
@@ -416,8 +398,6 @@ Requires:       systemd >= 23
 BuildArch:      noarch
 Requires(post):  systemd
 Requires(postun): systemd
-Conflicts:     wine-systemd
-Provides:      wine-systemd = %{version}-%{release}
 
 %description systemd
 Register the wine binary handler for windows executables via systemd binfmt
@@ -427,9 +407,6 @@ handling. See man binfmt.d for further information.
 Summary:        Filesystem directories for wine
 BuildArch:      noarch
 
-Conflicts:     wine-filesystem
-Provides:      wine-filesystem = %{version}-%{release}
-
 %description filesystem
 Filesystem directories and basic configuration for wine.
 
@@ -437,9 +414,6 @@ Filesystem directories and basic configuration for wine.
 Summary:        Common files
 Requires:       wine-core = %{version}-%{release}
 BuildArch:      noarch
-
-Conflicts:     wine-common
-Provides:      wine-common = %{version}-%{release}
 
 %description common
 Common wine files and scripts.
@@ -453,9 +427,6 @@ Requires:       wine-common = %{version}-%{release}
 Requires:       wine-systemd = %{version}-%{release}
 Requires:       hicolor-icon-theme
 BuildArch:      noarch
-
-Conflicts:     wine-desktop
-Provides:      wine-desktop = %{version}-%{release}
 
 %description desktop
 Desktop integration features for wine, including mime-types and a binary format
@@ -490,10 +461,6 @@ Requires:      wine-tahoma-winefonts = %{version}-%{release}
 # times-new-roman-fonts are available with wine_staging-patchset, only.
 %if 0%{?wine_staging}
 Requires:      wine-times-new-roman-winefonts = %{version}-%{release}
-%else
-# 0%%{?wine_staging}
-Obsoletes:     wine-times-new-roman-winefonts <= %{version}-%{release}
-Obsoletes:     wine-times-new-roman-winefonts-system <= %{version}-%{release}
 %endif
 # 0%%{?wine_staging}
 Requires:      wine-symbol-winefonts = %{version}-%{release}
@@ -502,9 +469,6 @@ Requires:      wine-wingdings-winefonts = %{version}-%{release}
 # intermediate fix for #593140
 Requires:      liberation-sans-fonts liberation-serif-fonts liberation-mono-fonts
 Requires:      liberation-narrow-fonts
-
-Conflicts:     wine-winefonts
-Provides:      wine-winefonts = %{version}-%{release}
 
 %description winefonts
 %{summary}
@@ -515,9 +479,6 @@ Summary:       Wine Arial font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Obsoletes:     wine-arial-fonts < 10.16
-
-Conflicts:     wine-arial-winefonts
-Provides:      wine-arial-winefonts = %{version}-%{release}
 
 %description arial-winefonts
 %{summary}
@@ -530,9 +491,6 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Obsoletes:     wine-courier-fonts < 10.16
 
-Conflicts:     wine-courier-winefonts
-Provides:      wine-courier-winefonts = %{version}-%{release}
-
 %description courier-winefonts
 %{summary}
 
@@ -541,9 +499,6 @@ Summary:       Wine Fixedsys font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Obsoletes:     wine-fixedsys-fonts < 10.16
-
-Conflicts:     wine-fixedsys-winefonts
-Provides:      wine-fixedsys-winefonts = %{version}-%{release}
 
 %description fixedsys-winefonts
 %{summary}
@@ -554,9 +509,6 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Obsoletes:     wine-small-fonts < 10.16
 
-Conflicts:     wine-small-winefonts
-Provides:      wine-small-winefonts = %{version}-%{release}
-
 %description small-winefonts
 %{summary}
 
@@ -565,9 +517,6 @@ Summary:       Wine System font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Obsoletes:     wine-system-fonts < 10.16
-
-Conflicts:     wine-system-winefonts
-Provides:      wine-system-winefonts = %{version}-%{release}
 
 %description system-winefonts
 %{summary}
@@ -579,9 +528,6 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Obsoletes:     wine-marlett-fonts < 10.16
 
-Conflicts:     wine-marlett-winefonts
-Provides:      wine-marlett-winefonts = %{version}-%{release}
-
 %description marlett-winefonts
 %{summary}
 
@@ -591,9 +537,6 @@ Summary:       Wine MS Sans Serif font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Obsoletes:     wine-ms-sans-serif-fonts < 10.16
-
-Conflicts:     wine-ms-sans-serif-winefonts
-Provides:      wine-ms-sans-serif-winefonts = %{version}-%{release}
 
 %description ms-sans-serif-winefonts
 %{summary}
@@ -606,9 +549,6 @@ BuildArch:     noarch
 Requires:      wine-filesystem = %{version}-%{release}
 Obsoletes:     wine-tahoma-fonts < 10.16
 
-Conflicts:     wine-tahoma-winefonts
-Provides:      wine-tahoma-winefonts = %{version}-%{release}
-
 %description tahoma-winefonts
 %{summary}
 Please note: If you want system integration for wine tahoma fonts install the
@@ -620,9 +560,6 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Requires:      wine-tahoma-winefonts = %{version}-%{release}
 
-Conflicts:     wine-tahoma-winefonts-system
-Provides:      wine-tahoma-winefonts-system = %{version}-%{release}
-
 %description tahoma-fonts-system
 %{summary}
 
@@ -632,9 +569,6 @@ Summary:       Wine Times New Roman font family
 BuildArch:     noarch
 Requires:      wine-filesystem = %{version}-%{release}
 Obsoletes:     wine-times-new-roman-fonts < 10.16
-
-Conflicts:     wine-times-new-roman-winefonts
-Provides:      wine-times-new-roman-winefonts = %{version}-%{release}
 
 %description times-new-roman-winefonts
 %{summary}
@@ -647,9 +581,6 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Requires:      wine-times-new-roman-winefonts = %{version}-%{release}
 
-Conflicts:     wine-times-new-roman-winefonts-system
-Provides:      wine-times-new-roman-winefonts-system = %{version}-%{release}
-
 %description times-new-roman-fonts-system
 %{summary}
 %endif
@@ -660,9 +591,6 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Obsoletes:     wine-symbol-fonts < 10.16
 
-Conflicts:     wine-symbol-winefonts
-Provides:      wine-symbol-winefonts = %{version}-%{release}
-
 %description symbol-winefonts
 %{summary}
 
@@ -672,9 +600,6 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Obsoletes:     wine-webdings-fonts < 10.16
 
-Conflicts:     wine-webdings-winefonts
-Provides:      wine-webdings-winefonts = %{version}-%{release}
-
 %description webdings-winefonts
 %{summary}
 
@@ -683,9 +608,6 @@ Summary:       Wine Wingdings font family
 BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Obsoletes:     wine-wingdings-fonts < 10.16
-
-Conflicts:     wine-wingdings-winefonts
-Provides:      wine-wingdings-winefonts = %{version}-%{release}
 
 %description wingdings-winefonts
 %{summary}
@@ -698,9 +620,6 @@ BuildArch:     noarch
 Requires:      fontpackages-filesystem
 Requires:      wine-wingdings-winefonts = %{version}-%{release}
 
-Conflicts:     wine-wingdings-winefonts-system
-Provides:      wine-wingdings-winefonts-system = %{version}-%{release}
-
 %description wingdings-fonts-system
 %{summary}
 
@@ -709,20 +628,12 @@ Provides:      wine-wingdings-winefonts-system = %{version}-%{release}
 Summary: LDAP support for wine
 Requires: wine-core = %{version}-%{release}
 
-Conflicts:     wine-ldap
-Provides:      wine-ldap%{?_isa} = %{version}-%{release}
-Provides:      wine-ldap = %{version}-%{release}
-
 %description ldap
 LDAP support for wine
 
 %package cms
 Summary: Color Management for wine
 Requires: wine-core = %{version}-%{release}
-
-Conflicts:     wine-cms
-Provides:      wine-cms%{?_isa} = %{version}-%{release}
-Provides:      wine-cms = %{version}-%{release}
 
 %description cms
 Color Management for wine
@@ -731,10 +642,6 @@ Color Management for wine
 Summary: Smart card support for wine
 Requires: wine-core = %{version}-%{release}
 
-Conflicts:     wine-smartcard
-Provides:      wine-smartcard%{?_isa} = %{version}-%{release}
-Provides:      wine-smartcard = %{version}-%{release}
-
 %description smartcard
 Smart card support for wine
 
@@ -742,7 +649,7 @@ Smart card support for wine
 Summary: Twain support for wine
 Requires: wine-core = %{version}-%{release}
 %ifarch %{ix86}
-Requires: sane-backends-libs(x86-32)
+Requires:  sane-backends-libs(x86-32)
 %endif
 %ifarch x86_64
 Requires: sane-backends-libs(x86-64)
@@ -751,20 +658,12 @@ Requires: sane-backends-libs(x86-64)
 Requires: sane-backends-libs
 %endif
 
-Conflicts:     wine-twain
-Provides:      wine-twain%{?_isa} = %{version}-%{release}
-Provides:      wine-twain = %{version}-%{release}
-
 %description twain
 Twain support for wine
 
 %package devel
 Summary: Wine development environment
 Requires: wine-core = %{version}-%{release}
-
-Conflicts:     wine-devel
-Provides:      wine-devel%{?_isa} = %{version}-%{release}
-Provides:      wine-devel = %{version}-%{release}
 
 %description devel
 Header, include files and library definition files for developing applications
@@ -776,20 +675,12 @@ Requires: wine-core = %{version}-%{release}
 # midi output
 Requires: wine-alsa%{?_isa} = %{version}-%{release}
 
-Conflicts:     wine-pulseaudio
-Provides:      wine-pulseaudio%{?_isa} = %{version}-%{release}
-Provides:      wine-pulseaudio = %{version}-%{release}
-
 %description pulseaudio
 This package adds a pulseaudio driver for wine.
 
 %package alsa
 Summary: Alsa support for wine
 Requires: wine-core = %{version}-%{release}
-
-Conflicts:     wine-alsa
-Provides:      wine-alsa%{?_isa} = %{version}-%{release}
-Provides:      wine-alsa = %{version}-%{release}
 
 %description alsa
 This package adds an alsa driver for wine.
@@ -799,16 +690,12 @@ This package adds an alsa driver for wine.
 Summary: OpenCL support for wine
 Requires: wine-core = %{version}-%{release}
 
-Conflicts:     wine-opencl
-Provides:      wine-opencl%{?_isa} = %{version}-%{release}
-Provides:      wine-opencl = %{version}-%{release}
-
 %description opencl
 This package adds the opencl driver for wine.
 %endif
 
 %prep
-%setup -qn wine-%{shortcommit}
+%setup -qn wine-%{version}
 %patch -P 511 -p1 -b.cjk
 
 %if 0%{?wine_staging}
@@ -825,7 +712,6 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %endif
 
 %patch -P 600 -p1 -F3
-%patch -P 601 -p0 -F3
 %patch -P 602 -p1 -F3
 
 %build
@@ -2465,260 +2351,442 @@ fi
 %endif
 
 %changelog
-* Tue Aug 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.16^1.git.111e519-ec.1
- - Update to commit 111e5197390aa008789b002222024229fa2b82cf
+* Tue Aug 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.16-ec1
+- Increased wine version to 11.16
+- Increased wine-mono version to 11.3.0
 
-* Sun Aug 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.16^0.git.8da89f8-ec.1
- - Update to 11.16
+* Tue Aug 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.15-ec1
+- Increased wine version to 11.15
 
-* Fri Aug 21 2026 Lachlan Marie <lchlnm@pm.me> - 11.15^0.git.240b0e8-ec.1
- - Update to 11.15
+* Thu Jul 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.14-ec1
+- Increased wine version to 11.14
 
-* Sun Jul 26 2026 Lachlan Marie <lchlnm@pm.me> - 11.14^0.git.1012f3d-ec.1
- - Update to 11.14
+* Sat Jul 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.13-ec1
+- Increased wine version to 11.13
 
-* Fri Jul 24 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^7.git.b41409d-ec.1
- - Update to commit b41409d9be509207c16d814742ceb8273bc201fc
+* Tue Jun 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.12-ec1
+- Increased wine version to 11.12
 
-* Wed Jul 22 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^6.git.1f069f4-ec.1
- - Update to commit 1f069f492a487af1fe077f182ae753b58029d67c
+* Sat Jun 13 2026 Lachlan Marie <lchlnm@pm.me> - 11.11-ec1
+- Increased wine version to 11.11
 
-* Tue Jul 21 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^5.git.7364e90-ec.1
- - Update to commit 7364e9021229f000670b42acfd8e2fb2d6c00cd7
+* Sat Jun 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.10-ec1
+- Increased wine version to 11.10
 
-* Sun Jul 19 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^4.git.e8781e7-ec.1
- - Update to commit e8781e7c8d0770186678c2dc7279bfc4506cfcb6
+* Fri Jun 05 2026 Lachlan Marie <lchlnm@pm.me> - 11.9-ec1
+- Increased wine version to 11.9
 
-* Fri Jul 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^3.git.93e084a-ec.1
- - Update to commit 93e084a7df63faaf148b1c945b9a7c921d9584f4
+* Sat May 02 2026 Lachlan Marie <lchlnm@pm.me> - 11.8-ec1
+- Increased wine version to 11.8
 
-* Wed Jul 15 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^2.git.d30dcd7-ec.1
- - Update to commit d30dcd75bc9f24277f13ae3605c8a4bb506885e4
+* Mon Apr 27 2026 Lachlan Marie <lchlnm@pm.me> - 11.7-ec2
+- Fixed patch errors related to autoconf 2.73 to allow building on Fedora 45.
+- Fixed errors with wine_staging conditions
 
-* Tue Jul 14 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^1.git.0b0bef3-ec.1
- - Update to commit 0b0bef31ea443c54efe0a56c407711cfe194ccd4
+* Sat Apr 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.7-ec1
+- Increased wine version to 11.7
 
-* Sat Jul 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^0.git.6eb2e4c-ec.1
- - Update to 11.13
+* Mon Apr 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.6-ec1
+- Increased wine version to 11.6
 
-* Fri Jul 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.12^2.git.f26c699-ec.1
- - Update to commit f26c699db5176caee6883210f949110de3af520d
+* Sat Mar 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.5-ec1
+- Increased wine version to 11.5
+- Added a patch that allows wine to detect and use wine-mono DLLs built for arm64.
 
-* Thu Jul 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.12^1.git.49f3722-ec.1
- - Update to commit 49f37227f26ba0ca4c67173ca11b271e19ec19e7
+* Sat Mar 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.4-ec1
+- Increased wine version to 11.4
 
-* Tue Jun 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.12^0.git.996020f-ec.1
- - Update to 11.12
+* Sun Mar 01 2026 Lachlan Marie <lchlnm@pm.me> - 11.3-ec1
+- Increased wine version to 11.3
 
-* Tue Jun 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.11^7.git.e3bb455-ec.1
- - Update to commit e3bb4552d761ce6a310321eb2d8fdb8fa6c46cbb
+* Sat Feb 28 2026 Lachlan Marie <lchlnm@pm.me> - 11.2-ec1
+- Increased wine version to 11.2
 
-* Tue Jun 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.11^6.git.050651c-ec.1
- - Update to commit 050651c425a0a4d04ad137458e29d6f0837b61fc
+* Sat Jan 24 2026 Lachlan Marie <lchlnm@pm.me> - 11.1-ec1
+- Increased wine version to 11.1
 
-* Sat Jun 20 2026 Lachlan Marie <lchlnm@pm.me> - 11.11^5.git.ff95854-ec.1
- - Update to commit ff95854f8cc48de0301c5e03096ad9bd7c990227
+* Wed Jan 14 2026 Lachlan Marie <lchlnm@pm.me> - 11.0-ec1
+- Increased wine version to 11.0
 
-* Fri Jun 19 2026 Lachlan Marie <lchlnm@pm.me> - 11.11^4.git.0c7c13e-ec.1
- - Update to commit 0c7c13e12a1600d7929bb67735a44bb2062263a3
+* Sat Jan 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.0-rc5^ec1
+- Increased wine version to 11.0-rc5
 
-* Thu Jun 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.11^3.git.2927904-ec.1
- - Update to commit 2927904de2dc9c69bc1bd60a45c0839dad60eed9
+* Sun Dec 28 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc4^ec1
+- Increased wine version to 11.0-rc4
 
-* Wed Jun 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.11^2.git.0fd66c4-ec.1
- - Update to commit 0fd66c4ffe51ee5eb7219c3f42167b2d08c56e42
+* Sat Dec 13 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc3^ec1
+- Increased wine version to 11.0-rc3
 
-* Wed Jun 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.11^1.git.205d055-ec.1
- - Update to commit 205d055e14a1b00e7dd2fdc161bbd6f171ef8707
+* Sat Dec 13 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc2^ec1
+- Increased wine version to 11.0-rc2
 
-* Sat Jun 13 2026 Lachlan Marie <lchlnm@pm.me> - 11.11^0.git.f6c044e-ec.1
- - Update to 11.11
+* Sun Dec 07 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc1^ec1
+- Increased wine version to 11.0-rc1
 
-* Fri Jun 12 2026 Lachlan Marie <lchlnm@pm.me> - 11.10^4.git.aed575f-ec.1
- - Update to commit aed575f5bb5b6e9873199b00d53927dd0e598ce3
+* Sat Nov 15 2025 Lachlan Marie <lchlnm@pm.me> - 10.20-ec1
+- Increased wine version to 10.20
 
-* Thu Jun 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.10^3.git.71958c6-ec.1
- - Update to commit 71958c63809cbc925d994176adc9a11b087c172e
+* Sat Nov 15 2025 Lachlan Marie <lchlnm@pm.me> - 10.19-ec1
+- Increased wine version to 10.19
 
-* Wed Jun 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.10^2.git.1328966-ec.1
- - Update to commit 13289668fd1e9ff331e56d36e111d74888f19e40
+* Sat Nov 15 2025 Lachlan Marie <lchlnm@pm.me> - 10.18-ec.2
+- Rebased on Fedora upstream wine
 
-* Tue Jun 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.10^1.git.26bf0d2-ec.1
- - Update to commit 26bf0d20b79a2abe9b5aff382ca1e3d6679136ac
+* Sun Nov 02 2025 Michael Cronenworth <mike@cchtml.com> - 10.18-2
+- wine-mono 10.3.0
 
-* Mon Jun 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.10^0.git.b9f5aa4-ec.1
- - Update to 11.10
+* Sun Nov 02 2025 Michael Cronenworth <mike@cchtml.com> - 10.18-1
+- version update
+- reorganize fonts packages (RHBZ#2372648)
 
-* Sat May 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.8^3.git.68dd9ef-ec.1
- - Update to commit 68dd9ef2cb5605069ab61a299e44f8d225d0f7c0
+* Sat Oct 18 2025 Lachlan Marie <lchlnm@pm.me> - 10.17-ec.1
+- Updated wine to 10.17
+- Increased Mono version to 10.3.0
 
-* Fri May 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.8^2.git.04da356-ec.1
- - Update to commit 04da356a61047a8793a6586045479d4aa384e3de
+* Sat Oct 04 2025 Lachlan Marie <lchlnm@pm.me> - 10.16-ec.1
+- Updated wine to 10.16
 
-* Thu May 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.8^1.git.2231b96-ec.1
- - Update to commit 2231b967d9e7f9712764c40aac235465d2890a1c
+* Sat Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 10.14-1.arm64ec
+- Updated wine to 10.14
 
-* Wed May 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.8^0.git.e985261-ec.1
- - Update to 11.8
+* Sat Aug 30 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-3.arm64ec
+- Added NTSync patch (wine-tkg-staging)
 
-* Sat May 02 2026 Lachlan Marie <lchlnm@pm.me> - 11.7^8.git.03348fa-ec.1
- - Update to commit 03348fa7f617630a031bdaa187c3df244b79d5ab
+* Wed Aug 27 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-2.arm64ec
+- Added fex-emu-wine as a requirement for wine core on aarch64
 
-* Thu Apr 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.7^7.git.1d744d4-ec.1
- - Update to commit 1d744d4ca948c7ea403a786f21c5fe4ef6de08fe
+* Sat Aug 16 2025 Lachlan Marie <lchlnm@pm.me> - 10.13-1.arm64ec
+- Updated wine to version 10.13
 
-* Wed Apr 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.7^6.git.1535a94-ec.1
- - Update to commit 1535a9411986b3539f4d9b9fd9d69b73d7e9132c
+* Wed Aug 13 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-4.arm64ec
+- Updated bylaws patchset to latest git commit fcc776b
 
-* Tue Apr 28 2026 Lachlan Marie <lchlnm@pm.me> - 11.7^5.git.ab6f458-ec.1
- - Update to commit ab6f4584b89f28504b0b277c0b4c723a86b4d6b7
+* Sun Aug 10 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-3.arm64ec
+- Updated bylaws patchset to latest git commit b0575a5
 
-* Sun Apr 26 2026 Lachlan Marie <lchlnm@pm.me> - 11.7^4.git.4ec09e2-ec.1
- - Update to commit 4ec09e2940b55f0fbfa5763f073187bdc1b61896
+* Thu Aug 07 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-2.arm64ec
+- Updated bylaws patchset to latest git commit ff92282
+- Fixed new_wow64 switches to reflect aarch64
+- Added aarch64 to mingw buildrequires
 
-* Sat Apr 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.7^3.git.607d214-ec.1
- - Update to commit 607d214b9b33be8ee7377f194a98c01a36af803c
+* Sun Aug 03 2025 Lachlan Marie <lchlnm@pm.me> - 10.12-1.arm64ec
+- Rebased on wine spec 10.12-4 from fedora.
 
-* Fri Apr 24 2026 Lachlan Marie <lchlnm@pm.me> - 11.7^2.git.9f4295c-ec.1
- - Update to commit 9f4295cec027d260c39fcf167b063acd939e5fc6
+* Fri Jul 25 2025 Fedora Release Engineering <releng@fedoraproject.org> - 10.12-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_43_Mass_Rebuild
 
-* Wed Apr 22 2026 Lachlan Marie <lchlnm@pm.me> - 11.7^1.git.96d5f4d-ec.1
- - Update to commit 96d5f4d0eaf662cac8300511808cead0eedfdf66
+* Fri Jul 18 2025 Adam Williamson <awilliam@redhat.com> - 10.12-3
+- Fix alternatives scriptlets on x86_64
+- Ensure scriptlets always exit 0 per policy
 
-* Mon Apr 20 2026 Lachlan Marie <lchlnm@pm.me> - 11.7^0.git.f051a28-ec.1
- - Update to 11.7
+* Sat Jul 12 2025 Björn Esser <besser82@fedoraproject.org> - 10.12-2
+- Drop unneeded libOSMesa dependency
+- Use new wow64 mode for Fedora 43 and later, only
 
-* Thu Apr 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.6^1.git.ada7c06-ec.1
- - Update to commit ada7c06102789033fec9ed9bc07e9a863afd8480
+* Sat Jul 12 2025 Björn Esser <besser82@fedoraproject.org> - 10.12-1
+- version update
 
-* Sat Apr 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.6^0.git.6e073d2-ec.1
- - Update to 11.6
+* Mon Jul 07 2025 Michael Cronenworth <mike@cchtml.com> - 10.4-6
+- Deprecate legacy wow32 and wow64 packages
 
-* Thu Apr 02 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^8.git.4f79f8f-ec.1
- - Update to commit 4f79f8ff75beeb6ad4a9f5c7c6aa48d6dd700b2a
+* Wed Jun 25 2025 Teoh Han Hui <teohhanhui@gmail.com> - 10.4-5
+- Add conditional build for new wow64 mode
 
-* Wed Apr 01 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^7.git.f6beb92-ec.1
- - Update to commit f6beb92595ecd0b978fc3d5ed8d28ac2faac77cd
+* Tue Jun 24 2025 José Expósito <jexposit@redhat.com> - 10.4-4
+- Use mesa-compat-libOSMesa on Fedora 42 and later
 
-* Tue Mar 31 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^6.git.614887f-ec.1
- - Update to commit 614887f33c5a0269d5e2feff6891e3e90d0f77ee
+* Fri Apr 25 2025 Björn Esser <besser82@fedoraproject.org> - 10.4-3
+- Use mesa-compat-libOSMesa on Fedora 43 and later
+  Fixes: rhbz#2362160
 
-* Sun Mar 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^5.git.53d513e-ec.1
- - Update to commit 53d513e626205d5506b7e959bf73b22fd1c17908
+* Tue Apr 01 2025 Michael Cronenworth <mike@cchtml.com> - 10.4-2
+- Initial support for new Wow64 mode
 
-* Fri Mar 27 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^4.git.9aa9719-ec.1
- - Update to commit 9aa97196729c736545f683b27247c1857d9aa9eb
+* Sat Mar 22 2025 Michael Cronenworth <mike@cchtml.com> - 10.4-1
+- version update
 
-* Wed Mar 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^3.git.fda4c08-ec.1
- - Update to commit fda4c08ffdc627ccf88a79c84d0599ef1371c8ef
+* Sat Mar 01 2025 Peter Robinson <pbrobinson@fedoraproject.org> - 10.2-3
+- Spec cleanups: drop EOL RHEL releases, arm32 support
+- Use %%license fields, updates for some conditionals (mpg123, OpenCL)
+- Force alternatives removal
 
-* Tue Mar 24 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^2.git.91b0817-ec.1
- - Update to commit 91b081763ce78a7323d886ad3441f0b9e1fd7909
+* Tue Feb 25 2025 Michael Cronenworth <mike@cchtml.com> - 10.2-2
+- Change x86_64 default alternatives from wine32 to wine64
 
-* Mon Mar 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.5^1.git.1dbc940-ec.1
- - Update to commit 1dbc94083d1b508c3708c857b1715f9d379aa78a
+* Mon Feb 24 2025 Michael Cronenworth <mike@cchtml.com> - 10.2-1
+- version update
 
-* Mon Mar 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.4^1.git.3d128be-ec.1
- - Update to commit 3d128be6400b3869119d293d0c8fa9e7702978f8
+* Sun Feb 09 2025 Michael Cronenworth <mike@cchtml.com> - 10.1-1
+- version update
 
-* Sat Mar 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.3^32.git.cc893ef-ec.1
- - Update to commit cc893ef9cb17b994bfd1f1a1f7355be55e615623
+* Wed Jan 22 2025 Michael Cronenworth <mike@cchtml.com> - 10.0-1
+- version update
 
-* Fri Mar 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.3^31.git.ec692c9-ec.1
- - Update to commit ec692c965f792f1cd453e0aa35fca8189d1f0b56
+* Sun Jan 19 2025 Michael Cronenworth <mike@cchtml.com> - 10.0-0.8rc6
+- version update
 
-* Thu Mar 05 2026 Lachlan Marie <lchlnm@pm.me> - 11.3^30.git.6df3c8f-ec.1
- - Update to commit 6df3c8fb34be21c1de2d8375ea25c9fe7cbdc242
+* Sun Jan 19 2025 Fedora Release Engineering <releng@fedoraproject.org> - 10.0-0.8rc4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_42_Mass_Rebuild
 
-* Tue Mar 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^29.git.5e5bc09-ec.1
- - Update to commit 5e5bc095ed7fa8f5790eff86487a7b46e3fbc3ae
+* Mon Jan 06 2025 Michael Cronenworth <mike@cchtml.com> - 10.0-0.7rc4
+- version update
 
-* Sun Mar 01 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^28.git.739ca45-ec.1
- - Update to commit 739ca45017f7385340d82c9f8c35716ca6466473
+* Fri Dec 27 2024 Zephyr Lykos <fedora@mochaa.ws> - 10.0-0.6rc3
+- Fix wine-mono not loading iconv.dll from mingw bindir
 
-* Sun Jan 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^26.git.afba987-ec.1
- - Update to commit afba987dda1430dc0d9f36fc6f27cd3584bce79e
+* Thu Dec 26 2024 Michael Cronenworth <mike@cchtml.com> - 10.0-0.5rc3
+- version update
 
-* Wed Jan 21 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^25.git.4de3377-ec.1
- - Update to commit 4de3377785fd8d14a90ee3b2c1d7886689d241ed
+* Mon Dec 16 2024 Michael Cronenworth <mike@cchtml.com> - 10.0-0.4rc2
+- version update
 
-* Sat Jan 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^24.git.905be52-ec.1
- - Update to commit 905be521d322c85bb63b34ab9230b4bab791fb0b
+* Tue Dec 10 2024 Michael Cronenworth <mike@cchtml.com> - 10.0-0.3rc1
+- Handle upgrades to convert d3d8.dll to alternatives take 2
 
-* Wed Jan 14 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^23.git.db11d0f-ec.1
- - Update to commit db11d0fe6a169c457e23d007e20404643d067aa8
+* Sun Dec 08 2024 Michael Cronenworth <mike@cchtml.com> - 10.0-0.2rc1
+- Handle upgrades to convert d3d8.dll to alternatives
 
-* Sat Jan 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.0rc4^22.git.b3319fa-ec.1
- - Update to commit b3319fa671a1f9f7b7aa09e9d9016b250cb848cb
+* Fri Dec 06 2024 Michael Cronenworth <mike@cchtml.com> - 10.0-0.1rc1
+- version update
 
-* Fri Jan 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.0rc4^21.git.bad7380-ec.1
- - Update to commit bad7380f3dfe9ef18844fd97b5d99df65a96628a
+* Mon Nov 25 2024 Zephyr Lykos <fedora@mochaa.ws> - 9.22-1
+- new version
 
-* Fri Jan 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.0rc4^20.git.901a680-ec.1
- - Update to commit 901a680cb080d29049e6a953b09b36a69523697f
+* Tue Nov 12 2024 Zephyr Lykos <fedora@mochaa.ws> - 9.21-1
+- version update
 
-* Wed Jan 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.0rc4^19.git.4164535-ec.1
- - Update to commit 4164535eac54a2c5d561cd996c247e7a84644400
+* Fri Sep 27 2024 Zephyr Lykos <fedora@mochaa.ws> - 9.18-2
+- Pick https://gitlab.winehq.org/wine/wine/-/merge_requests/6547
 
-* Tue Jan 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.0rc4^18.git.97033f3-ec.1
- - Update to commit 97033f3faa3eda73a34f77689610a20243c747b6
+* Sun Sep 22 2024 Zephyr Lykos <fedora@mochaa.ws> - 9.18-1
+- version update
 
-* Sat Jan 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.0rc4^17.git.bf58f1c-ec.1
- - Update to commit bf58f1c4185c4067dd3d31179fdccb9e16c2aea1
+* Sat Sep 07 2024 Zephyr Lykos <fedora@mochaa.ws> - 9.15-2
+- Adapt alternatives setup to DXVK 2.0
 
-* Thu Jan 01 2026 Lachlan Marie <lchlnm@pm.me> - 11.0rc3^16.git.a82d717-ec.1
- - Update to commit a82d717ce63965bec9a06eb1452b3d09b78a6021
+* Tue Aug 13 2024 Michael Cronenworth <mike@cchtml.com> - 9.15-1
+- version update
 
-* Sat Dec 27 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc3^15.git.ca1a99f-ec.1
- - Update to commit ca1a99f22adca7aaf4eab7bec10f7a3bc8c62314
+* Sat Jul 20 2024 Fedora Release Engineering <releng@fedoraproject.org> - 9.5-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_41_Mass_Rebuild
 
-* Wed Dec 24 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc3^14.git.3d9b48b-ec.1
- - Update to commit 3d9b48bc5e443f83653faf48653573da880d9008
+* Thu Mar 28 2024 Michael Cronenworth <mike@cchtml.com> - 9.5-1
+- version update
 
-* Sat Dec 20 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^13.git.72b941e-ec.1
- - Update to commit 72b941ef7393c0052b0288e0dbb7185201296a09
+* Mon Jan 29 2024 Michael Cronenworth <mike@cchtml.com> - 9.1-1
+- version update
 
-* Fri Dec 19 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^12.git.2dad2e7-ec.1
- - Update to commit 2dad2e74764b61ed0c569b477d425dd49262888c
+* Thu Jan 25 2024 Michael Cronenworth <mike@cchtml.com> - 9.0-3
+- Revert smartcard subpackage (RHBZ#2259936)
 
-* Thu Dec 18 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^11.git.11728e0-ec.1
- - Update to commit 11728e0a9c58f1b7a8d320b05f1ce40e4fa3c790
+* Fri Jan 19 2024 Michael Cronenworth <mike@cchtml.com> - 9.0-2
+- Add smartcard subpackage (RHBZ#2259198)
 
-* Wed Dec 17 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^10.git.5c5e202-ec.1
- - Update to commit 5c5e2023de7c72d5ee879d37f752838501f16e08
+* Tue Jan 16 2024 Michael Cronenworth <mike@cchtml.com> - 9.0-1
+- version update
 
-* Tue Dec 16 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^9.git.6a378cb-ec.1
- - Update to commit 6a378cbd208bab39bd4fed01aae643e22233fee4
+* Mon Oct 30 2023 Michael Cronenworth <mike@cchtml.com> - 8.19-1
+- version update
 
-* Sat Dec 13 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^8.git.0f4bed5-ec.1
- - Update to commit 0f4bed55db21d5dd1e3c671ca3a2f33c9c383e4b
+* Sun Oct 15 2023 Michael Cronenworth <mike@cchtml.com> - 8.18-1
+- version update
 
-* Fri Dec 12 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^7.git.8545d9d-ec.1
- - Update to commit 8545d9d9121150788dd1bcb03fb0784f5c425641
+* Sun Oct 01 2023 Michael Cronenworth <mike@cchtml.com> - 8.17-1
+- version update
 
-* Thu Dec 11 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^5.git.9daccb7-ec.1
- - Update to commit 9daccb73269d4877cf02a6c44526a563ecc219c3
+* Tue Aug 22 2023 Michael Cronenworth <mike@cchtml.com> - 8.14-1
+- version update
 
-* Wed Dec 10 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^6.git.e5d435e-ec.1
- - Update to commit e5d435e3b8090c5ea8593bcd1039c78b90220b3e
+* Thu Aug 17 2023 Michael Cronenworth <mike@cchtml.com> - 8.13-1
+- version update
 
-* Tue Dec 09 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^5.git.d60f828-ec.1
- - Update to commit d60f8286056559233e992c4084f31990723849b6
+* Sat Jul 22 2023 Fedora Release Engineering <releng@fedoraproject.org> - 8.12-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_39_Mass_Rebuild
 
-* Sun Dec 07 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^4.git.a3d49db-ec.1
- - Update to commit a3d49dbc8db25fdd5907b497f7993d214bf8d0b8
+* Mon Jul 10 2023 Michael Cronenworth <mike@cchtml.com> - 8.12-1
+- version update
 
-* Thu Dec 04 2025 Lachlan Marie <lchlnm@pm.me> - 10.20^3.git.c823c3d-ec.1
- - Update to commit c823c3d99679be11f6814888a0f86c247f87cdf1
+* Sun Jun 25 2023 Michael Cronenworth <mike@cchtml.com> - 8.11-1
+- version update
 
-* Wed Dec 03 2025 Lachlan Marie <lchlnm@pm.me> - 10.20^2.git.a8fb8d4-ec.1
- - Update to commit a8fb8d484e469691e372cc1198f4631eb059723a
+* Wed Apr 19 2023 Michael Cronenworth <mike@cchtml.com> - 8.6-1
+- version update
 
-* Tue Dec 02 2025 Lachlan Marie <lchlnm@pm.me> - 10.20^1.git.d671927-ec.1
- - Update to commit d671927488486b8541cc235a73c94989a21e9caa
+* Sat Apr 01 2023 Michael Cronenworth <mike@cchtml.com> - 8.5-1
+- version update
 
-* Sat Nov 29 2025 Lachlan Marie <lchlnm@pm.me> - 10.20^0.git.4dfbf07-ec.1
- - Update to commit 4dfbf077cf708e4bbffa8e086d78d6652bbd69d8
+* Tue Mar 21 2023 Michael Cronenworth <mike@cchtml.com> - 8.4-1
+- version update
 
-* Sat Nov 22 2025 Lachlan Marie <lchlnm@pm.me> - 10.19^0.git.548ee6c-ec.1
- - Update to commit 548ee6cc0f6fec0acd88218700b2d50cddbf0630
+* Wed Feb 22 2023 Michael Cronenworth <mike@cchtml.com> - 8.2-3
+- fix missing requires for win-iconv
+
+* Tue Feb 21 2023 Michael Cronenworth <mike@cchtml.com> - 8.2-2
+- fix missing requires for libjpeg and libtiff
+
+* Mon Feb 20 2023 Michael Cronenworth <mike@cchtml.com> - 8.2-1
+- version update
+
+* Mon Feb 06 2023 Michael Cronenworth <mike@cchtml.com> - 8.1-1
+- version update
+
+* Tue Jan 24 2023 Michael Cronenworth <mike@cchtml.com> - 8.0-1
+- version update
+
+* Sat Jan 21 2023 Fedora Release Engineering <releng@fedoraproject.org> - 8.0-0.rc4.1.1
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_38_Mass_Rebuild
+
+* Mon Jan 16 2023 Michael Cronenworth <mike@cchtml.com> - 8.0-0.rc4.1
+- version update
+
+* Mon Nov 28 2022 Michael Cronenworth <mike@cchtml.com> - 7.22-2
+- fix typo in openal obsoletes
+
+* Sun Nov 27 2022 Michael Cronenworth <mike@cchtml.com> - 7.22-1
+- version update
+- drop openal package
+
+* Mon Oct 31 2022 Michael Cronenworth <mike@cchtml.com> - 7.20-1
+- version update
+
+* Mon Oct 24 2022 Michael Cronenworth <mike@cchtml.com> - 7.19-1
+- version update
+
+* Thu Oct 13 2022 Michael Cronenworth <mike@cchtml.com> - 7.18-2
+- Require MinGW FAudio
+
+* Tue Oct 11 2022 Michael Cronenworth <mike@cchtml.com> - 7.18-1
+- version update
+- Drop isdn4k-utils from Recommends
+
+* Sat Jul 23 2022 Fedora Release Engineering <releng@fedoraproject.org> - 7.12-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_37_Mass_Rebuild
+
+* Thu Jul 14 2022 Michael Cronenworth <mike@cchtml.com> - 7.12-2
+- Requires on vkd3d
+
+* Tue Jul 05 2022 Michael Cronenworth <mike@cchtml.com> - 7.12-1
+- versuon update
+- Unbundle vkd3d
+
+* Wed Jun 22 2022 Michael Cronenworth <mike@cchtml.com> - 7.11-1
+- version update
+
+* Mon Jun 06 2022 Michael Cronenworth <mike@cchtml.com> - 7.10-2
+- Require new Mono
+
+* Mon Jun 06 2022 Michael Cronenworth <mike@cchtml.com> - 7.10-1
+- version update
+
+* Mon May 23 2022 Michael Cronenworth <mike@cchtml.com> - 7.9-1
+- version update
+
+* Tue Mar 29 2022 Michael Cronenworth <mike@cchtml.com> - 7.5-1
+- version update
+- drop 32-bit ARM
+- require on Fedora MinGW dependencies
+
+* Fri Mar 25 2022 Sandro Mani <manisandro@gmail.com> - 7.3-2
+- Rebuild with mingw-gcc-12
+
+* Fri Mar 11 2022 Michael Cronenworth <mike@cchtml.com> - 7.3-1
+- version update
+
+* Sun Feb 13 2022 Björn Esser <besser82@fedoraproject.org> - 7.2-1
+- version update
+
+* Mon Jan 31 2022 Björn Esser <besser82@fedoraproject.org> - 7.1-2
+- Revert to wine-mono 7.0.0
+
+* Sat Jan 29 2022 Björn Esser <besser82@fedoraproject.org> - 7.1-1
+- version update
+
+* Sat Jan 22 2022 Fedora Release Engineering <releng@fedoraproject.org> - 7.0-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_36_Mass_Rebuild
+
+* Wed Jan 19 2022 Björn Esser <besser82@fedoraproject.org> - 7.0-1
+- version update
+
+* Sat Jan 15 2022 Björn Esser <besser82@fedoraproject.org> - 7.0-0.6rc6
+- version update
+
+* Sun Jan 09 2022 Björn Esser <besser82@fedoraproject.org> - 7.0-0.5rc5
+- version update
+
+* Mon Jan 03 2022 Michael Cronenworth <mike@cchtml.com> 7.0-0.4rc4
+- version update
+
+* Mon Jan 03 2022 FeRD (Frank Dana) <ferdnyc@gmail.com> 7.0-0.3rc3
+- Silence messages from expected failures during rpm scriptlets
+
+* Mon Dec 27 2021 Björn Esser <besser82@fedoraproject.org> - 7.0-0.2rc3
+- version update
+
+* Mon Dec 20 2021 Michael Cronenworth <mike@cchtml.com> 7.0-0.1rc2
+- version update
+
+* Wed Nov 10 2021 Michael Cronenworth <mike@cchtml.com> 6.21-1
+- version update
+
+* Mon Oct 04 2021 Michael Cronenworth <mike@cchtml.com> 6.18-1
+- version update
+
+* Mon Aug 30 2021 Michael Cronenworth <mike@cchtml.com> 6.16-1
+- version update
+
+* Wed Jul 07 2021 Michael Cronenworth <mike@cchtml.com> 6.12-1
+- version update
+
+* Sat Jun 19 2021 Michael Cronenworth <mike@cchtml.com> 6.11-1
+- version update
+
+* Mon Jun 07 2021 Michael Cronenworth <mike@cchtml.com> 6.10-1
+- version update
+
+* Mon May 24 2021 Michael Cronenworth <mike@cchtml.com> 6.9-1
+- version update
+
+* Sat May 08 2021 Michael Cronenworth <mike@cchtml.com> 6.8-1
+- version update
+
+* Sat Apr 24 2021 Michael Cronenworth <mike@cchtml.com> 6.7-1
+- version update
+
+* Sun Apr 11 2021 Michael Cronenworth <mike@cchtml.com> 6.6-1
+- version update
+
+* Mon Mar 15 2021 Michael Cronenworth <mike@cchtml.com> 6.4-1
+- version update
+
+* Sat Feb 27 2021 Michael Cronenworth <mike@cchtml.com> 6.3-1
+- version update
+
+* Sat Feb 13 2021 Michael Cronenworth <mike@cchtml.com> 6.2-1
+- version update
+
+* Mon Feb 01 2021 Michael Cronenworth <mike@cchtml.com> 6.1-1
+- version update
+
+* Wed Jan 27 2021 Fedora Release Engineering <releng@fedoraproject.org> - 6.0-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_34_Mass_Rebuild
+
+* Thu Jan 14 2021 Michael Cronenworth <mike@cchtml.com> 6.0-1
+- version update
+
+* Sun Jan 10 2021 Michael Cronenworth <mike@cchtml.com> 6.0-0.6rc6
+- version update
+
+* Thu Jan 07 2021 Michael Cronenworth <mike@cchtml.com> 6.0-0.5rc5
+- version update
+
+* Sat Dec 26 2020 Michael Cronenworth <mike@cchtml.com> 6.0-0.4rc4
+- version update
+
+* Sat Dec 19 2020 Michael Cronenworth <mike@cchtml.com> 6.0-0.3rc3
+- version update
+
+* Sat Dec 12 2020 Michael Cronenworth <mike@cchtml.com> 6.0-0.2rc2
+- version update
+
+* Tue Dec 08 2020 Michael Cronenworth <mike@cchtml.com> 6.0-0.1rc1
+- version update

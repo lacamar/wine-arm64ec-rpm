@@ -1,0 +1,16 @@
+--- a/mono/mono/eglib/giconv.c	2022-05-31 13:21:00.000000000 -0500
++++ b/mono/mono/eglib/giconv.c	2022-06-06 09:50:36.251364772 -0500
+@@ -196,12 +196,8 @@
+ 		} else {
+ 			outleftptr = NULL;
+ 		}
+-// AIX needs this for C++ and GNU iconv
+-#if defined(__NetBSD__) || defined(_AIX)
++
+ 		return iconv (cd->cd, (const gchar **)inbytes, inleftptr, outbytes, outleftptr);
+-#else
+-		return iconv (cd->cd, inbytes, inleftptr, outbytes, outleftptr);
+-#endif
+ 	}
+ #endif
+ 	
