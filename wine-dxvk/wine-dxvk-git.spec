@@ -1,7 +1,7 @@
-%global bumpver 0
+%global bumpver 1
 %global tag 3.1
 
-%global commit 70d7508c01201ed3d4bfb33da42ba834eafe3857
+%global commit adeda6639a09ad1b6a1b7c4158a781ffaf68947d
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -268,6 +268,9 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Mon Aug 31 2026 Lachlan Marie <lchlnm@pm.me> - 3.1^1.git.adeda66-ec1
+ - Update to commit adeda6639a09ad1b6a1b7c4158a781ffaf68947d
+
 * Mon Aug 31 2026 Lachlan Marie <lchlnm@pm.me> - 3.1^0.git.70d7508-ec1
  - Update to 3.1
 
