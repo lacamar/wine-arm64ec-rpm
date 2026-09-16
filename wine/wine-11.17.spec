@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.17
-Release:        ec2%{dist}
+Release:        ec3%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -123,6 +123,13 @@ Patch610:       2026_09_16-win32u-monitor-physical-position.patch
 # comctl32: let the parent background reach a themed group box's caption row; the strip beside the
 # label was excluded from every paint, leaving stale pixels next to each group title
 Patch611:       2026_09_16-comctl32-groupbox-caption-row.patch
+# win32u: chain the DPI-scaling struct onto the application's swapchain pNext instead of replacing
+# it; dropping DXVK's VkSwapchainPresentModesCreateInfoEXT crashed the driver in vkCreateSwapchainKHR
+Patch612:       2026_09_16-win32u-vulkan-swapchain-pnext.patch
+# winewayland: let HKCU\Software\Wine\Wayland Driver\PrimaryOutput name the Win32 primary monitor;
+# Wayland has no primary, so the output at the origin won and apps that only enumerate the primary
+# display never saw a larger monitor's modes
+Patch613:       2026_09_16-winewayland-primary-output.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -745,6 +752,8 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 609 -p1
 %patch -P 610 -p1
 %patch -P 611 -p1
+%patch -P 612 -p1
+%patch -P 613 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2384,6 +2393,13 @@ fi
 %endif
 
 %changelog
+* Wed Sep 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec3
+- win32u: keep the application's swapchain pNext chain when adding the DPI scaling struct;
+  discarding DXVK's VkSwapchainPresentModesCreateInfoEXT crashed the host Vulkan driver
+  inside vkCreateSwapchainKHR (Dark Souls III)
+- winewayland: add a PrimaryOutput setting to choose which monitor is the Win32 primary, so
+  applications that enumerate only the primary display can reach a larger monitor's modes
+
 * Wed Sep 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec2
 - Added out-of-tree fixes found while debugging Lightroom Classic on winewayland:
   popup subsurface stacking and placement, optional removal of the Win32 frame,
