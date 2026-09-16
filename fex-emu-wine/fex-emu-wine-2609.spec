@@ -10,7 +10,7 @@
 
 Name:       fex-emu-wine
 Version:    2609
-Release:    1%{?dist}
+Release:    2%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -74,6 +74,11 @@ Patch:          %{forgeurl}/commit/c326e2d669fd5e9356f6107e188413a449cc1fd7.patc
 # Numbered explicitly and applied by hand in %%prep: this spec uses %%setup, which (unlike
 # %%autosetup) never applies Patch: entries, so the unnumbered ones above are inert.
 Patch100:       fex-emu-wine-host-page-size.patch
+# SMC detection on a >4K page host: the RWX write-fault handler untrapped only the faulting guest
+# page, but wine applies protections at host page granularity using the most permissive protection
+# of the guest pages sharing one, so the neighbours were already writable in hardware while still
+# marked trapped. Their later self-modifying writes never faulted and FEX ran stale JIT'd code.
+Patch101:       fex-emu-wine-smc-untrap-host-page.patch
 
 
 BuildRequires:  cmake
@@ -123,6 +128,7 @@ FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 %setup -q -n %{srcname}-%{srcname}-%{version}
 
 %patch -P 100 -p1
+%patch -P 101 -p1
 
 # Unpack bundled libraries
 %{lua: print_setup_externals()}
