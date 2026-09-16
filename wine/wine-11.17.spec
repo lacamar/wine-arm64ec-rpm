@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.17
-Release:        ec3%{dist}
+Release:        ec4%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -130,6 +130,11 @@ Patch612:       2026_09_16-win32u-vulkan-swapchain-pnext.patch
 # Wayland has no primary, so the output at the origin won and apps that only enumerate the primary
 # display never saw a larger monitor's modes
 Patch613:       2026_09_16-winewayland-primary-output.patch
+# winewayland: with no explicit X11 Driver\Decorated value, follow the compositor - hide the Win32
+# frame only when it implements xdg-decoration. Makes winecfg's "Allow the window manager to
+# decorate the windows" checkbox tell the truth in a fresh prefix instead of reading as ticked
+# while Wine still drew its own frame.
+Patch614:       2026_09_17-winewayland-decorations-default.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -754,6 +759,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 611 -p1
 %patch -P 612 -p1
 %patch -P 613 -p1
+%patch -P 614 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2393,6 +2399,10 @@ fi
 %endif
 
 %changelog
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec4
+- winewayland: follow the compositor for window decorations when X11 Driver\Decorated is unset,
+  so winecfg's decoration checkbox matches what a fresh prefix actually does
+
 * Wed Sep 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec3
 - win32u: keep the application's swapchain pNext chain when adding the DPI scaling struct;
   discarding DXVK's VkSwapchainPresentModesCreateInfoEXT crashed the host Vulkan driver
