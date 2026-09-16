@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.17
-Release:        ec1%{dist}
+Release:        ec2%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -100,6 +100,29 @@ Patch511:       wine-cjk.patch
 %ifarch aarch64
 Patch600:       2026_08_17_bylaws_rebased.patch
 Patch602:       2026_08_30-arm64ec-fex-bootstrap-order.patch
+# msvcrt: make C++ catch-frame unregistration idempotent; ARM64EC rethrow can run the catch cleanup twice
+Patch603:       2026_09_15-msvcrt-idempotent-cxx-unregister.patch
+# uxtheme: clip DrawThemeParentBackground to the child; unclipped parent repaint wiped themed checkboxes in Lightroom dialogs
+Patch604:       2026_09_15-uxtheme-clip-parent-background.patch
+# winewayland: keep owned layered popups as subsurfaces in Win32 z-order, placed and redrawn immediately; keep
+# toplevels on-screen for pointer input; honour X11 Driver\Decorated=Y to hide the Win32 frame (Lightroom tips/shadows/dialogs)
+Patch605:       2026_09_15-winewayland-popup-subsurfaces.patch
+# d2d1: implement PushLayer/PopLayer and primitive blend modes; Lightroom's histogram and masked thumbnails need them
+Patch606:       2026_09_15-d2d1-layers-primitive-blend.patch
+# win32u: don't clamp window sizes and child positions to 16 bits; Lightroom's grid couldn't scroll past 32767px
+Patch607:       2026_09_15-win32u-unclamped-window-sizes.patch
+# win32u: only EndPaint may release a BeginPaint DC; a stale ReleaseDC killed the DC mid-paint,
+# which made every themed control Lightroom draws inside a group box invisible
+Patch608:       2026_09_16-win32u-protect-paint-dc.patch
+# winewayland: follow the host light/dark preference (XDG portal org.freedesktop.appearance
+# color-scheme) and keep Themes\Personalize in sync, so Wine apps match the desktop theme
+Patch609:       2026_09_16-winewayland-follow-host-color-scheme.patch
+# win32u: keep the monitor position when a display source has a single mode (always on Wayland);
+# otherwise every non-primary monitor collapses onto the origin and apps mis-place their windows
+Patch610:       2026_09_16-win32u-monitor-physical-position.patch
+# comctl32: let the parent background reach a themed group box's caption row; the strip beside the
+# label was excluded from every paint, leaving stale pixels next to each group title
+Patch611:       2026_09_16-comctl32-groupbox-caption-row.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -713,6 +736,15 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 
 %patch -P 600 -p1 -F3
 %patch -P 602 -p1 -F3
+%patch -P 603 -p1
+%patch -P 604 -p1
+%patch -P 605 -p1
+%patch -P 606 -p1
+%patch -P 607 -p1
+%patch -P 608 -p1
+%patch -P 609 -p1
+%patch -P 610 -p1
+%patch -P 611 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2352,6 +2384,14 @@ fi
 %endif
 
 %changelog
+* Wed Sep 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec2
+- Added out-of-tree fixes found while debugging Lightroom Classic on winewayland:
+  popup subsurface stacking and placement, optional removal of the Win32 frame,
+  d2d1 layers and primitive blend modes, unclamped window sizes and child
+  positions, BeginPaint DC protection, host light/dark theme following via the
+  XDG portal, correct monitor positions for single-mode display sources, and
+  the themed group box caption row
+
 * Sat Sep 05 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec1
 - Increased wine version to 11.17
 

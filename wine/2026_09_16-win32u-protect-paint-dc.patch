@@ -1,0 +1,45 @@
+--- a/dlls/win32u/dce.c
++++ b/dlls/win32u/dce.c
+@@ -43,6 +43,7 @@
+     UINT        flags;
+     LONG        count;         /* usage count; 0 or 1 for cache DCEs, always 1 for window DCEs,
+                                   always >= 1 for class DCEs */
++    BOOL        in_paint;      /* DC is held by BeginPaint, only EndPaint may release it */
+ };
+ 
+ static struct list dce_list = LIST_INIT(dce_list);
+@@ -1235,10 +1236,14 @@
+ 
+     user_lock();
+     dce = get_dc_dce( hdc );
++    /* Applications sometimes release a stale DC handle that a cache DCE has since handed to
++     * another window's BeginPaint; only EndPaint may release a paint DC. */
++    if (dce && dce->in_paint && !end_paint) dce = NULL;
+     if (dce && dce->count && dce->hwnd)
+     {
+         if (!(dce->flags & DCX_NORESETATTRS)) set_dce_flags( dce->hdc, DCHF_RESETDC );
+         if (end_paint || (dce->flags & DCX_CACHE)) delete_clip_rgn( dce );
++        dce->in_paint = FALSE;
+         if (dce->flags & DCX_CACHE)
+         {
+             dce->count = 0;
+@@ -1706,6 +1711,7 @@
+  */
+ HDC WINAPI NtUserBeginPaint( HWND hwnd, PAINTSTRUCT *ps )
+ {
++    struct dce *dce;
+     HRGN hrgn;
+     HDC hdc;
+     BOOL erase;
+@@ -1728,6 +1734,11 @@
+     ps->fErase = erase;
+     ps->rcPaint = rect;
+     ps->hdc = hdc;
++
++    user_lock();
++    if ((dce = get_dc_dce( hdc ))) dce->in_paint = TRUE;
++    user_unlock();
++
+     return hdc;
+ }
+ 

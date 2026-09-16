@@ -1,0 +1,34 @@
+a
+b
+--- a/dlls/msvcrt/except.c	2026-09-15 08:22:16.439864101 +0200
++++ b/dlls/msvcrt/except.c	2026-09-15 08:22:26.986622425 +0200
+@@ -913,6 +913,12 @@
+ 
+     TRACE("(%p)\n", fi);
+ 
++    if (!cur)
++    {
++        ERR("frame %p not found, frame list is empty\n", fi);
++        return;
++    }
++
+     if (cur == fi)
+     {
+         data->frame_info_head = cur->next;
+@@ -1007,11 +1013,15 @@
+         return;
+ 
+     _FindAndUnlinkFrame(&frame_info->frame_info);
+-    if(data->exc_record->ExceptionCode == CXX_EXCEPTION && !in_use
++    if(data->exc_record && data->exc_record->ExceptionCode == CXX_EXCEPTION && !in_use
+             && _IsExceptionObjectToBeDestroyed((void*)data->exc_record->ExceptionInformation[1]))
+         __DestructExceptionObject(data->exc_record);
+     data->exc_record = frame_info->rec;
+     data->ctx_record = frame_info->context;
++    /* On ARM64EC a rethrow from a catch block can run cxx_catch_cleanup twice for one
++     * registration; a second unregister would corrupt the frame list and restore stale records. */
++    frame_info->rec = (void*)-1;
++    frame_info->context = (void*)-1;
+ }
+ 
+ struct __std_exception_data {

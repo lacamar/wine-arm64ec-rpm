@@ -1,0 +1,12 @@
+--- a/dlls/comctl32_v6/button.c
++++ b/dlls/comctl32_v6/button.c
+@@ -2965,6 +2965,9 @@
+     {
+         part = BP_GROUPBOX;
+         GetThemeBackgroundContentRect(theme, hDC, part, state, &bgRect, &contentRect);
++        /* Keep the caption row out of the excluded content: the label rect is filled separately,
++         * so anything between it and the frame would otherwise never be painted at all. */
++        if (dtFlags != (UINT)-1) contentRect.top = max(contentRect.top, textRect.bottom);
+         ExcludeClipRect(hDC, contentRect.left, contentRect.top, contentRect.right, contentRect.bottom);
+     }
+     if (IsThemeBackgroundPartiallyTransparent(theme, part, state))

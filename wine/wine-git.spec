@@ -13,7 +13,7 @@
 %global commit 111e5197390aa008789b002222024229fa2b82cf
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 86dc0c4ec51910a895e8c34d470cbcd732cfd476
+%global staging_commit dc020173dc36007d06a88ff3fc5866de7faba826
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 

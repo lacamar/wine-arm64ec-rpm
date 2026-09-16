@@ -1,0 +1,68 @@
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -3909,6 +3909,26 @@
+     return wvr_flags;
+ }
+ 
++/* Since Windows 7 only top-level window positions are limited to 16 bits; sizes and child
++ * positions are not, and applications scroll huge child windows (e.g. Lightroom's grid). */
++static void clamp_winpos( WINDOWPOS *winpos, BOOL child, UINT flags )
++{
++    if (!(flags & SWP_NOMOVE) && !child)
++    {
++        if (winpos->x < -32768) winpos->x = -32768;
++        else if (winpos->x > 32767) winpos->x = 32767;
++        if (winpos->y < -32768) winpos->y = -32768;
++        else if (winpos->y > 32767) winpos->y = 32767;
++    }
++    if (!(flags & SWP_NOSIZE))
++    {
++        if (winpos->cx < 0) winpos->cx = 0;
++        else if ((LONGLONG)winpos->x + winpos->cx > INT_MAX) winpos->cx = INT_MAX - max( winpos->x, 0 );
++        if (winpos->cy < 0) winpos->cy = 0;
++        else if ((LONGLONG)winpos->y + winpos->cy > INT_MAX) winpos->cy = INT_MAX - max( winpos->y, 0 );
++    }
++}
++
+ /* fix redundant flags and values in the WINDOWPOS structure */
+ static BOOL fixup_swp_flags( WINDOWPOS *winpos, const RECT *old_window_rect, int parent_x, int parent_y )
+ {
+@@ -3924,15 +3944,7 @@
+     winpos->hwnd = win->handle;  /* make it a full handle */
+ 
+     /* Finally make sure that all coordinates are valid */
+-    if (winpos->x < -32768) winpos->x = -32768;
+-    else if (winpos->x > 32767) winpos->x = 32767;
+-    if (winpos->y < -32768) winpos->y = -32768;
+-    else if (winpos->y > 32767) winpos->y = 32767;
+-
+-    if (winpos->cx < 0) winpos->cx = 0;
+-    else if (winpos->cx > 32767) winpos->cx = 32767;
+-    if (winpos->cy < 0) winpos->cy = 0;
+-    else if (winpos->cy > 32767) winpos->cy = 32767;
++    clamp_winpos( winpos, win->dwStyle & WS_CHILD, 0 );
+ 
+     if (win->dwStyle & WS_CHILD)
+     {
+@@ -4119,20 +4131,7 @@
+     }
+ 
+     /* Make sure that coordinates are valid for WM_WINDOWPOSCHANGING */
+-    if (!(winpos->flags & SWP_NOMOVE))
+-    {
+-        if (winpos->x < -32768) winpos->x = -32768;
+-        else if (winpos->x > 32767) winpos->x = 32767;
+-        if (winpos->y < -32768) winpos->y = -32768;
+-        else if (winpos->y > 32767) winpos->y = 32767;
+-    }
+-    if (!(winpos->flags & SWP_NOSIZE))
+-    {
+-        if (winpos->cx < 0) winpos->cx = 0;
+-        else if (winpos->cx > 32767) winpos->cx = 32767;
+-        if (winpos->cy < 0) winpos->cy = 0;
+-        else if (winpos->cy > 32767) winpos->cy = 32767;
+-    }
++    clamp_winpos( winpos, get_window_long( winpos->hwnd, GWL_STYLE ) & WS_CHILD, winpos->flags );
+ 
+     context = set_thread_dpi_awareness_context( get_window_dpi_awareness_context( winpos->hwnd ));
+ 

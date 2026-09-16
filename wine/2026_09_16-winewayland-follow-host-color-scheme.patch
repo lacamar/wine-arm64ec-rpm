@@ -1,0 +1,404 @@
+diff -urN a/dlls/winewayland.drv/appearance.c b/dlls/winewayland.drv/appearance.c
+--- a/dlls/winewayland.drv/appearance.c	2026-09-16 03:59:17.291164388 +0200
++++ b/dlls/winewayland.drv/appearance.c	2026-09-16 03:59:17.287164365 +0200
+@@ -0,0 +1,247 @@
++/*
++ * Wayland host appearance (light/dark color scheme) integration
++ *
++ * Copyright 2026 Wine contributors
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#if 0
++#pragma makedep unix
++#endif
++
++#include "config.h"
++
++#include <stdlib.h>
++#include <string.h>
++
++#include "ntstatus.h"
++#define WIN32_NO_STATUS
++
++#include "waylanddrv.h"
++#include "wine/debug.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(waylanddrv);
++
++#ifdef SONAME_LIBDBUS_1
++
++#include <dlfcn.h>
++#include <dbus/dbus.h>
++
++#define DBUS_FUNCS \
++    DO_FUNC(dbus_bus_add_match); \
++    DO_FUNC(dbus_bus_get_private); \
++    DO_FUNC(dbus_connection_close); \
++    DO_FUNC(dbus_connection_flush); \
++    DO_FUNC(dbus_connection_pop_message); \
++    DO_FUNC(dbus_connection_read_write); \
++    DO_FUNC(dbus_connection_send_with_reply_and_block); \
++    DO_FUNC(dbus_connection_set_exit_on_disconnect); \
++    DO_FUNC(dbus_connection_unref); \
++    DO_FUNC(dbus_error_free); \
++    DO_FUNC(dbus_error_init); \
++    DO_FUNC(dbus_error_is_set); \
++    DO_FUNC(dbus_message_append_args); \
++    DO_FUNC(dbus_message_is_signal); \
++    DO_FUNC(dbus_message_iter_get_arg_type); \
++    DO_FUNC(dbus_message_iter_get_basic); \
++    DO_FUNC(dbus_message_iter_init); \
++    DO_FUNC(dbus_message_iter_next); \
++    DO_FUNC(dbus_message_iter_recurse); \
++    DO_FUNC(dbus_message_new_method_call); \
++    DO_FUNC(dbus_message_unref)
++
++#define DO_FUNC(f) static typeof(f) * p_##f
++DBUS_FUNCS;
++#undef DO_FUNC
++
++static const char appearance_namespace[] = "org.freedesktop.appearance";
++static const char color_scheme_key[] = "color-scheme";
++
++static DBusConnection *connection;
++static UINT host_scheme = WAYLAND_COLOR_SCHEME_NO_PREFERENCE;
++
++static BOOL load_dbus_functions(void)
++{
++    void *handle;
++
++    if (!(handle = dlopen(SONAME_LIBDBUS_1, RTLD_NOW))) goto failed;
++
++#define DO_FUNC(f) if (!(p_##f = dlsym(handle, #f))) goto failed
++    DBUS_FUNCS;
++#undef DO_FUNC
++
++    return TRUE;
++
++failed:
++    WARN("failed to load DBus support: %s\n", dlerror());
++    return FALSE;
++}
++
++/* Unwraps nested variants, which is what the portal Read() (as opposed to
++ * ReadOne()) method returns, and reads the uint32 color scheme out of it. */
++static BOOL scheme_from_iter(DBusMessageIter *iter, UINT *scheme)
++{
++    while (p_dbus_message_iter_get_arg_type(iter) == DBUS_TYPE_VARIANT)
++    {
++        DBusMessageIter variant;
++        p_dbus_message_iter_recurse(iter, &variant);
++        *iter = variant;
++    }
++
++    if (p_dbus_message_iter_get_arg_type(iter) != DBUS_TYPE_UINT32) return FALSE;
++    p_dbus_message_iter_get_basic(iter, scheme);
++    return TRUE;
++}
++
++static BOOL read_color_scheme(const char *method, UINT *scheme)
++{
++    const char *namespace = appearance_namespace, *key = color_scheme_key;
++    DBusMessage *request, *reply;
++    DBusMessageIter iter;
++    DBusError error;
++    BOOL ret = FALSE;
++
++    if (!(request = p_dbus_message_new_method_call("org.freedesktop.portal.Desktop",
++                                                   "/org/freedesktop/portal/desktop",
++                                                   "org.freedesktop.portal.Settings",
++                                                   method)))
++        return FALSE;
++
++    p_dbus_message_append_args(request, DBUS_TYPE_STRING, &namespace,
++                               DBUS_TYPE_STRING, &key, DBUS_TYPE_INVALID);
++
++    p_dbus_error_init(&error);
++    reply = p_dbus_connection_send_with_reply_and_block(connection, request, 1000, &error);
++    p_dbus_message_unref(request);
++
++    if (!reply)
++    {
++        WARN("portal Settings.%s failed: %s\n", method, error.message);
++        p_dbus_error_free(&error);
++        return FALSE;
++    }
++    p_dbus_error_free(&error);
++
++    if (p_dbus_message_iter_init(reply, &iter)) ret = scheme_from_iter(&iter, scheme);
++    p_dbus_message_unref(reply);
++    return ret;
++}
++
++static BOOL appearance_connect(void)
++{
++    DBusError error;
++
++    if (!load_dbus_functions()) return FALSE;
++
++    p_dbus_error_init(&error);
++    connection = p_dbus_bus_get_private(DBUS_BUS_SESSION, &error);
++    if (!connection)
++    {
++        WARN("failed to connect to the session bus: %s\n", error.message);
++        p_dbus_error_free(&error);
++        return FALSE;
++    }
++    p_dbus_connection_set_exit_on_disconnect(connection, FALSE);
++
++    p_dbus_bus_add_match(connection,
++                         "type='signal',interface='org.freedesktop.portal.Settings',"
++                         "member='SettingChanged',arg0='org.freedesktop.appearance'",
++                         &error);
++    if (p_dbus_error_is_set(&error))
++    {
++        WARN("failed to watch portal setting changes: %s\n", error.message);
++        p_dbus_error_free(&error);
++        p_dbus_connection_close(connection);
++        p_dbus_connection_unref(connection);
++        connection = NULL;
++        return FALSE;
++    }
++    p_dbus_error_free(&error);
++    p_dbus_connection_flush(connection);
++
++    if (!read_color_scheme("ReadOne", &host_scheme) &&
++        !read_color_scheme("Read", &host_scheme))
++    {
++        p_dbus_connection_close(connection);
++        p_dbus_connection_unref(connection);
++        connection = NULL;
++        return FALSE;
++    }
++
++    TRACE("host color scheme is %u\n", host_scheme);
++    return TRUE;
++}
++
++static void handle_setting_changed(DBusMessage *message)
++{
++    DBusMessageIter iter;
++    const char *namespace, *key;
++    UINT scheme;
++
++    if (!p_dbus_message_iter_init(message, &iter)) return;
++    if (p_dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_STRING) return;
++    p_dbus_message_iter_get_basic(&iter, &namespace);
++    if (strcmp(namespace, appearance_namespace)) return;
++
++    if (!p_dbus_message_iter_next(&iter)) return;
++    if (p_dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_STRING) return;
++    p_dbus_message_iter_get_basic(&iter, &key);
++    if (strcmp(key, color_scheme_key)) return;
++
++    if (!p_dbus_message_iter_next(&iter)) return;
++    if (scheme_from_iter(&iter, &scheme)) host_scheme = scheme;
++}
++
++/* Returns the host color scheme, blocking until it differs from the one the PE
++ * side last applied. */
++NTSTATUS WAYLAND_wait_color_scheme(void *arg)
++{
++    struct wait_color_scheme_params *params = arg;
++    static BOOL tried_connect;
++
++    if (!tried_connect)
++    {
++        tried_connect = TRUE;
++        if (!appearance_connect()) return STATUS_NOT_SUPPORTED;
++    }
++    if (!connection) return STATUS_NOT_SUPPORTED;
++
++    while (params->scheme == host_scheme)
++    {
++        DBusMessage *message;
++
++        if (!p_dbus_connection_read_write(connection, -1)) return STATUS_CONNECTION_DISCONNECTED;
++
++        while ((message = p_dbus_connection_pop_message(connection)))
++        {
++            if (p_dbus_message_is_signal(message, "org.freedesktop.portal.Settings", "SettingChanged"))
++                handle_setting_changed(message);
++            p_dbus_message_unref(message);
++        }
++    }
++
++    params->scheme = host_scheme;
++    return STATUS_SUCCESS;
++}
++
++#else /* SONAME_LIBDBUS_1 */
++
++NTSTATUS WAYLAND_wait_color_scheme(void *arg)
++{
++    return STATUS_NOT_SUPPORTED;
++}
++
++#endif /* SONAME_LIBDBUS_1 */
+diff -urN a/dlls/winewayland.drv/dllmain.c b/dlls/winewayland.drv/dllmain.c
+--- a/dlls/winewayland.drv/dllmain.c	2026-09-16 03:59:17.304518425 +0200
++++ b/dlls/winewayland.drv/dllmain.c	2026-09-16 03:59:17.285164353 +0200
+@@ -22,6 +22,7 @@
+ 
+ #include "ntuser.h"
+ #include "winuser.h"
++#include "winreg.h"
+ 
+ #include "wine/debug.h"
+ 
+@@ -93,6 +94,54 @@
+     return 0;
+ }
+ 
++static void apply_color_scheme(UINT scheme)
++{
++    DWORD light = scheme == WAYLAND_COLOR_SCHEME_DARK ? 0 : 1, old = ~0u, size = sizeof(old);
++    HKEY hkey;
++
++    if (RegCreateKeyExW(HKEY_CURRENT_USER,
++                        L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
++                        0, NULL, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, NULL, &hkey, NULL))
++        return;
++
++    RegQueryValueExW(hkey, L"AppsUseLightTheme", NULL, NULL, (BYTE *)&old, &size);
++    RegSetValueExW(hkey, L"AppsUseLightTheme", 0, REG_DWORD, (BYTE *)&light, sizeof(light));
++    RegSetValueExW(hkey, L"SystemUsesLightTheme", 0, REG_DWORD, (BYTE *)&light, sizeof(light));
++    RegCloseKey(hkey);
++
++    TRACE("host color scheme %u -> AppsUseLightTheme %lu\n", scheme, light);
++
++    /* Every process runs this watcher, so only the one that actually changed the
++     * shared registry value notifies the session. */
++    if (old == light) return;
++
++    SendMessageTimeoutW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, (LPARAM)L"ImmersiveColorSet",
++                        SMTO_ABORTIFHUNG, 2000, NULL);
++    SendMessageTimeoutW(HWND_BROADCAST, WM_THEMECHANGED, 0, 0, SMTO_ABORTIFHUNG, 2000, NULL);
++}
++
++static DWORD WINAPI color_scheme_thread(void *arg)
++{
++    struct wait_color_scheme_params params = {.scheme = WAYLAND_COLOR_SCHEME_UNKNOWN};
++
++    while (!WAYLANDDRV_UNIX_CALL(wait_color_scheme, &params))
++        apply_color_scheme(params.scheme);
++
++    return 0;
++}
++
++static BOOL follow_system_color_scheme(void)
++{
++    WCHAR buffer[8];
++    DWORD size = sizeof(buffer);
++
++    if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Wine\\Wayland Driver",
++                     L"FollowSystemColorScheme", RRF_RT_REG_SZ, NULL, buffer, &size))
++        return TRUE;
++
++    return buffer[0] != 'n' && buffer[0] != 'N' && buffer[0] != '0';
++}
++
+ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
+ {
+     DWORD tid;
+@@ -110,6 +159,9 @@
+     /* Handle clipboard events in a dedicated thread, if needed. */
+     if (!WAYLANDDRV_UNIX_CALL(init_clipboard, NULL))
+         CloseHandle(CreateThread(NULL, 0, clipboard_thread, NULL, 0, &tid));
++    /* Mirror the host light/dark preference into the Windows registry. */
++    if (follow_system_color_scheme())
++        CloseHandle(CreateThread(NULL, 0, color_scheme_thread, NULL, 0, &tid));
+ 
+     return TRUE;
+ }
+diff -urN a/dlls/winewayland.drv/Makefile.in b/dlls/winewayland.drv/Makefile.in
+--- a/dlls/winewayland.drv/Makefile.in	2026-09-16 03:59:17.304241631 +0200
++++ b/dlls/winewayland.drv/Makefile.in	2026-09-16 03:59:17.286164359 +0200
+@@ -1,13 +1,14 @@
+ MODULE = winewayland.drv
+ UNIXLIB = winewayland.so
+-UNIX_CFLAGS = $(EGL_CFLAGS) $(WAYLAND_CLIENT_CFLAGS) $(WAYLAND_EGL_CFLAGS) $(XKBCOMMON_CFLAGS) $(XKBREGISTRY_CFLAGS)
++UNIX_CFLAGS = $(DBUS_CFLAGS) $(EGL_CFLAGS) $(WAYLAND_CLIENT_CFLAGS) $(WAYLAND_EGL_CFLAGS) $(XKBCOMMON_CFLAGS) $(XKBREGISTRY_CFLAGS)
+ UNIX_LIBS = -lwin32u $(WAYLAND_CLIENT_LIBS) $(WAYLAND_EGL_LIBS) $(XKBCOMMON_LIBS) $(XKBREGISTRY_LIBS) $(PTHREAD_LIBS) -lm
+-IMPORTS = user32 win32u
++IMPORTS = advapi32 user32 win32u
+ 
+ VER_FILEDESCRIPTION_STR = "Wine Wayland driver"
+ 
+ SOURCES = \
+ 	alpha-modifier-v1.xml \
++	appearance.c \
+ 	cursor-shape-v1.xml \
+ 	display.c \
+ 	dllmain.c \
+diff -urN a/dlls/winewayland.drv/unixlib.h b/dlls/winewayland.drv/unixlib.h
+--- a/dlls/winewayland.drv/unixlib.h	2026-09-16 03:59:17.302728372 +0200
++++ b/dlls/winewayland.drv/unixlib.h	2026-09-16 03:59:17.282164335 +0200
+@@ -28,7 +28,20 @@
+     waylanddrv_unix_func_init,
+     waylanddrv_unix_func_read_events,
+     waylanddrv_unix_func_init_clipboard,
++    waylanddrv_unix_func_wait_color_scheme,
+     waylanddrv_unix_func_count,
+ };
+ 
++/* Values of the org.freedesktop.appearance color-scheme portal setting. */
++#define WAYLAND_COLOR_SCHEME_NO_PREFERENCE 0
++#define WAYLAND_COLOR_SCHEME_DARK          1
++#define WAYLAND_COLOR_SCHEME_LIGHT         2
++#define WAYLAND_COLOR_SCHEME_UNKNOWN       ~0u
++
++struct wait_color_scheme_params
++{
++    /* In: the scheme the caller last applied. Out: the current host scheme. */
++    UINT scheme;
++};
++
+ #endif /* __WINE_WAYLANDDRV_UNIXLIB_H */
+diff -urN a/dlls/winewayland.drv/waylanddrv.h b/dlls/winewayland.drv/waylanddrv.h
+--- a/dlls/winewayland.drv/waylanddrv.h	2026-09-16 03:59:17.304006547 +0200
++++ b/dlls/winewayland.drv/waylanddrv.h	2026-09-16 03:59:17.284164347 +0200
+@@ -478,4 +478,10 @@
+ UINT WAYLAND_VulkanInit(UINT version, void *vulkan_handle, const struct vulkan_driver_funcs **driver_funcs);
+ UINT WAYLAND_OpenGLInit(UINT version, const struct opengl_funcs *opengl_funcs, const struct opengl_driver_funcs **driver_funcs);
+ 
++/**********************************************************************
++ *          Wayland host appearance
++ */
++
++NTSTATUS WAYLAND_wait_color_scheme(void *arg);
++
+ #endif /* __WINE_WAYLANDDRV_H */
+diff -urN a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylanddrv_main.c
+--- a/dlls/winewayland.drv/waylanddrv_main.c	2026-09-16 03:59:17.303785462 +0200
++++ b/dlls/winewayland.drv/waylanddrv_main.c	2026-09-16 03:59:17.283164341 +0200
+@@ -187,6 +187,7 @@
+     waylanddrv_unix_init,
+     waylanddrv_unix_read_events,
+     waylanddrv_unix_init_clipboard,
++    WAYLAND_wait_color_scheme,
+ };
+ 
+ C_ASSERT(ARRAYSIZE(__wine_unix_call_funcs) == waylanddrv_unix_func_count);
+@@ -198,6 +199,7 @@
+     waylanddrv_unix_init,
+     waylanddrv_unix_read_events,
+     waylanddrv_unix_init_clipboard,
++    WAYLAND_wait_color_scheme,
+ };
+ 
+ C_ASSERT(ARRAYSIZE(__wine_unix_call_wow64_funcs) == waylanddrv_unix_func_count);

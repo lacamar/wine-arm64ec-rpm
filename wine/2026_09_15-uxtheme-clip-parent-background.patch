@@ -1,0 +1,72 @@
+--- a/dlls/uxtheme/draw.c
++++ b/dlls/uxtheme/draw.c
+@@ -99,31 +99,32 @@
+  */
+ HRESULT WINAPI DrawThemeParentBackground(HWND hwnd, HDC hdc, RECT *prc)
+ {
+-    RECT rt;
++    RECT rt, draw_rect;
+     POINT org;
+     HWND hParent;
+-    HRGN clip = NULL;
+-    int hasClip = -1;
++    HRGN clip;
++    int hasClip;
+ 
+     TRACE("(%p,%p,%p)\n", hwnd, hdc, prc);
+     hParent = GetParent(hwnd);
+     if(!hParent)
+         return S_OK;
+-    if(prc) {
+-        rt = *prc;
+-        MapWindowPoints(hwnd, hParent, (LPPOINT)&rt, 2);
+-
+-        clip = CreateRectRgn(0,0,1,1);
+-        hasClip = GetClipRgn(hdc, clip);
+-        if(hasClip == -1)
+-            TRACE("Failed to get original clipping region\n");
+-        else
+-            IntersectClipRect(hdc, prc->left, prc->top, prc->right, prc->bottom);
+-    }
+-    else {
+-        GetClientRect(hwnd, &rt);
+-        MapWindowPoints(hwnd, hParent, (LPPOINT)&rt, 2);
+-    }
++    if(prc)
++        draw_rect = *prc;
++    else
++        GetClientRect(hwnd, &draw_rect);
++    rt = draw_rect;
++    MapWindowPoints(hwnd, hParent, (LPPOINT)&rt, 2);
++
++    /* Always confine the parent's painting to the child area. Without this, a parent that
++     * paints its whole client area on WM_PRINTCLIENT overwrites sibling controls that were
++     * already rendered into a shared DC (e.g. an application compositing a dialog offscreen). */
++    clip = CreateRectRgn(0,0,1,1);
++    hasClip = GetClipRgn(hdc, clip);
++    if(hasClip == -1)
++        TRACE("Failed to get original clipping region\n");
++    else
++        IntersectClipRect(hdc, draw_rect.left, draw_rect.top, draw_rect.right, draw_rect.bottom);
+ 
+     OffsetViewportOrgEx(hdc, -rt.left, -rt.top, &org);
+ 
+@@ -131,13 +132,11 @@
+     SendMessageW(hParent, WM_PRINTCLIENT, (WPARAM)hdc, PRF_CLIENT);
+ 
+     SetViewportOrgEx(hdc, org.x, org.y, NULL);
+-    if(prc) {
+-        if(hasClip == 0)
+-            SelectClipRgn(hdc, NULL);
+-        else if(hasClip == 1)
+-            SelectClipRgn(hdc, clip);
+-        DeleteObject(clip);
+-    }
++    if(hasClip == 0)
++        SelectClipRgn(hdc, NULL);
++    else if(hasClip == 1)
++        SelectClipRgn(hdc, clip);
++    DeleteObject(clip);
+     return S_OK;
+ }
+ 
