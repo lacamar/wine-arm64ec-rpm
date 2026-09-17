@@ -153,6 +153,7 @@ Keep `smctest32.exe` as the regression test for anything touching FEX protection
 | 613 | `winewayland-primary-output` | `PrimaryOutput` setting to choose the Win32 primary monitor |
 | 614 | `winewayland-decorations-default` | decoration default follows the compositor |
 | 615 | `d2d1-collinear-outline-join` | **histogram fragments:** 25-unit stub emitted for collinear stroke joins |
+| 616 | `winewayland-tiled-fixed-size` | windowed games under niri fought the tile size every frame (swapchain re-creation storm) |
 
 Two of these deserve detail because they are non-obvious:
 
@@ -191,6 +192,35 @@ wine reg add 'HKCU\Software\Wine\X11 Driver' /v Decorated /t REG_SZ /d N /f
 # opt out of host light/dark following
 wine reg add 'HKCU\Software\Wine\Wayland Driver' /v FollowSystemColorScheme /t REG_SZ /d N /f
 ```
+
+### Elden Ring (session 3 of 2026-09-17) — `er.sh` / `er-shadow.sh`, prefix `default`
+
+Runs via `start_protected_game.exe` (a patched eldenring.exe + Goldberg steam_api) with Lutris'
+DXVK dxgi + vkd3d-proton d3d12 symlinked into the prefix. Exercised on the host Wine: Windowed ↔
+Fullscreen from the in-game menu, resolution change (1920x1080 → 2880x1620), Alt+Enter both ways,
+Alt+Tab, focus loss in menu and gameplay, moving the window between outputs. None crashed.
+
+What did go wrong, and was fixed as **616**: in windowed mode niri tiles the game window, the
+driver applied the tile size, the game re-applied its own, and the window grew 2px per round while
+the swapchain was recreated ~5×/s (831 SetWindowPos / 524 re-creations in 38 s, window taller
+than the screen). Any resolution change in that state is a crash waiting to happen.
+
+Still unexplained: on the very first run the game **hid its own window and hung** (main thread
+spinning on a `lock bts` spin-lock, present thread alive, `WS_VISIBLE` cleared, no `WS_MINIMIZE`)
+while the user typed in another window. Not reproduced in ~10 later attempts. Do not attach
+winedbg to it: killing the stuck winedbg killed the game. `suspendspin32/64.exe` rule out the
+new FEX suspend check as the cause (3000 suspend/resume cycles through a `lock bts; jc` acquire).
+
+Cosmetic but worth knowing: fullscreen surfaces are sized to the **Win32 primary monitor**
+(eDP-1 → 1512x982 logical) even when niri shows the window on DP-1 (1920x1080), so the game is
+letterboxed there. `PrimaryOutput=DP-1` (patch 613) sidesteps it. A real fix would scale the
+fullscreen surface to the compositor's configured size (needs per-axis scale in
+`map_rect_to_surface` and the client subsurface viewport).
+
+Driving the game: `wtool press <vk> [hold ms]` (down/up in separate frames — games poll per
+frame, `vk` was missed), extended-key flag for arrows, `wtool combo 18 13` = Alt+Enter, `ershot.sh
+<out.png> [width]` captures by app-id. Menu tabs need ≥1 s between presses. `FEX_SILENTLOG=0`
+and `WINEDEBUG=+waylanddrv,+win,+message` were the useful channels; `+seh` is noise here.
 
 ## Open problems
 

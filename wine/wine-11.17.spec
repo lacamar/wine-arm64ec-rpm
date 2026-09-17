@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.17
-Release:        ec6%{dist}
+Release:        ec7%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -138,6 +138,9 @@ Patch614:       2026_09_17-winewayland-decorations-default.patch
 # d2d1: stop emitting a 25-unit stub for collinear outline joins; on any thin polyline with runs of
 # equal slope it stuck out of the stroke as stray tangent fragments (Lightroom's histogram outline)
 Patch615:       2026_09_17-d2d1-collinear-outline-join.patch
+# winewayland: a tiled configure is only a suggestion; forcing it on a window without a sizing
+# border made games in windowed mode fight the compositor (hundreds of swapchain re-creations)
+Patch616:       2026_09_17-winewayland-tiled-fixed-size.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -764,6 +767,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 613 -p1
 %patch -P 614 -p1
 %patch -P 615 -p1
+%patch -P 616 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2403,6 +2407,11 @@ fi
 %endif
 
 %changelog
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec7
+- winewayland: stop forcing the compositor's tile size on windows without a sizing border; games
+  in windowed mode under a tiling compositor fought it every frame (Elden Ring: 500+ swapchain
+  re-creations in two minutes, window growing past the screen)
+
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec6
 - d2d1: emit no join geometry for collinear outline segments; the 25-unit stub used there stuck out
   of thin polylines as stray tangent fragments, visible all over Lightroom's histogram
