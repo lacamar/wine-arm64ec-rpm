@@ -9,7 +9,7 @@ below. Everything here is built, installed and pushed unless it says otherwise.
 - Asahi Linux aarch64, **16K kernel pages** (`getconf PAGE_SIZE` = 16384)
 - Compositor: **niri** (tiling, Wayland). Two outputs: `eDP-1` 1512x982@2x at logical (0,100),
   `DP-1` 1920x1080@2x at logical (1512,0).
-- Installed now: `wine-11.17-ec5`, `fex-emu-wine-2609-2`, both from COPR `lacamar/wine-arm64ec`.
+- Installed now: `wine-11.17-ec6`, `fex-emu-wine-2609-3`, both from COPR `lacamar/wine-arm64ec`.
 - Repo `~/.local/src/wine-arm64ec-rpm`, branch `main`, HEAD `d3bb1d3`, tag `wine-arm64ec-v0.1.7`.
 
 ## Working tree and tooling
