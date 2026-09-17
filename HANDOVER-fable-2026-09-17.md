@@ -43,6 +43,17 @@ argv[0] — **never use bare `pkill -f <game>`, it matches and kills your own sh
   prefix's winsxs copy, despite what the loaddll trace says.
 - `wtool printscan` cannot work cross-process: GDI handles are per-process in Wine.
 - Interactive `cp`/`mv`/`rm` aliases hang background jobs — use `\cp -f`, `\mv -f`, `\rm`.
+- `grep` on this host is **ugrep**: `-P`-style lookaheads and some `-E` syntax fail with
+  "error at position N", and when it dies inside a pipeline it takes `make` with it (SIGPIPE) —
+  send build output to a file first. `cd` also prints a directory listing (shell hook), so use
+  absolute paths in one-liners.
+- `make -C build-full dlls/d2d1` is a no-op ("Nothing to be done"); build the real target,
+  `dlls/d2d1/aarch64-windows/d2d1.dll`, which is the ARM64X image both ARM64 and ARM64EC code load.
+  The shadow's d2d1 now comes from `build-full` (pristine copy in `orig-full/d2d1-geometry.c`).
+- Lightroom's main window does not always come up at the origin, so `openprefs.sh`'s menu click
+  can miss. `wtool click <somewhere on the window>` then `wtool ctrlvk 188` (Ctrl+,) opens
+  Preferences regardless; Cancel is at the dialog's bottom right.
+- `wkill.sh` prints harmless "null byte in input" warnings from reading `/proc/*/cmdline`.
 - `wtool` mouse coords are virtual-screen coords; the virtual screen now starts at y=-200, and
   `wtool` compensates. If you change monitor layout, re-check that.
 
@@ -102,6 +113,7 @@ Keep `smctest32.exe` as the regression test for anything touching FEX protection
 | 612 | `win32u-vulkan-swapchain-pnext` | Wine replaced the app's swapchain `pNext` chain instead of prepending, discarding DXVK's `VkSwapchainPresentModesCreateInfoEXT` and crashing the host Vulkan driver |
 | 613 | `winewayland-primary-output` | `PrimaryOutput` setting to choose the Win32 primary monitor |
 | 614 | `winewayland-decorations-default` | decoration default follows the compositor |
+| 615 | `d2d1-collinear-outline-join` | **histogram fragments:** 25-unit stub emitted for collinear stroke joins |
 
 Two of these deserve detail because they are non-obvious:
 
@@ -143,13 +155,18 @@ wine reg add 'HKCU\Software\Wine\Wayland Driver' /v FollowSystemColorScheme /t R
 
 ## Open problems
 
-**1. Histogram stroke fragments (highest-value visual bug).** Lightroom's histogram shows stray
-thin diagonal fragments across the plot. Wine stores stroke styles but
-`d2d_device_context_DrawGeometry` ignores them outright (`Ignoring stroke style`, ~300/session).
-Fills are correct — 606 fixed those. The fragments look like spurious segments from the outline
-tessellation rather than missing dashes, but that is **not confirmed**; the next step is a focused
-d2d test that strokes a multi-figure polyline with and without a dash style. Risky area: it
-affects every Direct2D app, so do not rush it.
+**1. Histogram stroke fragments — SOLVED (615, session 2 of 2026-09-17).** It was never the
+ignored stroke style. `d2d_geometry_outline_add_join` special-cases an exactly collinear join
+(cross product 0) by emitting a 25-geometry-unit rectangle from the vertex along the tangent —
+presumably to dodge the undefined mitre there. On a thin polyline with runs of equal slope the
+next segment is shorter than 25 units, so the stub pokes out as a stray tangent fragment; the
+reversal case leaves a stub past the turning point. The fix emits nothing for that case: the
+segment quads already cover what a bevel would. `stroketest.exe` (source alongside) reproduces
+it with collinear runs, a reversal, and a histogram-like polyline; compare `stroke1.png` (before)
+and `stroke2.png` (after), and `hist-fix.png` for the real histogram. The stroke-style FIXME is
+still there and still harmless for Lightroom (it only wants solid lines). **Follow-up worth
+knowing:** Wine has no mitre limit at all, so a near-reversal (sharp spike) gets a full mitre of
+length ½w/sin(½θ) where D2D would bevel past miterLimit 10. Not visible in Lightroom.
 
 **2. The Binding of Isaac renders black** (Lutris 127, 32-bit OpenGL). Reaches its main menu at
 60 FPS but presents nothing. Mesa reports `glUniformMatrix(program not linked)` and
@@ -177,11 +194,8 @@ did not recur across three later launches. **Worth checking against the FEX SMC 
 widened traps now actually take effect, so a page that *native* ARM64EC code writes to could fault
 where the fault would not reach FEX's emulated-code handler. Unproven; get a repro first.
 
-**5. Unverified after the last change.** I could not visually re-confirm the Preferences checkboxes
-after the 608 marker-leak fix, because captures need a focused window. The reasoning says the
-protection is intact (`GetDCEx` only recycles cache DCEs whose count hit zero, and a paint DC's has
-not), but it is reasoning, not a screenshot. **Please re-verify**: open Preferences, confirm
-checkboxes and group boxes render, and that there are no stray marks beside group titles.
+**5. Preferences after the 608 marker-leak fix — VERIFIED.** Checkboxes, group boxes and
+captions all render; no stray pixels beside group titles (`pref-verify.png`).
 
 **6. Lower priority.** `d2d_gradient_create Ignoring gamma`; `NtUserGetPointerInfoList Pointer type
 0x3` (PT_PEN — matters for tablet input in a photo editor); `wined3d_guess_card` cannot identify the

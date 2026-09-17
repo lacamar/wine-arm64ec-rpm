@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.17
-Release:        ec5%{dist}
+Release:        ec6%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -135,6 +135,9 @@ Patch613:       2026_09_16-winewayland-primary-output.patch
 # decorate the windows" checkbox tell the truth in a fresh prefix instead of reading as ticked
 # while Wine still drew its own frame.
 Patch614:       2026_09_17-winewayland-decorations-default.patch
+# d2d1: stop emitting a 25-unit stub for collinear outline joins; on any thin polyline with runs of
+# equal slope it stuck out of the stroke as stray tangent fragments (Lightroom's histogram outline)
+Patch615:       2026_09_17-d2d1-collinear-outline-join.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -760,6 +763,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 612 -p1
 %patch -P 613 -p1
 %patch -P 614 -p1
+%patch -P 615 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2399,6 +2403,10 @@ fi
 %endif
 
 %changelog
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec6
+- d2d1: emit no join geometry for collinear outline segments; the 25-unit stub used there stuck out
+  of thin polylines as stray tangent fragments, visible all over Lightroom's histogram
+
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec5
 - win32u: clear the BeginPaint marker when a cache DC is handed out again. A paint whose EndPaint
   never came left the marker set on a recycled DC, and every later GetDC/ReleaseDC pair on it
