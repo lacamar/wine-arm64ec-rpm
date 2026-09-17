@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.17
-Release:        ec8%{dist}
+Release:        ec9%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -132,6 +132,8 @@ Patch616:       2026_09_17-winewayland-tiled-fixed-size.patch
 Patch617:       2026_09_17-winewayland-follow-output.patch
 # win32u: virtual modes up to the largest monitor on every source
 Patch618:       2026_09_17-win32u-extend-virtual-modes.patch
+# vkd3d-shader: "linear" is a valid sampler_state value
+Patch619:       2026_09_17-vkd3d-shader-linear-state-value.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -761,6 +763,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 616 -p1
 %patch -P 617 -p1
 %patch -P 618 -p1
+%patch -P 619 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2400,6 +2403,9 @@ fi
 %endif
 
 %changelog
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec9
+- vkd3d-shader: accept linear in state blocks
+
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec8
 - winewayland: windows follow their output
 - win32u: all monitors' resolutions on every display

@@ -156,6 +156,7 @@ Keep `smctest32.exe` as the regression test for anything touching FEX protection
 | 616 | `winewayland-tiled-fixed-size` | windowed games under niri fought the tile size every frame (swapchain re-creation storm) |
 | 617 | `winewayland-follow-output` | Win32 window rect follows the wl_output the surface entered; re-applied after app moves (max 3 per 2 s) |
 | 618 | `win32u-extend-virtual-modes` | every source gets virtual modes up to the largest monitor, so DP-1's resolutions show on apps that enumerate the primary |
+| 619 | `vkd3d-shader-linear-state-value` | HLSL lexer took `linear` as the interpolation keyword inside `sampler_state`; Limbo's shaders failed to compile |
 
 Two of these deserve detail because they are non-obvious:
 
@@ -223,6 +224,34 @@ Driving the game: `wtool press <vk> [hold ms]` (down/up in separate frames — g
 frame, `vk` was missed), extended-key flag for arrows, `wtool combo 18 13` = Alt+Enter, `ershot.sh
 <out.png> [width]` captures by app-id. Menu tabs need ≥1 s between presses. `FEX_SILENTLOG=0`
 and `WINEDEBUG=+waylanddrv,+win,+message` were the useful channels; `+seh` is noise here.
+
+### Limbo and Dark Souls PTDE (Lutris 49 / 17, both 32-bit, prefix `11.17`) — `limbo.sh`, `ds1.sh`
+
+Lutris passes `WINEDLLOVERRIDES=d3d9,d3d11,dxgi,d3d8=n` for DXVK; the prefix registry has no
+overrides, so run the launchers with that set. The HLSL compiler lives in **wined3d.dll** (bundled
+vkd3d-shader, not the mingw vkd3d packages the spec lists), so shader fixes need the wined3d build;
+the shadow's `i386-windows` is now a link farm to `/usr` with rebuilt `wined3d.dll` and
+`d3dcompiler_43.dll` from `build-i386/` (configured `--enable-archs=aarch64,i386`).
+
+**Limbo:** died with "Pixel shader error: 19:20 syntax error, unexpected ';'" — `MinFilter = linear;`
+in a `sampler_state`; fixed as 619, the game now shows its window. It then dies ~2 s later:
+`EXCEPTION_PRIV_INSTRUCTION` at `eip=0641428c`, which is the string
+"titledata/bootscreen/dot.png" inside a `MapViewOfFile` view (a wild jump into a filename while
+loading the boot screen), followed by `NtRaiseException: Exception frame is not in stack limits`.
+Timing-dependent: does not happen under `+relay`. Ruled out: CPU pinning, `FEX_MULTIBLOCK=0`,
+`FEX_STRICTINPROCESSSPLITLOCKS=1`, `FEX_SMCCHECKS=full`. FEX logs ~60 "Handled unaligned atomic"
+backpatches before the crash and re-adds an SMC interval for `.idata` page `8AB000` (executed via
+Wine's DEP emulation) 26 times; that page shares its 16K host page with plain RW `.dataa` pages, so
+its write trap can never take effect — a real 16K hole, but full SMC checks did not fix this crash.
+
+**Dark Souls PTDE:** deterministic `Unhandled page fault reading FFFFFFFE at 77C35560` inside the
+Goldberg/GSE `steam_api.dll` (same md5 as Limbo's, which initialises fine), in a `std::string`
+constructor called from `Steam_Client::GetISteamUserStats` with a `(char*)-2`. Not JIT related
+(multiblock, x87, TSO, pinning, `disable_networking`, `steam_appid.txt` all unchanged). The crash
+thread varies between runs. Needs Goldberg-side work or a different steam_api build.
+
+Tools: `wtool press/combo`, AeDebug=winemine.exe holds a crashed process for gdb inspection
+(`HKLM\Software\Wow6432Node\...\AeDebug` for 32-bit), `FEX_SILENTLOG=0` for FEX logs.
 
 ## Open problems
 
