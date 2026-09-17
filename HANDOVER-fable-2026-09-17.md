@@ -154,6 +154,8 @@ Keep `smctest32.exe` as the regression test for anything touching FEX protection
 | 614 | `winewayland-decorations-default` | decoration default follows the compositor |
 | 615 | `d2d1-collinear-outline-join` | **histogram fragments:** 25-unit stub emitted for collinear stroke joins |
 | 616 | `winewayland-tiled-fixed-size` | windowed games under niri fought the tile size every frame (swapchain re-creation storm) |
+| 617 | `winewayland-follow-output` | Win32 window rect follows the wl_output the surface entered; re-applied after app moves (max 3 per 2 s) |
+| 618 | `win32u-extend-virtual-modes` | every source gets virtual modes up to the largest monitor, so DP-1's resolutions show on apps that enumerate the primary |
 
 Two of these deserve detail because they are non-obvious:
 

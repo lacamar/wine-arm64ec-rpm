@@ -1,0 +1,44 @@
+win32u: offer every source the virtual modes up to the largest monitor.
+
+--- a/dlls/win32u/sysparams.c
++++ b/dlls/win32u/sysparams.c
+@@ -2821,12 +2821,39 @@
+     return STATUS_SUCCESS;
+ }
+ 
++static void extend_virtual_modes(void)
++{
++    struct source *source;
++    DEVMODEW physical = {.dmSize = sizeof(physical)}, largest = {0}, *modes;
++    UINT count;
++
++    LIST_FOR_EACH_ENTRY( source, &sources, struct source, entry )
++    {
++        if (!read_source_mode( source->key, WINE_ENUM_PHYSICAL_SETTINGS, &physical )) continue;
++        if (physical.dmPelsWidth * physical.dmPelsHeight > largest.dmPelsWidth * largest.dmPelsHeight)
++            largest = physical;
++    }
++
++    LIST_FOR_EACH_ENTRY( source, &sources, struct source, entry )
++    {
++        if (!read_source_mode( source->key, WINE_ENUM_PHYSICAL_SETTINGS, &physical )) continue;
++        if (physical.dmPelsWidth >= largest.dmPelsWidth && physical.dmPelsHeight >= largest.dmPelsHeight) continue;
++        largest.dmDisplayOrientation = physical.dmDisplayOrientation;
++        if (!(modes = get_virtual_modes( &source->current, &largest, &physical, 1, &count ))) continue;
++        set_reg_value( source->key, modesW, REG_BINARY, modes, count * sizeof(*modes) );
++        set_reg_value( source->key, mode_countW, REG_DWORD, &count, sizeof(count) );
++        source->mode_count = count;
++        free( modes );
++    }
++}
++
+ static UINT update_display_devices( struct device_manager_ctx *ctx )
+ {
+     UINT status;
+ 
+     if (!(status = user_driver->pUpdateDisplayDevices( &device_manager, ctx )))
+     {
++        extend_virtual_modes();
+         if (ctx->source_count && is_virtual_desktop()) return add_virtual_source( ctx );
+         return status;
+     }

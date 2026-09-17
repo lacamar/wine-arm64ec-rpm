@@ -1,0 +1,270 @@
+winewayland: keep toplevel windows on the monitor of the output they are shown on.
+
+--- a/dlls/winewayland.drv/waylanddrv.h
++++ b/dlls/winewayland.drv/waylanddrv.h
+@@ -72,6 +72,7 @@
+     WM_WAYLAND_INIT_DISPLAY_DEVICES = WM_WINE_FIRST_DRIVER_MSG,
+     WM_WAYLAND_CONFIGURE,
+     WM_WAYLAND_SET_FOREGROUND,
++    WM_WAYLAND_OUTPUT_ENTER,
+ };
+ 
+ enum wayland_surface_config_state
+@@ -390,6 +391,9 @@
+     BOOL resizeable;
+     BOOL managed;
+     BOOL layered_attribs_set;
++    int output_index;
++    ULONGLONG output_follow_time;
++    int output_follow_count;
+ };
+ 
+ struct wayland_win_data *wayland_win_data_get(HWND hwnd);
+@@ -471,6 +475,7 @@
+ LRESULT WAYLAND_SysCommand(HWND hwnd, WPARAM wparam, LPARAM lparam, const POINT *pos);
+ void WAYLAND_UpdateLayeredWindow(HWND hwnd, BYTE alpha, UINT flags);
+ UINT WAYLAND_UpdateDisplayDevices(const struct gdi_device_manager *device_manager, void *param);
++int wayland_output_win32_index(struct wayland_output *output);
+ LRESULT WAYLAND_WindowMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
+ void WAYLAND_WindowPosChanged(HWND hwnd, HWND insert_after, HWND owner_hint, UINT swp_flags,
+                               const struct window_rects *new_rects, struct window_surface *surface);
+--- a/dlls/winewayland.drv/display.c
++++ b/dlls/winewayland.drv/display.c
+@@ -274,12 +274,44 @@
+     free(modes);
+ }
+ 
++static void build_output_info_array(struct wl_array *output_info_array)
++{
++    struct wayland_output *output;
++    struct output_info *output_info;
++
++    wl_list_for_each(output, &process_wayland.output_list, link)
++    {
++        if (!output->current.current_mode) continue;
++        output_info = wl_array_add(output_info_array, sizeof(*output_info));
++        if (output_info) output_info->output = &output->current;
++        else ERR("Failed to allocate space for output_info\n");
++    }
++
++    output_info_array_arrange_physical_coords(output_info_array);
++}
++
++int wayland_output_win32_index(struct wayland_output *output)
++{
++    struct wl_array output_info_array;
++    struct output_info *output_info;
++    int index = 0, result = -1;
++
++    wl_array_init(&output_info_array);
++    build_output_info_array(&output_info_array);
++    wl_array_for_each(output_info, &output_info_array)
++    {
++        if (output_info->output == &output->current) result = index;
++        index++;
++    }
++    wl_array_release(&output_info_array);
++    return result;
++}
++
+ /***********************************************************************
+  *      UpdateDisplayDevices (WAYLAND.@)
+  */
+ UINT WAYLAND_UpdateDisplayDevices(const struct gdi_device_manager *device_manager, void *param)
+ {
+-    struct wayland_output *output;
+     DWORD state_flags = DISPLAY_DEVICE_ATTACHED_TO_DESKTOP | DISPLAY_DEVICE_PRIMARY_DEVICE;
+     struct output_info *primary = NULL, *output_info;
+     struct wl_array output_info_array;
+@@ -290,15 +322,7 @@
+ 
+     pthread_mutex_lock(&process_wayland.output_mutex);
+ 
+-    wl_list_for_each(output, &process_wayland.output_list, link)
+-    {
+-        if (!output->current.current_mode) continue;
+-        output_info = wl_array_add(&output_info_array, sizeof(*output_info));
+-        if (output_info) output_info->output = &output->current;
+-        else ERR("Failed to allocate space for output_info\n");
+-    }
+-
+-    output_info_array_arrange_physical_coords(&output_info_array);
++    build_output_info_array(&output_info_array);
+ 
+     /* Populate GDI devices. */
+     wayland_add_device_gpu(device_manager, param);
+--- a/dlls/winewayland.drv/wayland_surface.c
++++ b/dlls/winewayland.drv/wayland_surface.c
+@@ -182,6 +182,35 @@
+  *
+  * Creates a role-less wayland surface.
+  */
++static void surface_handle_enter(void *data, struct wl_surface *wl_surface,
++                                 struct wl_output *wl_output)
++{
++    HWND hwnd = wl_surface_get_user_data(wl_surface);
++    struct wayland_output *output = wl_output ? wl_output_get_user_data(wl_output) : NULL;
++    int index;
++
++    if (!hwnd || !output) return;
++
++    pthread_mutex_lock(&process_wayland.output_mutex);
++    index = wayland_output_win32_index(output);
++    pthread_mutex_unlock(&process_wayland.output_mutex);
++
++    TRACE("hwnd=%p output=%s index=%d\n", hwnd, output->current.name, index);
++
++    if (index >= 0) NtUserPostMessage(hwnd, WM_WAYLAND_OUTPUT_ENTER, 0, index);
++}
++
++static void surface_handle_leave(void *data, struct wl_surface *wl_surface,
++                                 struct wl_output *wl_output)
++{
++}
++
++static const struct wl_surface_listener surface_listener =
++{
++    surface_handle_enter,
++    surface_handle_leave,
++};
++
+ struct wayland_surface *wayland_surface_create(HWND hwnd)
+ {
+     struct wayland_surface *surface;
+@@ -203,6 +232,7 @@
+         goto err;
+     }
+     wl_surface_set_user_data(surface->wl_surface, hwnd);
++    wl_surface_add_listener(surface->wl_surface, &surface_listener, hwnd);
+ 
+     surface->wp_viewport =
+         wp_viewporter_get_viewport(process_wayland.wp_viewporter,
+--- a/dlls/winewayland.drv/window.c
++++ b/dlls/winewayland.drv/window.c
+@@ -35,6 +35,9 @@
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(waylanddrv);
+ 
++static BOOL get_output_rect(int index, RECT *rect);
++static BOOL rect_inside(const RECT *rect, const RECT *outer);
++
+ 
+ static int wayland_win_data_cmp_rb(const void *key,
+                                    const struct rb_entry *entry)
+@@ -70,6 +73,7 @@
+     if (!(data = calloc(1, sizeof(*data)))) return NULL;
+ 
+     data->hwnd = hwnd;
++    data->output_index = -1;
+     data->rects = *rects;
+ 
+     pthread_mutex_lock(&win_data_mutex);
+@@ -452,6 +456,7 @@
+ void WAYLAND_WindowPosChanged(HWND hwnd, HWND insert_after, HWND owner_hint, UINT swp_flags,
+                               const struct window_rects *new_rects, struct window_surface *surface)
+ {
++    RECT output_rect;
+     HWND owner = NtUserGetAncestor(hwnd, GA_ROOT);
+     struct wayland_surface *owner_surface;
+     struct wayland_win_data *data, *owner_data;
+@@ -470,6 +475,9 @@
+ 
+     data->rects = *new_rects;
+     data->is_fullscreen = fullscreen;
++    if (data->output_index >= 0 && get_output_rect(data->output_index, &output_rect) &&
++        !rect_inside(&new_rects->window, &output_rect))
++        NtUserPostMessage(hwnd, WM_WAYLAND_OUTPUT_ENTER, 0, data->output_index);
+     data->resizeable = swp_flags & WINE_SWP_RESIZABLE;
+     data->managed = managed;
+ 
+@@ -663,6 +671,80 @@
+     NtUserSetRawWindowPos(hwnd, rect, flags, FALSE);
+ }
+ 
++static BOOL get_output_rect(int index, RECT *rect)
++{
++    static const WCHAR prefix[] = {'\\','\\','.','\\','D','I','S','P','L','A','Y',0};
++    WCHAR name[32];
++    UNICODE_STRING device;
++    DEVMODEW mode = {.dmSize = sizeof(mode)};
++    int len = 0, n = index + 1;
++
++    while (prefix[len]) { name[len] = prefix[len]; len++; }
++    if (n >= 10) name[len++] = '0' + n / 10;
++    name[len++] = '0' + n % 10;
++    name[len] = 0;
++    device.Buffer = name;
++    device.Length = len * sizeof(WCHAR);
++    device.MaximumLength = sizeof(name);
++
++    if (!NtUserEnumDisplaySettings(&device, ENUM_CURRENT_SETTINGS, &mode, 0)) return FALSE;
++    SetRect(rect, mode.dmPosition.x, mode.dmPosition.y,
++            mode.dmPosition.x + mode.dmPelsWidth, mode.dmPosition.y + mode.dmPelsHeight);
++    return TRUE;
++}
++
++static BOOL rect_inside(const RECT *rect, const RECT *outer)
++{
++    RECT inter;
++    return intersect_rect(&inter, rect, outer) && EqualRect(&inter, rect);
++}
++
++static void wayland_window_follow_output(HWND hwnd, int index)
++{
++    MONITORINFO mi = {.cbSize = sizeof(mi)};
++    struct wayland_win_data *data;
++    RECT target, window;
++    HMONITOR monitor;
++    BOOL toplevel;
++    UINT flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
++
++    if (!get_output_rect(index, &target)) return;
++
++    if (!(data = wayland_win_data_get(hwnd))) return;
++    window = data->rects.window;
++    toplevel = data->wayland_surface && wayland_surface_is_toplevel(data->wayland_surface);
++    if (toplevel)
++    {
++        if (data->output_index != index) data->output_follow_count = 0;
++        data->output_index = index;
++        if (NtGetTickCount() - data->output_follow_time > 2000) data->output_follow_count = 0;
++        if (data->output_follow_count >= 3) toplevel = FALSE;
++        else
++        {
++            data->output_follow_time = NtGetTickCount();
++            data->output_follow_count++;
++        }
++    }
++    wayland_win_data_release(data);
++
++    if (!toplevel || IsRectEmpty(&window)) return;
++    if (rect_inside(&window, &target)) return;
++
++    if (!(monitor = NtUserMonitorFromRect(&window, MONITOR_DEFAULTTONEAREST)) ||
++        !NtUserGetMonitorInfo(monitor, &mi))
++        return;
++
++    if (EqualRect(&window, &mi.rcMonitor)) window = target;
++    else
++    {
++        OffsetRect(&window, target.left - mi.rcMonitor.left, target.top - mi.rcMonitor.top);
++        flags |= SWP_NOSIZE;
++    }
++
++    TRACE("hwnd=%p -> %s on DISPLAY%d\n", hwnd, wine_dbgstr_rect(&window), index + 1);
++    NtUserSetRawWindowPos(hwnd, window, flags, FALSE);
++}
++
+ /**********************************************************************
+  *           WAYLAND_WindowMessage
+  */
+@@ -679,6 +761,9 @@
+     case WM_WAYLAND_SET_FOREGROUND:
+         NtUserSetForegroundWindowInternal(hwnd);
+         return 0;
++    case WM_WAYLAND_OUTPUT_ENTER:
++        wayland_window_follow_output(hwnd, lp);
++        return 0;
+     default:
+         FIXME("got window msg %x hwnd %p wp %lx lp %lx\n", msg, hwnd, (long)wp, lp);
+         return 0;

@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.17
-Release:        ec7%{dist}
+Release:        ec8%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -128,6 +128,10 @@ Patch614:       2026_09_17-winewayland-decorations-default.patch
 Patch615:       2026_09_17-d2d1-collinear-outline-join.patch
 # winewayland: no forced tile size on fixed-size windows
 Patch616:       2026_09_17-winewayland-tiled-fixed-size.patch
+# winewayland: windows follow the output the compositor shows them on
+Patch617:       2026_09_17-winewayland-follow-output.patch
+# win32u: virtual modes up to the largest monitor on every source
+Patch618:       2026_09_17-win32u-extend-virtual-modes.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -755,6 +759,8 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 614 -p1
 %patch -P 615 -p1
 %patch -P 616 -p1
+%patch -P 617 -p1
+%patch -P 618 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2394,6 +2400,10 @@ fi
 %endif
 
 %changelog
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec8
+- winewayland: windows follow their output
+- win32u: all monitors' resolutions on every display
+
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec7
 - winewayland: no forced tile size on fixed-size windows
 
