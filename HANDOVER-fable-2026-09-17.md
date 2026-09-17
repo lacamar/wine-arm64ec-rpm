@@ -59,6 +59,45 @@ argv[0] — **never use bare `pkill -f <game>`, it matches and kills your own sh
 
 ## What shipped
 
+### FEX: thread suspension of JIT threads — `fex-emu-wine-interrupt-fault-page.patch` (2609-3)
+
+Second half of "general 16K support" after the SMC fix. `suspendtest32.exe` (source alongside)
+spins a thread in `while (!stop) counter++` and calls `SuspendThread` on it from another thread.
+Before this patch `SuspendThread` **never returned** on this host. Two independent causes:
+
+1. **Fault page shared its host page.** WOW64 suspends a JIT thread by making
+   `InternalThreadState::InterruptFaultPage` read-only and waiting for the JIT's block-entry
+   store to fault. The page was a 4K member of a 4K-aligned struct, so under Wine's
+   most-permissive-wins union the host page stayed writable. COFF caps `alignas` at 8K, so the
+   fix allocates the object 16K-aligned through its own `operator new`, over-sizes the member,
+   and derives the page address / JIT store offset as constants (`INTERRUPT_FAULT_PAGE_OFFSET`,
+   `GetInterruptFaultPage()`). 64K hosts are explicitly not covered (store offset range).
+2. **`DEF_OP(CondJump)` never emitted the suspend check for a backward true target** — only the
+   pending fall-through branch got one. Any rotated `while` loop therefore never stored to the
+   page at all. This is an upstream bug on every host (checked upstream `main`, still there).
+
+Verified in isolation: with (2) alone on the original layout the test still fails on 16K; with
+both, 20/20 suspend/resume cycles, worst latency 14 ms. `smctest32.exe` unaffected. ARM64EC uses
+a doorbell + `brk` instead of the fault page, so 64-bit apps were never affected.
+
+**FEX inner loop, now set up** (do not use rpmbuild to iterate): `fexsrc/FEX-FEX-2609/` has the
+bundled externals unpacked and `fexsrc/llvm-mingw-20250920-.../bin` is bylaws' toolchain from the
+RPM sources. `build-wow64/` and `build-arm64ec/` inside it are configured exactly like the spec;
+`ninja` there is incremental (a header touch is ~5 min, a `.cpp` ~1 min). Copy `Bin/libwow64fex.dll`
+/ `Bin/libarm64ecfex.dll` into `shadow/lib64/wine/aarch64-windows/`. Pristine copies of the files
+this patch touches are in `fexsrc/orig-102/` (flat names). `FEX_SILENTLOG=0` makes FEX log through
+`__wine_dbg_output`, so its `D`/`E` lines appear on stderr even with `WINEDEBUG=-all` — this is
+how you see "Suspending thread … polling for interrupt" / "Resumed from suspend".
+
+**Audited and left alone** (guest-semantic or already host-page-aware): `InvalidationTracker`
+intervals, `CallRetStack` guards (already host-page), `JITGuardPage`, `OvercommitTracker`,
+`SHMStats` (mmap of a 4K-grown file at 16K granularity is fine, page containing EOF stays
+accessible), pool allocators (`IntrusiveArenaAllocator`, `atomic_segmented_bitmap_allocator`,
+`memory_resource`) which only do bookkeeping at 4K, `LookupCache`/`CodeCache` (guest pages).
+ARM64EC's `ResetToConsistentState` runs `HandleRWXAccessViolation` for faults from native code
+too, so the handover's item 4 theory (native write into a trapped page reaching nobody) does not
+hold as stated; it still needs a repro.
+
 ### FEX: SMC detection on >4K page hosts — `fex-emu-wine-smc-untrap-host-page.patch`
 
 **This is the big one and it closes the open problem in the older handover.**

@@ -10,7 +10,7 @@
 
 Name:       fex-emu-wine
 Version:    2609
-Release:    2%{?dist}
+Release:    3%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -79,6 +79,10 @@ Patch100:       fex-emu-wine-host-page-size.patch
 # of the guest pages sharing one, so the neighbours were already writable in hardware while still
 # marked trapped. Their later self-modifying writes never faulted and FEX ran stale JIT'd code.
 Patch101:       fex-emu-wine-smc-untrap-host-page.patch
+# Thread suspension of JIT threads: give InterruptFaultPage a whole 16K-aligned host page (a 4K
+# page sharing its host page with the thread state can never be made read-only under Wine), and
+# emit the suspend check on backward conditional branches, which upstream never did on any host.
+Patch102:       fex-emu-wine-interrupt-fault-page.patch
 
 
 BuildRequires:  cmake
@@ -129,6 +133,7 @@ FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 
 %patch -P 100 -p1
 %patch -P 101 -p1
+%patch -P 102 -p1
 
 # Unpack bundled libraries
 %{lua: print_setup_externals()}
@@ -225,4 +230,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 2609-3
+- Thread suspension of threads running JIT code: the interrupt fault page now occupies a whole
+  16K-aligned host page, and the JIT emits the suspend check before backward conditional
+  branches. SuspendThread on a spinning 32-bit thread never returned before.
+
 %autochangelog
