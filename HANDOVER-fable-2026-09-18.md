@@ -4,10 +4,9 @@ Companion to `HANDOVER-fable-2026-09-17.md` (host, tree layout, tooling, everyth
 
 ## State
 
-- Repo HEAD carries `wine-11.17-ec10` (patch 619 now also accepts `point` in state blocks).
-  COPR build of ec10 was submitted at the end of the session; install with
-  `sudo dnf upgrade --refresh --allow-vendor-change --exclude=winetricks 'wine*'`
-  (`sudo` is aliased to `pkexec` on this host, so it needs the desktop auth dialog).
+- Installed: `wine-11.17-ec10` (COPR build 10998538; patch 619 now also accepts `point` in state
+  blocks), `fex-emu-wine-2609-3`. `sudo` is aliased to `pkexec` on this host (desktop auth dialog),
+  and the COPR CDN serves 503s for a few minutes after a build succeeds; wait before `dnf upgrade`.
 - Shadow install has ec10's 32-bit `d3dcompiler_43.dll` and `wined3d.dll` (built in `build-i386/`);
   the ec9 copies are `d3dcompiler_43.dll.ec9` / `wined3d.dll.ec9` in the dev cache. Its
   `i386-windows/ntdll.dll` is a link to `/usr` again and `full/dlls/ntdll/signal_i386.c` is pristine.
