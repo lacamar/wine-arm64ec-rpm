@@ -1,32 +1,13 @@
-winewayland: Don't force a tiled configure size on fixed-size windows.
+winewayland: do not force a tiled configure size on fixed-size windows.
 
-A tiled configure is only a size suggestion, but wayland_configure_window
-applied it like a maximized one. A window without a sizing border can't take
-it: the application sizes such windows itself, and games do so on every
-screen-mode change. Elden Ring in windowed mode under niri went into a fight
-in which every round applied the tile size, the game re-applied its own,
-the window grew by two pixels, and the swapchain was recreated: 831
-SetWindowPos calls and 524 swapchain re-creations in 38 seconds, with the
-window ending up taller than the screen.
-
-Treat a tiled-only state on a non-resizeable window as carrying no size, the
-same as the stateless case. The compositor centers the window in its tile,
-which is what every other fixed-size Wayland client gets.
-
+diff --git a/dlls/winewayland.drv/window.c b/dlls/winewayland.drv/window.c
 --- a/dlls/winewayland.drv/window.c
 +++ b/dlls/winewayland.drv/window.c
-@@ -549,8 +549,15 @@
- 
+@@ -539,7 +539,9 @@ static void wayland_configure_window(HWND hwnd)
      state = surface->processing.state;
      /* Ignore size hints if we don't have a state that requires strict
--     * size adherence, in order to avoid spurious resizes. */
+      * size adherence, in order to avoid spurious resizes. */
 -    if (state)
-+     * size adherence, in order to avoid spurious resizes. A tiled configure
-+     * is only a suggestion, and a window without a sizing border can't take
-+     * it: the application sizes such windows itself (games do so on every
-+     * mode change), so forcing the tile size starts a fight in which each
-+     * round resizes the window and its swapchain. Leave those at their own
-+     * size; the compositor centers them in the tile. */
 +    if (state &&
 +        !(!data->resizeable &&
 +          !(state & ~(WAYLAND_SURFACE_CONFIG_STATE_TILED | WAYLAND_SURFACE_CONFIG_STATE_RESIZING))))

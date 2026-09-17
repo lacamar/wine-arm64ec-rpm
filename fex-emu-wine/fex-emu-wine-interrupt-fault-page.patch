@@ -1,65 +1,73 @@
-Make thread suspension of JIT threads work on >4K page hosts, and on
-conditional loop back-edges at all.
+Give the interrupt fault page a whole host page and check for suspends on conditional back-edges.
 
-WOW64 suspends a thread that is inside the JIT by making
-InternalThreadState::InterruptFaultPage read-only and waiting for the store
-the JIT emits at block entries and before backward branches to fault. Two
-separate things kept that from ever happening:
-
-1. The page was a 4K member of a 4K-aligned struct. Wine can only hand the
-   kernel protections at host page granularity and takes the most permissive
-   protection of the guest pages sharing a host page, so on a 16K host the
-   page shared its real page with the rest of the thread state and stayed
-   writable no matter what NtProtectVirtualMemory was told.
-
-   COFF caps alignas at 8K, so the struct cannot simply be 16K-aligned.
-   Instead the object is allocated 16K-aligned through its own operator new,
-   the member is over-sized so that a whole 16K-aligned page always fits
-   inside it, and the page address and the JIT's store offset are derived
-   from that at compile time (INTERRUPT_FAULT_PAGE_OFFSET /
-   INTERRUPT_FAULT_PAGE_FRAME_OFFSET, GetInterruptFaultPage()). All users of
-   the page go through those. 64K hosts are not covered: the page would sit
-   beyond the JIT's unsigned store offset range, and the WOW64 init logs an
-   error in that case.
-
-2. DEF_OP(CondJump) never emitted the suspend check for a backward true
-   target. Only the pending fall-through branch got one, so a rotated loop
-   whose only back-edge is a conditional branch (any while loop) never
-   stored to the page. That is independent of the host page size and also
-   affects 4K hosts. The check is now emitted before a backward conditional
-   branch; it is a plain store and touches neither NZCV nor any allocated
-   register.
-
-Reproduced with suspendtest32.exe: a thread spinning in `while (!stop)
-counter++` could not be suspended at all (SuspendThread blocked
-indefinitely). With both parts, 20/20 suspend/resume cycles succeed with a
-worst-case latency of 14 ms. smctest32.exe is unaffected.
-
---- a/FEXCore/include/FEXCore/Utils/TypeDefines.h
-+++ b/FEXCore/include/FEXCore/Utils/TypeDefines.h
-@@ -15,6 +15,14 @@
- // GetHostPageSize() for that.
- constexpr size_t FEX_MAX_HOST_PAGE_SIZE = 65536;
+diff --git a/FEXCore/Source/Interface/Core/Core.cpp b/FEXCore/Source/Interface/Core/Core.cpp
+--- a/FEXCore/Source/Interface/Core/Core.cpp
++++ b/FEXCore/Source/Interface/Core/Core.cpp
+@@ -361,6 +361,10 @@ bool ContextImpl::InitCore() {
+ #if defined(_WIN32) && !defined(ARCHITECTURE_arm64ec)
+   // WOW64 always needs the interrupt fault check to be enabled.
+   Config.NeedsPendingInterruptFaultCheck = true;
++  if (FEXCore::Utils::GetHostPageSize() > FEXCore::Utils::FEX_INTERRUPT_FAULT_PAGE_SIZE) {
++    LogMan::Msg::EFmt("Host page size {} is larger than the interrupt fault page; suspending threads running JIT code will not work",
++                      FEXCore::Utils::GetHostPageSize());
++  }
+ #endif
  
-+// Size and alignment of InternalThreadState::InterruptFaultPage. It must span whole real host
-+// pages: Wine hands the kernel the most permissive protection of the guest pages sharing a host
-+// page, so a 4K fault page that shares its host page with the rest of the thread state can never
-+// actually be made read-only, and the JIT's interrupt store never faults. 64K hosts are not
-+// covered because the page would then sit beyond the JIT's unsigned store offset range (see the
-+// static_assert in InternalThreadState.h).
-+constexpr size_t FEX_INTERRUPT_FAULT_PAGE_SIZE = 16384;
+   if (Config.GdbServer) {
+@@ -444,7 +448,7 @@ FEXCore::Core::InternalThreadState* ContextImpl::CreateThread(const FEXCore::Cor
+ }
+ 
+ void ContextImpl::DestroyThread(FEXCore::Core::InternalThreadState* Thread) {
+-  FEXCore::Allocator::VirtualProtect(&Thread->InterruptFaultPage, sizeof(Thread->InterruptFaultPage),
++  FEXCore::Allocator::VirtualProtect(FEXCore::Core::GetInterruptFaultPage(Thread), FEXCore::Utils::FEX_INTERRUPT_FAULT_PAGE_SIZE,
+                                      Allocator::ProtectOptions::Read | Allocator::ProtectOptions::Write);
+   delete Thread;
+ }
+diff --git a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
+--- a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
++++ b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
+@@ -277,7 +277,7 @@ void Dispatcher::EmitDispatcher() {
+ 
+     // Trigger segfault if any deferred signals are pending
+     strb(ARMEmitter::XReg::zr, STATE,
+-         offsetof(FEXCore::Core::InternalThreadState, InterruptFaultPage) - offsetof(FEXCore::Core::InternalThreadState, BaseFrameState));
++         FEXCore::Core::INTERRUPT_FAULT_PAGE_FRAME_OFFSET);
+ #endif
+   };
+ 
+diff --git a/FEXCore/Source/Interface/Core/JIT/BranchOps.cpp b/FEXCore/Source/Interface/Core/JIT/BranchOps.cpp
+--- a/FEXCore/Source/Interface/Core/JIT/BranchOps.cpp
++++ b/FEXCore/Source/Interface/Core/JIT/BranchOps.cpp
+@@ -249,6 +249,10 @@ DEF_OP(CondJump) {
+ 
+   auto TrueTargetLabel = JumpTarget(Op->TrueBlock);
+ 
++  if (TrueTargetLabel->Backward.Location) {
++    EmitSuspendInterruptCheck();
++  }
 +
- // Returns the real host page size (e.g. 4096, 16384, 65536), queried once and cached.
- // Use this ONLY when computing the address/length of an actual host mprotect/VirtualProtect/
- // mmap/VirtualAlloc boundary that must not split a single real host page between two regions
+   if (Op->FromNZCV) {
+     b_OrRestart(MapCC(Op->Cond), TrueTargetLabel);
+   } else {
+diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+--- a/FEXCore/Source/Interface/Core/JIT/JIT.cpp
++++ b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+@@ -768,7 +768,7 @@ void Arm64JITCore::EmitSuspendInterruptCheck() {
+     // Trigger a fault if there are any pending interrupts
+     // Used only for suspend on WIN32 at the moment
+     constexpr size_t InterruptPageOffset =
+-      offsetof(FEXCore::Core::InternalThreadState, InterruptFaultPage) - offsetof(FEXCore::Core::InternalThreadState, BaseFrameState);
++      FEXCore::Core::INTERRUPT_FAULT_PAGE_FRAME_OFFSET;
+     if constexpr (InterruptPageOffset <= 32760) {
+       str(ARMEmitter::XReg::zr, STATE, InterruptPageOffset);
+     } else {
+diff --git a/FEXCore/include/FEXCore/Debug/InternalThreadState.h b/FEXCore/include/FEXCore/Debug/InternalThreadState.h
 --- a/FEXCore/include/FEXCore/Debug/InternalThreadState.h
 +++ b/FEXCore/include/FEXCore/Debug/InternalThreadState.h
-@@ -88,6 +88,21 @@
+@@ -88,6 +88,19 @@ struct UnalignedExclusiveStore {
  };
  
  struct alignas(FEXCore::Utils::FEX_PAGE_SIZE) InternalThreadState : public FEXCore::Allocator::FEXAllocOperators {
-+  // COFF caps alignas at 8K, so the object is aligned to the interrupt fault page here instead
-+  // and the page itself is carved out of the over-sized InterruptFaultPage member below.
 +  void* operator new(size_t size) {
 +    return FEXCore::Allocator::aligned_alloc(FEXCore::Utils::FEX_INTERRUPT_FAULT_PAGE_SIZE, size);
 +  }
@@ -76,22 +84,15 @@ worst-case latency of 14 ms. smctest32.exe is unaffected.
    FEXCore::Core::CpuStateFrame* const CurrentFrame = &BaseFrameState;
  
    FEXCore::Context::Context* const CTX;
-@@ -121,13 +136,30 @@
-   // BaseFrameState should always be at the end, directly before the interrupt fault page
+@@ -122,12 +135,23 @@ struct alignas(FEXCore::Utils::FEX_PAGE_SIZE) InternalThreadState : public FEXCo
    FEXCore::Core::CpuStateFrame BaseFrameState {};
  
--  // Can be reprotected as RO to trigger an interrupt at generated code block entrypoints
+   // Can be reprotected as RO to trigger an interrupt at generated code block entrypoints
 -  alignas(FEXCore::Utils::FEX_PAGE_SIZE) uint8_t InterruptFaultPage[FEXCore::Utils::FEX_PAGE_SIZE];
-+  // Backing storage for the page that can be reprotected as RO to trigger an interrupt at
-+  // generated code block entrypoints. The page itself is the first
-+  // FEX_INTERRUPT_FAULT_PAGE_SIZE-aligned page inside this member (see GetInterruptFaultPage);
-+  // the slack covers every possible member offset.
 +  alignas(FEXCore::Utils::FEX_PAGE_SIZE) uint8_t InterruptFaultPage[2 * FEXCore::Utils::FEX_INTERRUPT_FAULT_PAGE_SIZE - FEXCore::Utils::FEX_PAGE_SIZE];
  };
  static_assert(std::is_standard_layout_v<FEXCore::Core::InternalThreadState>);
 +
-+// Offset of the interrupt fault page from the start of InternalThreadState. Valid because
-+// InternalThreadState::operator new aligns the object to FEX_INTERRUPT_FAULT_PAGE_SIZE.
 +constexpr size_t INTERRUPT_FAULT_PAGE_OFFSET =
 +  (offsetof(InternalThreadState, InterruptFaultPage) + FEXCore::Utils::FEX_INTERRUPT_FAULT_PAGE_SIZE - 1) &
 +  ~(FEXCore::Utils::FEX_INTERRUPT_FAULT_PAGE_SIZE - 1);
@@ -99,7 +100,6 @@ worst-case latency of 14 ms. smctest32.exe is unaffected.
 +                offsetof(InternalThreadState, InterruptFaultPage) + sizeof(InternalThreadState::InterruptFaultPage),
 +              "Interrupt fault page does not fit in its backing member");
 +
-+// Offset of the interrupt fault page from BaseFrameState, i.e. from the JIT's STATE register.
 +constexpr size_t INTERRUPT_FAULT_PAGE_FRAME_OFFSET = INTERRUPT_FAULT_PAGE_OFFSET - offsetof(InternalThreadState, BaseFrameState);
  // Maximum unsigned-offset store range for fault page.
 -static_assert(
@@ -112,53 +112,10 @@ worst-case latency of 14 ms. smctest32.exe is unaffected.
 +}
  
  } // namespace FEXCore::Core
---- a/FEXCore/Source/Interface/Core/Core.cpp
-+++ b/FEXCore/Source/Interface/Core/Core.cpp
-@@ -361,6 +361,10 @@
- #if defined(_WIN32) && !defined(ARCHITECTURE_arm64ec)
-   // WOW64 always needs the interrupt fault check to be enabled.
-   Config.NeedsPendingInterruptFaultCheck = true;
-+  if (FEXCore::Utils::GetHostPageSize() > FEXCore::Utils::FEX_INTERRUPT_FAULT_PAGE_SIZE) {
-+    LogMan::Msg::EFmt("Host page size {} is larger than the interrupt fault page; suspending threads running JIT code will not work",
-+                      FEXCore::Utils::GetHostPageSize());
-+  }
- #endif
- 
-   if (Config.GdbServer) {
-@@ -444,7 +448,7 @@
- }
- 
- void ContextImpl::DestroyThread(FEXCore::Core::InternalThreadState* Thread) {
--  FEXCore::Allocator::VirtualProtect(&Thread->InterruptFaultPage, sizeof(Thread->InterruptFaultPage),
-+  FEXCore::Allocator::VirtualProtect(FEXCore::Core::GetInterruptFaultPage(Thread), FEXCore::Utils::FEX_INTERRUPT_FAULT_PAGE_SIZE,
-                                      Allocator::ProtectOptions::Read | Allocator::ProtectOptions::Write);
-   delete Thread;
- }
---- a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
-+++ b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
-@@ -277,7 +277,7 @@
- 
-     // Trigger segfault if any deferred signals are pending
-     strb(ARMEmitter::XReg::zr, STATE,
--         offsetof(FEXCore::Core::InternalThreadState, InterruptFaultPage) - offsetof(FEXCore::Core::InternalThreadState, BaseFrameState));
-+         FEXCore::Core::INTERRUPT_FAULT_PAGE_FRAME_OFFSET);
- #endif
-   };
- 
---- a/FEXCore/Source/Interface/Core/JIT/JIT.cpp
-+++ b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
-@@ -768,7 +768,7 @@
-     // Trigger a fault if there are any pending interrupts
-     // Used only for suspend on WIN32 at the moment
-     constexpr size_t InterruptPageOffset =
--      offsetof(FEXCore::Core::InternalThreadState, InterruptFaultPage) - offsetof(FEXCore::Core::InternalThreadState, BaseFrameState);
-+      FEXCore::Core::INTERRUPT_FAULT_PAGE_FRAME_OFFSET;
-     if constexpr (InterruptPageOffset <= 32760) {
-       str(ARMEmitter::XReg::zr, STATE, InterruptPageOffset);
-     } else {
+diff --git a/FEXCore/include/FEXCore/Utils/SignalScopeGuards.h b/FEXCore/include/FEXCore/Utils/SignalScopeGuards.h
 --- a/FEXCore/include/FEXCore/Utils/SignalScopeGuards.h
 +++ b/FEXCore/include/FEXCore/Utils/SignalScopeGuards.h
-@@ -138,12 +138,12 @@
+@@ -138,12 +138,12 @@ public:
        // X86-64 must do an additional check around the store.
        if ((Result - 1) == 0) {
          // Must happen after the refcount store
@@ -173,9 +130,21 @@ worst-case latency of 14 ms. smctest32.exe is unaffected.
        InterruptFaultPage->Store(0);
  #endif
      }
+diff --git a/FEXCore/include/FEXCore/Utils/TypeDefines.h b/FEXCore/include/FEXCore/Utils/TypeDefines.h
+--- a/FEXCore/include/FEXCore/Utils/TypeDefines.h
++++ b/FEXCore/include/FEXCore/Utils/TypeDefines.h
+@@ -12,5 +12,7 @@ constexpr size_t FEX_PAGE_MASK = ~(FEX_PAGE_SIZE - 1);
+ 
+ constexpr size_t FEX_MAX_HOST_PAGE_SIZE = 65536;
+ 
++constexpr size_t FEX_INTERRUPT_FAULT_PAGE_SIZE = 16384;
++
+ size_t GetHostPageSize();
+ } // namespace FEXCore::Utils
+diff --git a/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp b/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
 --- a/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
 +++ b/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
-@@ -419,7 +419,7 @@
+@@ -419,7 +419,7 @@ bool SignalDelegator::HandleSIGILL(FEXCore::Core::InternalThreadState* Thread, i
        // If we have more deferred frames to process then mprotect back to PROT_NONE.
        // It will have been RW coming in to this sigreturn and now we need to remove permissions
        // to ensure FEX trampolines back to the SIGSEGV deferred handler.
@@ -184,7 +153,7 @@ worst-case latency of 14 ms. smctest32.exe is unaffected.
      }
      return true;
    }
-@@ -595,12 +595,12 @@
+@@ -595,12 +595,12 @@ void SignalDelegator::HandleGuestSignal(FEX::HLE::ThreadStateObject* ThreadObjec
    auto SigInfo = *static_cast<siginfo_t*>(Info);
  
    auto MustDeferSignal = (Thread->CurrentFrame->State.DeferredSignalRefCount.Load() != 0);
@@ -199,7 +168,7 @@ worst-case latency of 14 ms. smctest32.exe is unaffected.
  
        if (ThreadObject->SignalInfo.DeferredSignalFrames.empty()) {
          // No signals to defer. Just set the fault page back to RW and continue execution.
-@@ -659,7 +659,7 @@
+@@ -659,7 +659,7 @@ void SignalDelegator::HandleGuestSignal(FEX::HLE::ThreadStateObject* ThreadObjec
      sigmask_val[0] = GetNewSigMask(Signal);
  
      // Now update the faulting page permissions so it will fault on write.
@@ -208,9 +177,10 @@ worst-case latency of 14 ms. smctest32.exe is unaffected.
  
      // Postpone the remainder of signal handling logic until we process the SIGSEGV triggered by writing to InterruptFaultPage.
      return;
+diff --git a/Source/Windows/WOW64/Module.cpp b/Source/Windows/WOW64/Module.cpp
 --- a/Source/Windows/WOW64/Module.cpp
 +++ b/Source/Windows/WOW64/Module.cpp
-@@ -393,12 +393,12 @@
+@@ -393,12 +393,12 @@ public:
  };
  
  bool HandleSuspendInterrupt(TLS TLS, CONTEXT* Context, uint64_t FaultAddress) {
@@ -225,7 +195,7 @@ worst-case latency of 14 ms. smctest32.exe is unaffected.
    ULONG TmpProt;
    NtProtectVirtualMemory(NtCurrentProcess(), &TmpAddress, &TmpSize, PAGE_READWRITE, &TmpProt);
  
-@@ -836,8 +836,8 @@
+@@ -836,8 +836,8 @@ NTSTATUS BTCpuSuspendLocalThread(HANDLE Thread, ULONG* Count) {
      LogMan::Msg::DFmt("Thread {:X} is in JIT, polling for interrupt", ThreadTID);
  
      ULONG TmpProt;
@@ -236,19 +206,3 @@ worst-case latency of 14 ms. smctest32.exe is unaffected.
      NtProtectVirtualMemory(NtCurrentProcess(), &TmpAddress, &TmpSize, PAGE_READONLY, &TmpProt);
    }
  
---- a/FEXCore/Source/Interface/Core/JIT/BranchOps.cpp
-+++ b/FEXCore/Source/Interface/Core/JIT/BranchOps.cpp
-@@ -249,6 +249,13 @@
- 
-   auto TrueTargetLabel = JumpTarget(Op->TrueBlock);
- 
-+  // A backward conditional branch is a loop back-edge like any other: without the check here a
-+  // loop whose only back-edge is conditional never stores to the interrupt page and can't be
-+  // suspended. The store touches neither NZCV nor any allocated register.
-+  if (TrueTargetLabel->Backward.Location) {
-+    EmitSuspendInterruptCheck();
-+  }
-+
-   if (Op->FromNZCV) {
-     b_OrRestart(MapCC(Op->Cond), TrueTargetLabel);
-   } else {

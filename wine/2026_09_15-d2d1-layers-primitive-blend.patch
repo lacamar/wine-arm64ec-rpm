@@ -1,6 +1,9 @@
+d2d1: implement PushLayer/PopLayer and primitive blend modes.
+
+diff --git a/dlls/d2d1/d2d1_private.h b/dlls/d2d1/d2d1_private.h
 --- a/dlls/d2d1/d2d1_private.h
 +++ b/dlls/d2d1/d2d1_private.h
-@@ -170,6 +170,15 @@
+@@ -170,6 +170,15 @@ struct d2d_indexed_objects
      size_t count;
  };
  
@@ -16,7 +19,7 @@
  struct d2d_device_context
  {
      ID2D1DeviceContext6 ID2D1DeviceContext6_iface;
-@@ -205,7 +214,7 @@
+@@ -205,7 +214,7 @@ struct d2d_device_context
      unsigned int vb_stride;
      ID3D11Buffer *vb;
      ID3D11RasterizerState *rs;
@@ -25,7 +28,7 @@
      ID3D11SamplerState *sampler_states
              [D2D_SAMPLER_INTERPOLATION_MODE_COUNT]
              [D2D_SAMPLER_EXTEND_MODE_COUNT]
-@@ -219,6 +228,12 @@
+@@ -219,6 +228,12 @@ struct d2d_device_context
      D2D1_RENDER_TARGET_PROPERTIES desc;
      D2D1_SIZE_U pixel_size;
      struct d2d_clip_stack clip_stack;
@@ -38,6 +41,7 @@
  
      struct d2d_indexed_objects vertex_buffers;
  };
+diff --git a/dlls/d2d1/device.c b/dlls/d2d1/device.c
 --- a/dlls/d2d1/device.c
 +++ b/dlls/d2d1/device.c
 @@ -16,6 +16,7 @@
@@ -48,7 +52,7 @@
  #include "d2d1_private.h"
  #include <d3dcompiler.h>
  
-@@ -174,7 +175,11 @@
+@@ -174,7 +175,11 @@ static void d2d_device_context_draw(struct d2d_device_context *render_target, en
      ID3D11DeviceContext1_OMSetRenderTargets(context, 1, &render_target->target.bitmap->rtv, NULL);
      if (brush)
      {
@@ -61,7 +65,7 @@
          d2d_brush_bind_resources(brush, render_target, 0);
      }
      else
-@@ -274,8 +279,12 @@
+@@ -274,8 +279,12 @@ static ULONG STDMETHODCALLTYPE d2d_device_context_inner_Release(IUnknown *iface)
          IDWriteRenderingParams_Release(context->default_text_rendering_params);
          if (context->text_rendering_params)
              IDWriteRenderingParams_Release(context->text_rendering_params);
@@ -76,7 +80,7 @@
          ID3D11RasterizerState_Release(context->rs);
          ID3D11Buffer_Release(context->vb);
          ID3D11Buffer_Release(context->ib);
-@@ -1830,31 +1839,197 @@
+@@ -1830,31 +1839,193 @@ static void STDMETHODCALLTYPE d2d_device_context_GetTags(ID2D1DeviceContext6 *if
      *tag2 = render_target->drawing_state.tag2;
  }
  
@@ -87,8 +91,6 @@
 +    *matrix = identity;
 +}
 +
-+/* Layers are rendered into an intermediate target bitmap, which is composited onto the
-+ * previous target with the layer opacity, opacity brush and geometric mask on pop. */
 +static void d2d_device_context_push_layer(struct d2d_device_context *context,
 +        const D2D1_LAYER_PARAMETERS1 *parameters)
 +{
@@ -207,8 +209,6 @@
 +            mask = (ID2D1Geometry *)rect;
 +        }
 +
-+        /* Bitmap brushes don't handle rotated brush transforms, so keep the brush in device
-+         * space and transform the mask geometry instead. */
 +        hr = ID2D1Factory_CreateTransformedGeometry(context->factory, mask, &geometry_transform, &transformed);
 +        ID2D1Geometry_Release(mask);
 +        if (FAILED(hr))
@@ -282,7 +282,7 @@
  }
  
  static HRESULT STDMETHODCALLTYPE d2d_device_context_Flush(ID2D1DeviceContext6 *iface, D2D1_TAG *tag1, D2D1_TAG *tag2)
-@@ -2541,6 +2716,8 @@
+@@ -2541,6 +2712,8 @@ static void STDMETHODCALLTYPE d2d_device_context_GetDevice(ID2D1DeviceContext6 *
  
  static void d2d_device_context_reset_target(struct d2d_device_context *context)
  {
@@ -291,7 +291,7 @@
      if (!context->target.object)
          return;
  
-@@ -2551,9 +2728,12 @@
+@@ -2551,9 +2724,12 @@ static void d2d_device_context_reset_target(struct d2d_device_context *context)
      memset(&context->desc.pixelFormat, 0, sizeof(context->desc.pixelFormat));
      memset(&context->pixel_size, 0, sizeof(context->pixel_size));
  
@@ -307,7 +307,7 @@
  }
  
  static void STDMETHODCALLTYPE d2d_device_context_SetTarget(ID2D1DeviceContext6 *iface, ID2D1Image *target)
-@@ -2564,6 +2744,7 @@
+@@ -2564,6 +2740,7 @@ static void STDMETHODCALLTYPE d2d_device_context_SetTarget(ID2D1DeviceContext6 *
      ID2D1CommandList *command_list;
      D3D11_BLEND_DESC blend_desc;
      ID2D1Bitmap *bitmap;
@@ -315,7 +315,7 @@
      HRESULT hr;
  
      TRACE("iface %p, target %p.\n", iface, target);
-@@ -2594,18 +2775,39 @@
+@@ -2594,18 +2771,39 @@ static void STDMETHODCALLTYPE d2d_device_context_SetTarget(ID2D1DeviceContext6 *
          context->target.object = target;
          context->target.type = D2D_TARGET_BITMAP;
  
@@ -367,7 +367,7 @@
      }
      else if (SUCCEEDED(ID2D1Image_QueryInterface(target, &IID_ID2D1CommandList, (void **)&command_list)))
      {
-@@ -2798,10 +3000,12 @@
+@@ -2798,10 +2996,12 @@ static void STDMETHODCALLTYPE d2d_device_context_ID2D1DeviceContext_PushLayer(ID
  {
      struct d2d_device_context *context = impl_from_ID2D1DeviceContext(iface);
  

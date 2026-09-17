@@ -1,11 +1,12 @@
+win32u: do not clamp window sizes and child positions to 16 bits.
+
+diff --git a/dlls/win32u/window.c b/dlls/win32u/window.c
 --- a/dlls/win32u/window.c
 +++ b/dlls/win32u/window.c
-@@ -3909,6 +3909,26 @@
+@@ -3909,6 +3909,24 @@ static UINT calc_ncsize( WINDOWPOS *winpos, const struct window_rects *old_rects
      return wvr_flags;
  }
  
-+/* Since Windows 7 only top-level window positions are limited to 16 bits; sizes and child
-+ * positions are not, and applications scroll huge child windows (e.g. Lightroom's grid). */
 +static void clamp_winpos( WINDOWPOS *winpos, BOOL child, UINT flags )
 +{
 +    if (!(flags & SWP_NOMOVE) && !child)
@@ -27,7 +28,7 @@
  /* fix redundant flags and values in the WINDOWPOS structure */
  static BOOL fixup_swp_flags( WINDOWPOS *winpos, const RECT *old_window_rect, int parent_x, int parent_y )
  {
-@@ -3924,15 +3944,7 @@
+@@ -3924,15 +3942,7 @@ static BOOL fixup_swp_flags( WINDOWPOS *winpos, const RECT *old_window_rect, int
      winpos->hwnd = win->handle;  /* make it a full handle */
  
      /* Finally make sure that all coordinates are valid */
@@ -44,7 +45,7 @@
  
      if (win->dwStyle & WS_CHILD)
      {
-@@ -4119,20 +4131,7 @@
+@@ -4119,20 +4129,7 @@ BOOL set_window_pos( WINDOWPOS *winpos, int parent_x, int parent_y )
      }
  
      /* Make sure that coordinates are valid for WM_WINDOWPOSCHANGING */

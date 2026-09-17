@@ -1,3 +1,67 @@
+winewayland: owned layered popups as subsurfaces, keep toplevels on-screen, honour Decorated=Y.
+
+diff --git a/dlls/winewayland.drv/wayland_surface.c b/dlls/winewayland.drv/wayland_surface.c
+--- a/dlls/winewayland.drv/wayland_surface.c
++++ b/dlls/winewayland.drv/wayland_surface.c
+@@ -752,13 +752,44 @@ static BOOL wayland_surface_reconfigure_xdg(struct wayland_surface *surface, REC
+     return TRUE;
+ }
+ 
++static void wayland_surface_restack_subsurface(struct wayland_surface *surface,
++                                               struct wayland_win_data *owner_data)
++{
++    struct wayland_surface *owner_surface = owner_data->wayland_surface;
++    struct wl_surface *below = NULL;
++    HWND hwnd = surface->hwnd;
++
++    if (!surface->wl_subsurface || !owner_surface) return;
++
++    while ((hwnd = NtUserGetWindowRelative(hwnd, GW_HWNDNEXT)) && hwnd != surface->owner_hwnd)
++    {
++        struct wayland_win_data *sibling_data;
++        struct wayland_surface *sibling;
++
++        if (!(sibling_data = wayland_win_data_get(hwnd))) continue;
++        if ((sibling = sibling_data->wayland_surface) && sibling->wl_subsurface &&
++            sibling->owner_hwnd == surface->owner_hwnd)
++            below = sibling->wl_surface;
++        wayland_win_data_release(sibling_data);
++        if (below) break;
++    }
++
++    if (!below && owner_data->client_surface && owner_data->client_surface->wl_subsurface)
++        below = owner_data->client_surface->wl_surface;
++    if (!below) below = owner_surface->wl_surface;
++
++    TRACE("hwnd=%p above wl_surface=%p (hwnd=%p)\n", surface->hwnd, below, hwnd);
++
++    wl_subsurface_place_above(surface->wl_subsurface, below);
++}
++
+ /**********************************************************************
+  *          wayland_surface_reconfigure_subsurface
+  *
+  * Reconfigures the subsurface as needed to match the latest requested
+  * state.
+  */
+-static void wayland_surface_reconfigure_subsurface(struct wayland_surface *surface)
++void wayland_surface_reconfigure_subsurface(struct wayland_surface *surface)
+ {
+     struct wayland_win_data *owner_data;
+     struct wayland_surface *owner_surface;
+@@ -776,10 +807,7 @@ static void wayland_surface_reconfigure_subsurface(struct wayland_surface *surfa
+         TRACE("hwnd=%p rect=%s\n", surface->hwnd, wine_dbgstr_rect(&rect));
+ 
+         wl_subsurface_set_position(surface->wl_subsurface, rect.left, rect.top);
+-        if (owner_data->client_surface && owner_data->client_surface->wl_subsurface)
+-            wl_subsurface_place_above(surface->wl_subsurface, owner_data->client_surface->wl_surface);
+-        else
+-            wl_subsurface_place_above(surface->wl_subsurface, owner_surface->wl_surface);
++        wayland_surface_restack_subsurface(surface, owner_data);
+         wl_surface_commit(owner_surface->wl_surface);
+ 
+         memset(&surface->processing, 0, sizeof(surface->processing));
+diff --git a/dlls/winewayland.drv/waylanddrv.h b/dlls/winewayland.drv/waylanddrv.h
 --- a/dlls/winewayland.drv/waylanddrv.h
 +++ b/dlls/winewayland.drv/waylanddrv.h
 @@ -59,6 +59,7 @@
@@ -8,7 +72,7 @@
  extern struct wayland process_wayland;
  
  /**********************************************************************
-@@ -335,6 +336,7 @@
+@@ -335,6 +336,7 @@ void wayland_surface_attach_shm(struct wayland_surface *surface,
                                  struct wayland_shm_buffer *shm_buffer,
                                  HRGN surface_damage_region);
  BOOL wayland_surface_reconfigure(struct wayland_surface *surface);
@@ -16,7 +80,7 @@
  BOOL wayland_surface_config_is_compatible(struct wayland_surface_config *conf, RECT rect,
                                            enum wayland_surface_config_state state);
  RECT map_rect_to_surface(struct wayland_surface *surface, RECT rect);
-@@ -456,6 +458,7 @@
+@@ -456,6 +458,7 @@ LRESULT WAYLAND_ClipboardWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
  BOOL WAYLAND_ClipCursor(const RECT *clip, BOOL reset);
  LRESULT WAYLAND_DesktopWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
  void WAYLAND_DestroyWindow(HWND hwnd);
@@ -24,6 +88,7 @@
  BOOL WAYLAND_SetIMECompositionRect(HWND hwnd, RECT rect);
  void WAYLAND_SetCursor(HWND hwnd, HCURSOR hcursor);
  BOOL WAYLAND_SetCursorPos(INT x, INT y);
+diff --git a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylanddrv_main.c
 --- a/dlls/winewayland.drv/waylanddrv_main.c
 +++ b/dlls/winewayland.drv/waylanddrv_main.c
 @@ -24,6 +24,7 @@
@@ -42,7 +107,7 @@
  
  static const struct user_driver_funcs waylanddrv_funcs =
  {
-@@ -38,6 +40,7 @@
+@@ -38,6 +40,7 @@ static const struct user_driver_funcs waylanddrv_funcs =
      .pClipCursor = WAYLAND_ClipCursor,
      .pDesktopWindowProc = WAYLAND_DesktopWindowProc,
      .pDestroyWindow = WAYLAND_DestroyWindow,
@@ -50,7 +115,7 @@
      .pSetIMECompositionRect = WAYLAND_SetIMECompositionRect,
      .pKbdLayerDescriptor = WAYLAND_KbdLayerDescriptor,
      .pReleaseKbdTables = WAYLAND_ReleaseKbdTables,
-@@ -87,6 +90,61 @@
+@@ -87,6 +90,59 @@ static void wayland_init_process_name(void)
      }
  }
  
@@ -87,8 +152,6 @@
 +    return reg_open_key(NULL, bufferW, len * sizeof(WCHAR));
 +}
 +
-+/* Only an explicit "Allow the window manager to decorate the windows" (X11 Driver\Decorated=Y)
-+ * hides the Win32 frame: many compositors draw no decorations for Wayland clients. */
 +static void wayland_init_options(void)
 +{
 +    static const WCHAR decoratedW[] = {'D','e','c','o','r','a','t','e','d'};
@@ -112,7 +175,7 @@
  static NTSTATUS waylanddrv_unix_init(void *arg)
  {
      /* Set the user driver functions now so that they are available during
-@@ -94,6 +152,7 @@
+@@ -94,6 +150,7 @@ static NTSTATUS waylanddrv_unix_init(void *arg)
      __wine_set_user_driver(&waylanddrv_funcs, WINE_GDI_DRIVER_VERSION);
  
      wayland_init_process_name();
@@ -120,83 +183,14 @@
  
      if (!wayland_process_init()) goto err;
  
---- a/dlls/winewayland.drv/wayland_surface.c
-+++ b/dlls/winewayland.drv/wayland_surface.c
-@@ -753,12 +753,51 @@
- }
- 
- /**********************************************************************
-+ *          wayland_surface_restack_subsurface
-+ *
-+ * Places a popup subsurface directly above the nearest sibling subsurface
-+ * below it in the Win32 z-order, or above the owner if there is none.
-+ * The change takes effect on the next owner surface commit.
-+ */
-+static void wayland_surface_restack_subsurface(struct wayland_surface *surface,
-+                                               struct wayland_win_data *owner_data)
-+{
-+    struct wayland_surface *owner_surface = owner_data->wayland_surface;
-+    struct wl_surface *below = NULL;
-+    HWND hwnd = surface->hwnd;
-+
-+    if (!surface->wl_subsurface || !owner_surface) return;
-+
-+    /* Owned popups are always above their owner in the Win32 z-order. */
-+    while ((hwnd = NtUserGetWindowRelative(hwnd, GW_HWNDNEXT)) && hwnd != surface->owner_hwnd)
-+    {
-+        struct wayland_win_data *sibling_data;
-+        struct wayland_surface *sibling;
-+
-+        if (!(sibling_data = wayland_win_data_get(hwnd))) continue;
-+        if ((sibling = sibling_data->wayland_surface) && sibling->wl_subsurface &&
-+            sibling->owner_hwnd == surface->owner_hwnd)
-+            below = sibling->wl_surface;
-+        wayland_win_data_release(sibling_data);
-+        if (below) break;
-+    }
-+
-+    if (!below && owner_data->client_surface && owner_data->client_surface->wl_subsurface)
-+        below = owner_data->client_surface->wl_surface;
-+    if (!below) below = owner_surface->wl_surface;
-+
-+    TRACE("hwnd=%p above wl_surface=%p (hwnd=%p)\n", surface->hwnd, below, hwnd);
-+
-+    wl_subsurface_place_above(surface->wl_subsurface, below);
-+}
-+
-+/**********************************************************************
-  *          wayland_surface_reconfigure_subsurface
-  *
-  * Reconfigures the subsurface as needed to match the latest requested
-  * state.
-  */
--static void wayland_surface_reconfigure_subsurface(struct wayland_surface *surface)
-+void wayland_surface_reconfigure_subsurface(struct wayland_surface *surface)
- {
-     struct wayland_win_data *owner_data;
-     struct wayland_surface *owner_surface;
-@@ -776,10 +815,7 @@
-         TRACE("hwnd=%p rect=%s\n", surface->hwnd, wine_dbgstr_rect(&rect));
- 
-         wl_subsurface_set_position(surface->wl_subsurface, rect.left, rect.top);
--        if (owner_data->client_surface && owner_data->client_surface->wl_subsurface)
--            wl_subsurface_place_above(surface->wl_subsurface, owner_data->client_surface->wl_surface);
--        else
--            wl_subsurface_place_above(surface->wl_subsurface, owner_surface->wl_surface);
-+        wayland_surface_restack_subsurface(surface, owner_data);
-         wl_surface_commit(owner_surface->wl_surface);
- 
-         memset(&surface->processing, 0, sizeof(surface->processing));
+diff --git a/dlls/winewayland.drv/window.c b/dlls/winewayland.drv/window.c
 --- a/dlls/winewayland.drv/window.c
 +++ b/dlls/winewayland.drv/window.c
-@@ -376,6 +376,14 @@
+@@ -376,6 +376,11 @@ static BOOL is_window_managed(HWND hwnd, UINT swp_flags, BOOL fullscreen)
      /* child windows are not managed */
      style = NtUserGetWindowLongW(hwnd, GWL_STYLE);
      if ((style & (WS_CHILD|WS_POPUP)) == WS_CHILD) return FALSE;
 +    ex_style = NtUserGetWindowLongW(hwnd, GWL_EXSTYLE);
-+    /* Owned layered popups without a frame are overlays, callouts or fade effects drawn over
-+     * their owner. As xdg_toplevels the compositor would tile them away from the owner and
-+     * stack them above its other popups, so keep them as subsurfaces even when activated. */
 +    if ((ex_style & WS_EX_LAYERED) && !(ex_style & WS_EX_APPWINDOW) &&
 +        (style & WS_CAPTION) != WS_CAPTION && !(style & WS_THICKFRAME) &&
 +        NtUserGetWindowRelative(hwnd, GW_OWNER))
@@ -204,7 +198,7 @@
      /* activated windows are managed */
      if (!(swp_flags & (SWP_NOACTIVATE|SWP_HIDEWINDOW))) return TRUE;
      if (hwnd == get_active_window()) return TRUE;
-@@ -391,7 +399,6 @@
+@@ -391,7 +396,6 @@ static BOOL is_window_managed(HWND hwnd, UINT swp_flags, BOOL fullscreen)
          if (fullscreen) return TRUE;
      }
      /* application windows are managed */
@@ -212,12 +206,10 @@
      if (ex_style & WS_EX_APPWINDOW) return TRUE;
      /* windows that own popups are managed */
      if (has_owned_popups(hwnd)) return TRUE;
-@@ -400,6 +407,22 @@
+@@ -399,6 +403,19 @@ static BOOL is_window_managed(HWND hwnd, UINT swp_flags, BOOL fullscreen)
+     return FALSE;
  }
  
- /***********************************************************************
-+ *           WAYLAND_GetWindowStyleMasks
-+ */
 +BOOL WAYLAND_GetWindowStyleMasks(HWND hwnd, UINT style, UINT ex_style, UINT *style_mask, UINT *ex_style_mask)
 +{
 +    *style_mask = *ex_style_mask = 0;
@@ -231,11 +223,10 @@
 +    return TRUE;
 +}
 +
-+/***********************************************************************
+ /***********************************************************************
   *           WAYLAND_DestroyWindow
   */
- void WAYLAND_DestroyWindow(HWND hwnd)
-@@ -437,7 +460,7 @@
+@@ -437,7 +454,7 @@ void WAYLAND_WindowPosChanged(HWND hwnd, HWND insert_after, HWND owner_hint, UIN
      HWND owner = NtUserGetAncestor(hwnd, GA_ROOT);
      struct wayland_surface *owner_surface;
      struct wayland_win_data *data, *owner_data;
@@ -244,20 +235,15 @@
  
      TRACE("hwnd %p new_rects %s after %p flags %08x\n", hwnd, debugstr_window_rects(new_rects), insert_after, swp_flags);
  
-@@ -466,10 +489,24 @@
+@@ -466,10 +483,19 @@ void WAYLAND_WindowPosChanged(HWND hwnd, HWND insert_after, HWND owner_hint, UIN
      else if (wayland_win_data_create_wayland_surface(data, owner_surface))
      {
          wayland_win_data_update_wayland_state(data);
-+        /* A new wl_subsurface starts at the owner origin, and a move, restack or re-show of a
-+         * layered popup may never be followed by a repaint, so place it now rather than on the
-+         * next flush. The child commit is needed too: niri otherwise keeps a re-created
-+         * subsurface at the origin. */
 +        if (data->wayland_surface->wl_subsurface)
 +        {
 +            wayland_surface_reconfigure_subsurface(data->wayland_surface);
 +            wl_surface_commit(data->wayland_surface->wl_surface);
 +            wl_display_flush(process_wayland.wl_display);
-+            /* Re-showing detached the old buffer; a static layered popup would stay empty. */
 +            expose = !data->wayland_surface->content_width;
 +        }
      }
@@ -269,11 +255,10 @@
  }
  
  static void wayland_configure_window(HWND hwnd)
-@@ -579,16 +616,43 @@
+@@ -579,16 +605,40 @@ static void wayland_configure_window(HWND hwnd)
  
      SetRect(&rect, 0, 0, width, height);
      rect = map_rect_from_surface(surface, rect);
-+    /* The surface only covers the visible rect, which excludes a hidden Win32 frame. */
 +    if (!IsRectEmpty(&rect))
 +    {
 +        rect.right += (data->rects.window.right - data->rects.window.left) -
@@ -285,8 +270,6 @@
  
 +    flags |= SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOMOVE;
 +
-+    /* The compositor places toplevels regardless of their Win32 position, but pointer input is
-+     * clipped to the virtual screen, so any part of the window placed off-screen can't be clicked. */
 +    if (!(state & (WAYLAND_SURFACE_CONFIG_STATE_MAXIMIZED | WAYLAND_SURFACE_CONFIG_STATE_FULLSCREEN)) &&
 +        !surface->window.minimized)
 +    {

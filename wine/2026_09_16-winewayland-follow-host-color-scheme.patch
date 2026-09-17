@@ -1,26 +1,29 @@
-diff -urN a/dlls/winewayland.drv/appearance.c b/dlls/winewayland.drv/appearance.c
---- a/dlls/winewayland.drv/appearance.c	2026-09-16 03:59:17.291164388 +0200
-+++ b/dlls/winewayland.drv/appearance.c	2026-09-16 03:59:17.287164365 +0200
-@@ -0,0 +1,247 @@
-+/*
-+ * Wayland host appearance (light/dark color scheme) integration
-+ *
-+ * Copyright 2026 Wine contributors
-+ *
-+ * This library is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU Lesser General Public
-+ * License as published by the Free Software Foundation; either
-+ * version 2.1 of the License, or (at your option) any later version.
-+ *
-+ * This library is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-+ * Lesser General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU Lesser General Public
-+ * License along with this library; if not, write to the Free Software
-+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
-+ */
+winewayland: follow the host light/dark preference.
+
+diff --git a/dlls/winewayland.drv/Makefile.in b/dlls/winewayland.drv/Makefile.in
+--- a/dlls/winewayland.drv/Makefile.in
++++ b/dlls/winewayland.drv/Makefile.in
+@@ -1,13 +1,14 @@
+ MODULE = winewayland.drv
+ UNIXLIB = winewayland.so
+-UNIX_CFLAGS = $(EGL_CFLAGS) $(WAYLAND_CLIENT_CFLAGS) $(WAYLAND_EGL_CFLAGS) $(XKBCOMMON_CFLAGS) $(XKBREGISTRY_CFLAGS)
++UNIX_CFLAGS = $(DBUS_CFLAGS) $(EGL_CFLAGS) $(WAYLAND_CLIENT_CFLAGS) $(WAYLAND_EGL_CFLAGS) $(XKBCOMMON_CFLAGS) $(XKBREGISTRY_CFLAGS)
+ UNIX_LIBS = -lwin32u $(WAYLAND_CLIENT_LIBS) $(WAYLAND_EGL_LIBS) $(XKBCOMMON_LIBS) $(XKBREGISTRY_LIBS) $(PTHREAD_LIBS) -lm
+-IMPORTS = user32 win32u
++IMPORTS = advapi32 user32 win32u
+ 
+ VER_FILEDESCRIPTION_STR = "Wine Wayland driver"
+ 
+ SOURCES = \
+ 	alpha-modifier-v1.xml \
++	appearance.c \
+ 	cursor-shape-v1.xml \
+ 	display.c \
+ 	dllmain.c \
+diff --git a/dlls/winewayland.drv/appearance.c b/dlls/winewayland.drv/appearance.c
+--- a/dlls/winewayland.drv/appearance.c
++++ b/dlls/winewayland.drv/appearance.c
+@@ -0,0 +1,224 @@
 +
 +#if 0
 +#pragma makedep unix
@@ -94,8 +97,6 @@ diff -urN a/dlls/winewayland.drv/appearance.c b/dlls/winewayland.drv/appearance.
 +    return FALSE;
 +}
 +
-+/* Unwraps nested variants, which is what the portal Read() (as opposed to
-+ * ReadOne()) method returns, and reads the uint32 color scheme out of it. */
 +static BOOL scheme_from_iter(DBusMessageIter *iter, UINT *scheme)
 +{
 +    while (p_dbus_message_iter_get_arg_type(iter) == DBUS_TYPE_VARIANT)
@@ -209,8 +210,6 @@ diff -urN a/dlls/winewayland.drv/appearance.c b/dlls/winewayland.drv/appearance.
 +    if (scheme_from_iter(&iter, &scheme)) host_scheme = scheme;
 +}
 +
-+/* Returns the host color scheme, blocking until it differs from the one the PE
-+ * side last applied. */
 +NTSTATUS WAYLAND_wait_color_scheme(void *arg)
 +{
 +    struct wait_color_scheme_params *params = arg;
@@ -241,17 +240,17 @@ diff -urN a/dlls/winewayland.drv/appearance.c b/dlls/winewayland.drv/appearance.
 +    return STATUS_SUCCESS;
 +}
 +
-+#else /* SONAME_LIBDBUS_1 */
++#else
 +
 +NTSTATUS WAYLAND_wait_color_scheme(void *arg)
 +{
 +    return STATUS_NOT_SUPPORTED;
 +}
 +
-+#endif /* SONAME_LIBDBUS_1 */
-diff -urN a/dlls/winewayland.drv/dllmain.c b/dlls/winewayland.drv/dllmain.c
---- a/dlls/winewayland.drv/dllmain.c	2026-09-16 03:59:17.304518425 +0200
-+++ b/dlls/winewayland.drv/dllmain.c	2026-09-16 03:59:17.285164353 +0200
++#endif
+diff --git a/dlls/winewayland.drv/dllmain.c b/dlls/winewayland.drv/dllmain.c
+--- a/dlls/winewayland.drv/dllmain.c
++++ b/dlls/winewayland.drv/dllmain.c
 @@ -22,6 +22,7 @@
  
  #include "ntuser.h"
@@ -260,7 +259,7 @@ diff -urN a/dlls/winewayland.drv/dllmain.c b/dlls/winewayland.drv/dllmain.c
  
  #include "wine/debug.h"
  
-@@ -93,6 +94,54 @@
+@@ -93,6 +94,52 @@ static DWORD WINAPI clipboard_thread(void *arg)
      return 0;
  }
  
@@ -281,8 +280,6 @@ diff -urN a/dlls/winewayland.drv/dllmain.c b/dlls/winewayland.drv/dllmain.c
 +
 +    TRACE("host color scheme %u -> AppsUseLightTheme %lu\n", scheme, light);
 +
-+    /* Every process runs this watcher, so only the one that actually changed the
-+     * shared registry value notifies the session. */
 +    if (old == light) return;
 +
 +    SendMessageTimeoutW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, (LPARAM)L"ImmersiveColorSet",
@@ -315,40 +312,19 @@ diff -urN a/dlls/winewayland.drv/dllmain.c b/dlls/winewayland.drv/dllmain.c
  BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
  {
      DWORD tid;
-@@ -110,6 +159,9 @@
+@@ -110,6 +157,8 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
      /* Handle clipboard events in a dedicated thread, if needed. */
      if (!WAYLANDDRV_UNIX_CALL(init_clipboard, NULL))
          CloseHandle(CreateThread(NULL, 0, clipboard_thread, NULL, 0, &tid));
-+    /* Mirror the host light/dark preference into the Windows registry. */
 +    if (follow_system_color_scheme())
 +        CloseHandle(CreateThread(NULL, 0, color_scheme_thread, NULL, 0, &tid));
  
      return TRUE;
  }
-diff -urN a/dlls/winewayland.drv/Makefile.in b/dlls/winewayland.drv/Makefile.in
---- a/dlls/winewayland.drv/Makefile.in	2026-09-16 03:59:17.304241631 +0200
-+++ b/dlls/winewayland.drv/Makefile.in	2026-09-16 03:59:17.286164359 +0200
-@@ -1,13 +1,14 @@
- MODULE = winewayland.drv
- UNIXLIB = winewayland.so
--UNIX_CFLAGS = $(EGL_CFLAGS) $(WAYLAND_CLIENT_CFLAGS) $(WAYLAND_EGL_CFLAGS) $(XKBCOMMON_CFLAGS) $(XKBREGISTRY_CFLAGS)
-+UNIX_CFLAGS = $(DBUS_CFLAGS) $(EGL_CFLAGS) $(WAYLAND_CLIENT_CFLAGS) $(WAYLAND_EGL_CFLAGS) $(XKBCOMMON_CFLAGS) $(XKBREGISTRY_CFLAGS)
- UNIX_LIBS = -lwin32u $(WAYLAND_CLIENT_LIBS) $(WAYLAND_EGL_LIBS) $(XKBCOMMON_LIBS) $(XKBREGISTRY_LIBS) $(PTHREAD_LIBS) -lm
--IMPORTS = user32 win32u
-+IMPORTS = advapi32 user32 win32u
- 
- VER_FILEDESCRIPTION_STR = "Wine Wayland driver"
- 
- SOURCES = \
- 	alpha-modifier-v1.xml \
-+	appearance.c \
- 	cursor-shape-v1.xml \
- 	display.c \
- 	dllmain.c \
-diff -urN a/dlls/winewayland.drv/unixlib.h b/dlls/winewayland.drv/unixlib.h
---- a/dlls/winewayland.drv/unixlib.h	2026-09-16 03:59:17.302728372 +0200
-+++ b/dlls/winewayland.drv/unixlib.h	2026-09-16 03:59:17.282164335 +0200
-@@ -28,7 +28,20 @@
+diff --git a/dlls/winewayland.drv/unixlib.h b/dlls/winewayland.drv/unixlib.h
+--- a/dlls/winewayland.drv/unixlib.h
++++ b/dlls/winewayland.drv/unixlib.h
+@@ -28,7 +28,18 @@ enum waylanddrv_unix_func
      waylanddrv_unix_func_init,
      waylanddrv_unix_func_read_events,
      waylanddrv_unix_func_init_clipboard,
@@ -356,7 +332,6 @@ diff -urN a/dlls/winewayland.drv/unixlib.h b/dlls/winewayland.drv/unixlib.h
      waylanddrv_unix_func_count,
  };
  
-+/* Values of the org.freedesktop.appearance color-scheme portal setting. */
 +#define WAYLAND_COLOR_SCHEME_NO_PREFERENCE 0
 +#define WAYLAND_COLOR_SCHEME_DARK          1
 +#define WAYLAND_COLOR_SCHEME_LIGHT         2
@@ -364,29 +339,24 @@ diff -urN a/dlls/winewayland.drv/unixlib.h b/dlls/winewayland.drv/unixlib.h
 +
 +struct wait_color_scheme_params
 +{
-+    /* In: the scheme the caller last applied. Out: the current host scheme. */
 +    UINT scheme;
 +};
 +
  #endif /* __WINE_WAYLANDDRV_UNIXLIB_H */
-diff -urN a/dlls/winewayland.drv/waylanddrv.h b/dlls/winewayland.drv/waylanddrv.h
---- a/dlls/winewayland.drv/waylanddrv.h	2026-09-16 03:59:17.304006547 +0200
-+++ b/dlls/winewayland.drv/waylanddrv.h	2026-09-16 03:59:17.284164347 +0200
-@@ -478,4 +478,10 @@
+diff --git a/dlls/winewayland.drv/waylanddrv.h b/dlls/winewayland.drv/waylanddrv.h
+--- a/dlls/winewayland.drv/waylanddrv.h
++++ b/dlls/winewayland.drv/waylanddrv.h
+@@ -478,4 +478,6 @@ BOOL WAYLAND_CreateWindowSurface(HWND hwnd, BOOL layered, const RECT *surface_re
  UINT WAYLAND_VulkanInit(UINT version, void *vulkan_handle, const struct vulkan_driver_funcs **driver_funcs);
  UINT WAYLAND_OpenGLInit(UINT version, const struct opengl_funcs *opengl_funcs, const struct opengl_driver_funcs **driver_funcs);
  
-+/**********************************************************************
-+ *          Wayland host appearance
-+ */
-+
 +NTSTATUS WAYLAND_wait_color_scheme(void *arg);
 +
  #endif /* __WINE_WAYLANDDRV_H */
-diff -urN a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylanddrv_main.c
---- a/dlls/winewayland.drv/waylanddrv_main.c	2026-09-16 03:59:17.303785462 +0200
-+++ b/dlls/winewayland.drv/waylanddrv_main.c	2026-09-16 03:59:17.283164341 +0200
-@@ -187,6 +187,7 @@
+diff --git a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylanddrv_main.c
+--- a/dlls/winewayland.drv/waylanddrv_main.c
++++ b/dlls/winewayland.drv/waylanddrv_main.c
+@@ -185,6 +185,7 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
      waylanddrv_unix_init,
      waylanddrv_unix_read_events,
      waylanddrv_unix_init_clipboard,
@@ -394,7 +364,7 @@ diff -urN a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylan
  };
  
  C_ASSERT(ARRAYSIZE(__wine_unix_call_funcs) == waylanddrv_unix_func_count);
-@@ -198,6 +199,7 @@
+@@ -196,6 +197,7 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
      waylanddrv_unix_init,
      waylanddrv_unix_read_events,
      waylanddrv_unix_init_clipboard,

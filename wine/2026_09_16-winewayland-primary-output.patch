@@ -1,7 +1,9 @@
-diff -urN a/dlls/winewayland.drv/display.c b/dlls/winewayland.drv/display.c
+winewayland: add a PrimaryOutput setting.
+
+diff --git a/dlls/winewayland.drv/display.c b/dlls/winewayland.drv/display.c
 --- a/dlls/winewayland.drv/display.c
 +++ b/dlls/winewayland.drv/display.c
-@@ -45,8 +45,17 @@
+@@ -45,8 +45,17 @@ static int output_info_cmp_primary_x_y(const void *va, const void *vb)
  {
      const struct output_info *a = va;
      const struct output_info *b = vb;
@@ -21,7 +23,7 @@ diff -urN a/dlls/winewayland.drv/display.c b/dlls/winewayland.drv/display.c
  
      if (a_is_primary && !b_is_primary) return -1;
      if (!a_is_primary && b_is_primary) return 1;
-diff -urN a/dlls/winewayland.drv/waylanddrv.h b/dlls/winewayland.drv/waylanddrv.h
+diff --git a/dlls/winewayland.drv/waylanddrv.h b/dlls/winewayland.drv/waylanddrv.h
 --- a/dlls/winewayland.drv/waylanddrv.h
 +++ b/dlls/winewayland.drv/waylanddrv.h
 @@ -60,6 +60,7 @@
@@ -32,7 +34,7 @@ diff -urN a/dlls/winewayland.drv/waylanddrv.h b/dlls/winewayland.drv/waylanddrv.
  extern struct wayland process_wayland;
  
  /**********************************************************************
-diff -urN a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylanddrv_main.c
+diff --git a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylanddrv_main.c
 --- a/dlls/winewayland.drv/waylanddrv_main.c
 +++ b/dlls/winewayland.drv/waylanddrv_main.c
 @@ -33,6 +33,7 @@
@@ -43,16 +45,16 @@ diff -urN a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylan
  
  static const struct user_driver_funcs waylanddrv_funcs =
  {
-@@ -125,6 +126,8 @@
+@@ -123,6 +124,8 @@ static HKEY open_hkcu_key(const char *name)
+     return reg_open_key(NULL, bufferW, len * sizeof(WCHAR));
+ }
  
- /* Only an explicit "Allow the window manager to decorate the windows" (X11 Driver\Decorated=Y)
-  * hides the Win32 frame: many compositors draw no decorations for Wayland clients. */
 +static void wayland_init_primary_output(void);
 +
  static void wayland_init_options(void)
  {
      static const WCHAR decoratedW[] = {'D','e','c','o','r','a','t','e','d'};
-@@ -143,6 +146,34 @@
+@@ -141,6 +144,31 @@ static void wayland_init_options(void)
          host_decorations = ch == 'y' || ch == 'Y' || ch == 't' || ch == 'T' || ch == '1';
      }
      NtClose(hkey);
@@ -60,9 +62,6 @@ diff -urN a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylan
 +    wayland_init_primary_output();
 +}
 +
-+/* Wayland has no notion of a primary output, so without this the output that happens to sit at
-+ * the origin becomes the Win32 primary, and applications that only enumerate the primary display
-+ * never see a larger monitor's modes. */
 +static void wayland_init_primary_output(void)
 +{
 +    static const WCHAR primaryW[] = {'P','r','i','m','a','r','y','O','u','t','p','u','t'};

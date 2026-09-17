@@ -67,21 +67,12 @@ Patch:          %{forgeurl}/commit/a37def2c22e528477f64296747228400ddc40222.patc
 Patch:          %{forgeurl}/commit/8eaf45414c05c9e7ef6f74a323d95fe7e0d883c1.patch
 # FEXServer: Don't time out while clients are still connected
 Patch:          %{forgeurl}/commit/c326e2d669fd5e9356f6107e188413a449cc1fd7.patch
-# WOW64/ARM64EC: Size JIT/SMC guard pages and host protection boundaries to the real
-# host page size instead of the hardcoded 4K FEX_PAGE_SIZE, so they never share a real
-# page with differently-protected memory on 16K/64K page hosts (e.g. Asahi Linux).
-# Out-of-tree; upstream declines generic non-4K support (FEX-Emu/FEX#1921, #3496, #5517).
-# Numbered explicitly and applied by hand in %%prep: this spec uses %%setup, which (unlike
-# %%autosetup) never applies Patch: entries, so the unnumbered ones above are inert.
+# %%setup does not apply Patch: entries; these are applied by hand in %%prep
+# host page size for guard pages and protection boundaries
 Patch100:       fex-emu-wine-host-page-size.patch
-# SMC detection on a >4K page host: the RWX write-fault handler untrapped only the faulting guest
-# page, but wine applies protections at host page granularity using the most permissive protection
-# of the guest pages sharing one, so the neighbours were already writable in hardware while still
-# marked trapped. Their later self-modifying writes never faulted and FEX ran stale JIT'd code.
+# SMC traps at host page granularity
 Patch101:       fex-emu-wine-smc-untrap-host-page.patch
-# Thread suspension of JIT threads: give InterruptFaultPage a whole 16K-aligned host page (a 4K
-# page sharing its host page with the thread state can never be made read-only under Wine), and
-# emit the suspend check on backward conditional branches, which upstream never did on any host.
+# thread suspension of JIT threads
 Patch102:       fex-emu-wine-interrupt-fault-page.patch
 
 
@@ -231,8 +222,6 @@ rm -rf %{buildroot}/usr/share
 
 %changelog
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 2609-3
-- Thread suspension of threads running JIT code: the interrupt fault page now occupies a whole
-  16K-aligned host page, and the JIT emits the suspend check before backward conditional
-  branches. SuspendThread on a spinning 32-bit thread never returned before.
+- fix suspending JIT threads
 
 %autochangelog

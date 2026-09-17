@@ -1,6 +1,9 @@
+win32u: prepend to the swapchain pNext chain instead of replacing it.
+
+diff --git a/dlls/win32u/vulkan.c b/dlls/win32u/vulkan.c
 --- a/dlls/win32u/vulkan.c
 +++ b/dlls/win32u/vulkan.c
-@@ -1858,9 +1858,14 @@
+@@ -1858,9 +1858,11 @@ static VkResult win32u_vkCreateSwapchainKHR( VkDevice client_device, const VkSwa
      if (get_surface_rect( surface->hwnd, &client_rect, raw_dpi ) &&
          !extents_equals( &create_info_host.imageExtent, &client_rect ) &&
          instance->extensions.has_VK_EXT_surface_maintenance1 &&
@@ -9,9 +12,6 @@
 +        !find_next_struct( create_info_host.pNext, VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_SCALING_CREATE_INFO_EXT ))
      {
          scaling.scalingBehavior = VK_PRESENT_SCALING_STRETCH_BIT_EXT;
-+        /* Prepend, don't replace: an application that enabled swapchain maintenance1 passes its
-+         * own structures here (DXVK sends VkSwapchainPresentModesCreateInfoEXT) and dropping them
-+         * leaves the driver's WSI without the data those extensions require. */
 +        scaling.pNext = create_info_host.pNext;
          create_info_host.pNext = &scaling;
      }

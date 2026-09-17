@@ -100,46 +100,33 @@ Patch511:       wine-cjk.patch
 %ifarch aarch64
 Patch600:       2026_08_17_bylaws_rebased.patch
 Patch602:       2026_08_30-arm64ec-fex-bootstrap-order.patch
-# msvcrt: make C++ catch-frame unregistration idempotent; ARM64EC rethrow can run the catch cleanup twice
+# msvcrt: idempotent C++ catch frame unregistration
 Patch603:       2026_09_15-msvcrt-idempotent-cxx-unregister.patch
-# uxtheme: clip DrawThemeParentBackground to the child; unclipped parent repaint wiped themed checkboxes in Lightroom dialogs
+# uxtheme: clip DrawThemeParentBackground to the child
 Patch604:       2026_09_15-uxtheme-clip-parent-background.patch
-# winewayland: keep owned layered popups as subsurfaces in Win32 z-order, placed and redrawn immediately; keep
-# toplevels on-screen for pointer input; honour X11 Driver\Decorated=Y to hide the Win32 frame (Lightroom tips/shadows/dialogs)
+# winewayland: popup subsurfaces, on-screen toplevels, Decorated=Y
 Patch605:       2026_09_15-winewayland-popup-subsurfaces.patch
-# d2d1: implement PushLayer/PopLayer and primitive blend modes; Lightroom's histogram and masked thumbnails need them
+# d2d1: layers and primitive blend modes
 Patch606:       2026_09_15-d2d1-layers-primitive-blend.patch
-# win32u: don't clamp window sizes and child positions to 16 bits; Lightroom's grid couldn't scroll past 32767px
+# win32u: no 16-bit clamp on window sizes
 Patch607:       2026_09_15-win32u-unclamped-window-sizes.patch
-# win32u: only EndPaint may release a BeginPaint DC; a stale ReleaseDC killed the DC mid-paint,
-# which made every themed control Lightroom draws inside a group box invisible
+# win32u: protect the BeginPaint DC
 Patch608:       2026_09_16-win32u-protect-paint-dc.patch
-# winewayland: follow the host light/dark preference (XDG portal org.freedesktop.appearance
-# color-scheme) and keep Themes\Personalize in sync, so Wine apps match the desktop theme
+# winewayland: follow host light/dark theme
 Patch609:       2026_09_16-winewayland-follow-host-color-scheme.patch
-# win32u: keep the monitor position when a display source has a single mode (always on Wayland);
-# otherwise every non-primary monitor collapses onto the origin and apps mis-place their windows
+# win32u: keep monitor position for single-mode sources
 Patch610:       2026_09_16-win32u-monitor-physical-position.patch
-# comctl32: let the parent background reach a themed group box's caption row; the strip beside the
-# label was excluded from every paint, leaving stale pixels next to each group title
+# comctl32: group box caption row background
 Patch611:       2026_09_16-comctl32-groupbox-caption-row.patch
-# win32u: chain the DPI-scaling struct onto the application's swapchain pNext instead of replacing
-# it; dropping DXVK's VkSwapchainPresentModesCreateInfoEXT crashed the driver in vkCreateSwapchainKHR
+# win32u: prepend to the swapchain pNext chain
 Patch612:       2026_09_16-win32u-vulkan-swapchain-pnext.patch
-# winewayland: let HKCU\Software\Wine\Wayland Driver\PrimaryOutput name the Win32 primary monitor;
-# Wayland has no primary, so the output at the origin won and apps that only enumerate the primary
-# display never saw a larger monitor's modes
+# winewayland: PrimaryOutput setting
 Patch613:       2026_09_16-winewayland-primary-output.patch
-# winewayland: with no explicit X11 Driver\Decorated value, follow the compositor - hide the Win32
-# frame only when it implements xdg-decoration. Makes winecfg's "Allow the window manager to
-# decorate the windows" checkbox tell the truth in a fresh prefix instead of reading as ticked
-# while Wine still drew its own frame.
+# winewayland: decorations follow the compositor by default
 Patch614:       2026_09_17-winewayland-decorations-default.patch
-# d2d1: stop emitting a 25-unit stub for collinear outline joins; on any thin polyline with runs of
-# equal slope it stuck out of the stroke as stray tangent fragments (Lightroom's histogram outline)
+# d2d1: no join geometry for collinear outline segments
 Patch615:       2026_09_17-d2d1-collinear-outline-join.patch
-# winewayland: a tiled configure is only a suggestion; forcing it on a window without a sizing
-# border made games in windowed mode fight the compositor (hundreds of swapchain re-creations)
+# winewayland: no forced tile size on fixed-size windows
 Patch616:       2026_09_17-winewayland-tiled-fixed-size.patch
 %endif
 
@@ -2408,37 +2395,26 @@ fi
 
 %changelog
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec7
-- winewayland: stop forcing the compositor's tile size on windows without a sizing border; games
-  in windowed mode under a tiling compositor fought it every frame (Elden Ring: 500+ swapchain
-  re-creations in two minutes, window growing past the screen)
+- winewayland: no forced tile size on fixed-size windows
 
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec6
-- d2d1: emit no join geometry for collinear outline segments; the 25-unit stub used there stuck out
-  of thin polylines as stray tangent fragments, visible all over Lightroom's histogram
+- d2d1: fix stray stroke fragments
 
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec5
-- win32u: clear the BeginPaint marker when a cache DC is handed out again. A paint whose EndPaint
-  never came left the marker set on a recycled DC, and every later GetDC/ReleaseDC pair on it
-  failed - visible as repeated "wined3d_release_dc Failed to release device context" in Lightroom
+- win32u: fix stuck BeginPaint DC marker
 
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec4
-- winewayland: follow the compositor for window decorations when X11 Driver\Decorated is unset,
-  so winecfg's decoration checkbox matches what a fresh prefix actually does
+- winewayland: decorations follow the compositor
 
 * Wed Sep 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec3
-- win32u: keep the application's swapchain pNext chain when adding the DPI scaling struct;
-  discarding DXVK's VkSwapchainPresentModesCreateInfoEXT crashed the host Vulkan driver
-  inside vkCreateSwapchainKHR (Dark Souls III)
-- winewayland: add a PrimaryOutput setting to choose which monitor is the Win32 primary, so
-  applications that enumerate only the primary display can reach a larger monitor's modes
+- win32u: keep swapchain pNext chain
+- winewayland: PrimaryOutput setting
 
 * Wed Sep 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec2
-- Added out-of-tree fixes found while debugging Lightroom Classic on winewayland:
-  popup subsurface stacking and placement, optional removal of the Win32 frame,
-  d2d1 layers and primitive blend modes, unclamped window sizes and child
-  positions, BeginPaint DC protection, host light/dark theme following via the
-  XDG portal, correct monitor positions for single-mode display sources, and
-  the themed group box caption row
+- winewayland: popup, decoration and theme fixes
+- d2d1: layers and blend modes
+- win32u: window size, paint DC and monitor fixes
+- comctl32: group box caption fix
 
 * Sat Sep 05 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec1
 - Increased wine version to 11.17

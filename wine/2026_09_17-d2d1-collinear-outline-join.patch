@@ -1,29 +1,12 @@
-d2d1: Do not emit join geometry for collinear outline segments.
+d2d1: emit no join geometry for collinear outline segments.
 
-d2d_geometry_outline_add_join() handled the collinear case (cross product
-exactly zero) by emitting a 25-unit rectangle from the vertex along the
-direction away from the previous segment. For a straight continuation that is
-a spur along the next segment; for a reversal it is a stub past the turning
-point. Whenever the following segment is shorter than 25 geometry units the
-spur pokes out of the stroke, which any thin polyline with runs of equal
-slope (histograms, plots) hits constantly.
-
-Neither case needs join geometry: the segment quads already cover what a bevel
-would, and the mitre is undefined there (tan(½θ) → ∞), which is presumably
-what the stub was working around.
-
-Lightroom's histogram outline showed this as stray diagonal fragments across
-the plot; a synthetic polyline with equal-slope runs reproduces it directly.
-
+diff --git a/dlls/d2d1/geometry.c b/dlls/d2d1/geometry.c
 --- a/dlls/d2d1/geometry.c
 +++ b/dlls/d2d1/geometry.c
-@@ -2929,6 +2929,13 @@
+@@ -2929,6 +2929,10 @@ static BOOL d2d_geometry_outline_add_join(struct d2d_geometry *geometry,
      size_t base_idx;
      float ccw;
  
-+    /* Collinear segments either continue straight through p0 or reverse on
-+     * it. In both cases the segment quads already cover everything a bevel
-+     * join would, and a mitre would be undefined (tan(½θ) → ∞). */
 +    ccw = d2d_point_ccw(&origin, prev, next);
 +    if (ccw == 0.0f)
 +        return TRUE;
@@ -31,7 +14,7 @@ the plot; a synthetic polyline with equal-slope runs reproduces it directly.
      if (!d2d_array_reserve((void **)&geometry->outline.vertices, &geometry->outline.vertices_size,
              geometry->outline.vertex_count + 4, sizeof(*geometry->outline.vertices)))
      {
-@@ -2946,17 +2953,7 @@
+@@ -2946,17 +2950,7 @@ static BOOL d2d_geometry_outline_add_join(struct d2d_geometry *geometry,
      }
      f = &geometry->outline.faces[geometry->outline.face_count];
  

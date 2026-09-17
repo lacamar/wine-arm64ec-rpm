@@ -1,19 +1,20 @@
+win32u: only EndPaint may release a BeginPaint DC.
+
+diff --git a/dlls/win32u/dce.c b/dlls/win32u/dce.c
 --- a/dlls/win32u/dce.c
 +++ b/dlls/win32u/dce.c
-@@ -43,6 +43,7 @@
+@@ -43,6 +43,7 @@ struct dce
      UINT        flags;
      LONG        count;         /* usage count; 0 or 1 for cache DCEs, always 1 for window DCEs,
                                    always >= 1 for class DCEs */
-+    BOOL        in_paint;      /* DC is held by BeginPaint, only EndPaint may release it */
++    BOOL        in_paint;
  };
  
  static struct list dce_list = LIST_INIT(dce_list);
-@@ -1235,10 +1236,14 @@
+@@ -1235,10 +1236,12 @@ static INT release_dc( HWND hwnd, HDC hdc, BOOL end_paint )
  
      user_lock();
      dce = get_dc_dce( hdc );
-+    /* Applications sometimes release a stale DC handle that a cache DCE has since handed to
-+     * another window's BeginPaint; only EndPaint may release a paint DC. */
 +    if (dce && dce->in_paint && !end_paint) dce = NULL;
      if (dce && dce->count && dce->hwnd)
      {
@@ -23,18 +24,15 @@
          if (dce->flags & DCX_CACHE)
          {
              dce->count = 0;
-@@ -1386,6 +1391,10 @@
+@@ -1386,6 +1389,7 @@ HDC WINAPI NtUserGetDCEx( HWND hwnd, HRGN clip_rgn, DWORD flags )
  
      dce->hwnd = hwnd;
      dce->flags = (dce->flags & ~user_flags) | (flags & user_flags);
-+    /* Only the BeginPaint that follows may mark this as a paint DC. Without clearing it here the
-+     * flag outlives a paint whose EndPaint never came, and every later user of that recycled
-+     * cache DCE would be unable to release it. */
 +    dce->in_paint = FALSE;
  
      /* cross-process invalidation is not supported yet, so always update the vis rgn */
      if (!is_current_process_window( hwnd )) update_vis_rgn = TRUE;
-@@ -1706,6 +1715,7 @@
+@@ -1706,6 +1710,7 @@ void move_window_bits_surface( HWND hwnd, const RECT *window_rect, struct window
   */
  HDC WINAPI NtUserBeginPaint( HWND hwnd, PAINTSTRUCT *ps )
  {
@@ -42,7 +40,7 @@
      HRGN hrgn;
      HDC hdc;
      BOOL erase;
-@@ -1728,6 +1738,11 @@
+@@ -1728,6 +1733,11 @@ HDC WINAPI NtUserBeginPaint( HWND hwnd, PAINTSTRUCT *ps )
      ps->fErase = erase;
      ps->rcPaint = rect;
      ps->hdc = hdc;

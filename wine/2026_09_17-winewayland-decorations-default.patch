@@ -1,20 +1,20 @@
-diff -urN a/dlls/winewayland.drv/wayland.c b/dlls/winewayland.drv/wayland.c
+winewayland: follow the compositor for decorations when Decorated is unset.
+
+diff --git a/dlls/winewayland.drv/wayland.c b/dlls/winewayland.drv/wayland.c
 --- a/dlls/winewayland.drv/wayland.c
 +++ b/dlls/winewayland.drv/wayland.c
-@@ -101,6 +101,12 @@
+@@ -101,6 +101,10 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
          if (!wayland_output_create(id, version))
              ERR("Failed to create wayland_output for global id=%u\n", id);
      }
 +    else if (strcmp(interface, "zxdg_decoration_manager_v1") == 0)
 +    {
-+        /* Only note that the compositor can decorate us; the frame is still drawn by whoever
-+         * host_decorations selects. */
 +        process_wayland.supports_decorations = TRUE;
 +    }
      else if (strcmp(interface, "zxdg_output_manager_v1") == 0)
      {
          struct wayland_output *output;
-diff -urN a/dlls/winewayland.drv/waylanddrv.h b/dlls/winewayland.drv/waylanddrv.h
+diff --git a/dlls/winewayland.drv/waylanddrv.h b/dlls/winewayland.drv/waylanddrv.h
 --- a/dlls/winewayland.drv/waylanddrv.h
 +++ b/dlls/winewayland.drv/waylanddrv.h
 @@ -59,7 +59,7 @@
@@ -26,7 +26,7 @@ diff -urN a/dlls/winewayland.drv/waylanddrv.h b/dlls/winewayland.drv/waylanddrv.
  extern char primary_output_name[64];
  extern struct wayland process_wayland;
  
-@@ -184,6 +184,7 @@
+@@ -184,6 +184,7 @@ struct wayland
      struct zwlr_data_control_manager_v1 *zwlr_data_control_manager_v1;
      struct wl_data_device_manager *wl_data_device_manager;
      struct xdg_toplevel_icon_manager_v1 *xdg_toplevel_icon_manager_v1;
@@ -34,7 +34,7 @@ diff -urN a/dlls/winewayland.drv/waylanddrv.h b/dlls/winewayland.drv/waylanddrv.
      struct wp_cursor_shape_manager_v1 *wp_cursor_shape_manager_v1;
      struct wp_pointer_warp_v1 *wp_pointer_warp_v1;
      struct wp_alpha_modifier_v1 *wp_alpha_modifier_v1;
-diff -urN a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylanddrv_main.c
+diff --git a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylanddrv_main.c
 --- a/dlls/winewayland.drv/waylanddrv_main.c
 +++ b/dlls/winewayland.drv/waylanddrv_main.c
 @@ -32,7 +32,7 @@
@@ -42,24 +42,11 @@ diff -urN a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylan
  
  char *process_name = NULL;
 -BOOL host_decorations = FALSE;
-+int host_decorations = -1;  /* -1: follow the compositor */
++int host_decorations = -1;
  char primary_output_name[64] = {0};
  
  static const struct user_driver_funcs waylanddrv_funcs =
-@@ -124,8 +124,10 @@
-     return reg_open_key(NULL, bufferW, len * sizeof(WCHAR));
- }
- 
--/* Only an explicit "Allow the window manager to decorate the windows" (X11 Driver\Decorated=Y)
-- * hides the Win32 frame: many compositors draw no decorations for Wayland clients. */
-+/* "Allow the window manager to decorate the windows" (X11 Driver\Decorated, the checkbox on
-+ * winecfg's Graphics tab). When the value is absent we follow the compositor: it hides the Win32
-+ * frame only if the compositor implements xdg-decoration, since many draw nothing for Wayland
-+ * clients and the window would end up with no decorations at all. */
- static void wayland_init_primary_output(void);
- 
- static void wayland_init_options(void)
-@@ -143,7 +145,7 @@
+@@ -141,7 +141,7 @@ static void wayland_init_options(void)
          info->Type == REG_SZ && info->DataLength >= sizeof(WCHAR))
      {
          ch = ((WCHAR *)info->Data)[0];
@@ -68,10 +55,10 @@ diff -urN a/dlls/winewayland.drv/waylanddrv_main.c b/dlls/winewayland.drv/waylan
      }
      NtClose(hkey);
  
-diff -urN a/dlls/winewayland.drv/window.c b/dlls/winewayland.drv/window.c
+diff --git a/dlls/winewayland.drv/window.c b/dlls/winewayland.drv/window.c
 --- a/dlls/winewayland.drv/window.c
 +++ b/dlls/winewayland.drv/window.c
-@@ -412,6 +412,7 @@
+@@ -406,6 +406,7 @@ static BOOL is_window_managed(HWND hwnd, UINT swp_flags, BOOL fullscreen)
  BOOL WAYLAND_GetWindowStyleMasks(HWND hwnd, UINT style, UINT ex_style, UINT *style_mask, UINT *ex_style_mask)
  {
      *style_mask = *ex_style_mask = 0;

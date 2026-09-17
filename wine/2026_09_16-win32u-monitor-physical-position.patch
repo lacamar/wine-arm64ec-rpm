@@ -1,11 +1,12 @@
+win32u: keep the monitor position for single-mode display sources.
+
+diff --git a/dlls/win32u/sysparams.c b/dlls/win32u/sysparams.c
 --- a/dlls/win32u/sysparams.c
 +++ b/dlls/win32u/sysparams.c
-@@ -2218,6 +2218,10 @@
+@@ -2218,6 +2218,8 @@ static void add_modes( const DEVMODEW *current, UINT host_modes_count, const DEV
      }
  
      physical = modes_count == 1 ? *modes : *current;
-+    /* Drivers only fill in a position for the current mode; without it every monitor past the
-+     * primary one would be placed at the origin, which collapses the virtual screen. */
 +    physical.dmPosition = current->dmPosition;
 +    physical.dmFields |= DM_POSITION;
      if (ctx->is_primary) ctx->primary = *current;

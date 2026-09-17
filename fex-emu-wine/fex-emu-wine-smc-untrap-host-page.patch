@@ -1,6 +1,9 @@
+Trap and untrap SMC pages at host page granularity.
+
+diff --git a/Source/Windows/Common/InvalidationTracker.cpp b/Source/Windows/Common/InvalidationTracker.cpp
 --- a/Source/Windows/Common/InvalidationTracker.cpp
 +++ b/Source/Windows/Common/InvalidationTracker.cpp
-@@ -223,12 +223,9 @@
+@@ -217,12 +217,9 @@ void InvalidationTracker::ReprotectRWXIntervals(uint64_t Address, uint64_t Size)
  }
  
  bool InvalidationTracker::HandleRWXAccessViolation(FEXCore::Core::InternalThreadState* Thread, uint64_t HostPc, uint64_t FaultAddress) {
@@ -15,7 +18,7 @@
    }(FaultAddress);
  
    if (NeedsInvalidate) {
-@@ -244,10 +241,26 @@
+@@ -234,10 +231,19 @@ bool InvalidationTracker::HandleRWXAccessViolation(FEXCore::Core::InternalThread
        InvalidateIntervalInternalLocked(FaultAddress & ~(HostPageSize - 1), HostPageSize);
  
        // Invalidate, then unprotect the faulting page with the compilation lock held to ensure that any racing invalidations are not dropped.
@@ -23,13 +26,6 @@
 -      void* TmpAddress = reinterpret_cast<void*>(FaultAddress);
 -      SIZE_T TmpSize = 1;
 -      NtProtectVirtualMemory(NtCurrentProcess(), &TmpAddress, &TmpSize, UntrapProt, &TmpProt);
-+      // Untrap every guest page of the real host page, not just the faulting one. Wine can only
-+      // hand protections to the kernel at host page granularity and takes the most permissive
-+      // protection of the guest pages sharing a host page, so untrapping one guest page already
-+      // makes its neighbours writable in hardware. Leaving those neighbours marked as trapped
-+      // would mean their SMC writes never fault, and FEX would keep running stale JIT'd code for
-+      // them. Pages outside the RWX interval are left alone so a straddling host page does not
-+      // gain permissions it was never given.
 +      const uint64_t HostPageBase = FaultAddress & ~(HostPageSize - 1);
 +      for (uint64_t Page = HostPageBase; Page < HostPageBase + HostPageSize; Page += FEXCore::Utils::FEX_PAGE_SIZE) {
 +        {
@@ -46,7 +42,7 @@
      }
      DetectMonoBackpatcherBlock(Thread, HostPc);
      return true;
-@@ -353,7 +366,20 @@
+@@ -340,7 +346,14 @@ void InvalidationTracker::InvalidateIntervalInternalLocked(uint64_t Address, uin
  }
  
  bool InvalidationTracker::ProtectRWXIntervalsInternal(uint64_t Address, uint64_t Size, bool ForWriteLocked) {
@@ -54,12 +50,6 @@
 +  auto End = Address + Size;
 +
 +  if (!ForWriteLocked) {
-+    // Re-arming the write trap only has an effect if it covers whole real host pages. Wine hands
-+    // the kernel the most permissive protection of the guest pages sharing a host page, so
-+    // trapping just the compiled range (often a few bytes) leaves the page writable whenever any
-+    // neighbour is still untrapped, and the guest's next self-modifying write goes unnoticed.
-+    // The loop below only touches addresses inside an RWX interval, so widening the request
-+    // cannot protect memory the guest did not make RWX.
 +    const auto HostPageSize = FEXCore::Utils::GetHostPageSize();
 +    Address &= ~(HostPageSize - 1);
 +    End = (End + HostPageSize - 1) & ~(HostPageSize - 1);

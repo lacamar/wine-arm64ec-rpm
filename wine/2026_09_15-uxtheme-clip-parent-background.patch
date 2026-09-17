@@ -1,6 +1,9 @@
+uxtheme: clip DrawThemeParentBackground to the child window.
+
+diff --git a/dlls/uxtheme/draw.c b/dlls/uxtheme/draw.c
 --- a/dlls/uxtheme/draw.c
 +++ b/dlls/uxtheme/draw.c
-@@ -99,31 +99,32 @@
+@@ -99,31 +99,29 @@ BOOL WINAPI IsThemeDialogTextureEnabled(HWND hwnd)
   */
  HRESULT WINAPI DrawThemeParentBackground(HWND hwnd, HDC hdc, RECT *prc)
  {
@@ -39,9 +42,6 @@
 +    rt = draw_rect;
 +    MapWindowPoints(hwnd, hParent, (LPPOINT)&rt, 2);
 +
-+    /* Always confine the parent's painting to the child area. Without this, a parent that
-+     * paints its whole client area on WM_PRINTCLIENT overwrites sibling controls that were
-+     * already rendered into a shared DC (e.g. an application compositing a dialog offscreen). */
 +    clip = CreateRectRgn(0,0,1,1);
 +    hasClip = GetClipRgn(hdc, clip);
 +    if(hasClip == -1)
@@ -51,7 +51,7 @@
  
      OffsetViewportOrgEx(hdc, -rt.left, -rt.top, &org);
  
-@@ -131,13 +132,11 @@
+@@ -131,13 +129,11 @@ HRESULT WINAPI DrawThemeParentBackground(HWND hwnd, HDC hdc, RECT *prc)
      SendMessageW(hParent, WM_PRINTCLIENT, (WPARAM)hdc, PRF_CLIENT);
  
      SetViewportOrgEx(hdc, org.x, org.y, NULL);

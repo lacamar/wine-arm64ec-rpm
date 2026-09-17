@@ -1,19 +1,13 @@
+ntdll: load the FEX ARM64EC bootstrap before the first emulated call.
+
 diff --git a/dlls/ntdll/loader.c b/dlls/ntdll/loader.c
 --- a/dlls/ntdll/loader.c
 +++ b/dlls/ntdll/loader.c
-@@ -4313,6 +4313,16 @@
+@@ -4412,6 +4412,8 @@ static void load_arm64ec_module(void)
          ERR( "could not load %s, status %lx\n", debugstr_w(module), status );
          NtTerminateProcess( GetCurrentProcess(), status );
      }
 +
-+    /* build_module() -> update_load_config() already patched this module's own
-+     * hybrid dispatch pointers (__os_arm64x_dispatch_call_no_redirect and friends)
-+     * while it was being mapped by load_dll() above, but at that point
-+     * arm64ec_process_init() hadn't run yet, so those fields were bootstrapped
-+     * from ntdll's still-unset (NULL) copies. Re-run it now that
-+     * arm64ec_process_init() has populated the real values, so that any
-+     * indirect call the CPU module makes into itself is dispatched correctly
-+     * instead of jumping to address 0/its own base. */
 +    update_load_config( wm->ldr.DllBase );
  }
  
@@ -21,16 +15,10 @@ diff --git a/dlls/ntdll/loader.c b/dlls/ntdll/loader.c
 diff --git a/dlls/ntdll/signal_arm64ec.c b/dlls/ntdll/signal_arm64ec.c
 --- a/dlls/ntdll/signal_arm64ec.c
 +++ b/dlls/ntdll/signal_arm64ec.c
-@@ -226,6 +226,16 @@
+@@ -226,6 +226,10 @@ NTSTATUS arm64ec_process_init( HMODULE module )
      info->EmulatedMachineType = IMAGE_FILE_MACHINE_AMD64;
      memcpy( KiUserExceptionDispatcher_orig, KiUserExceptionDispatcher_thunk, sizeof(KiUserExceptionDispatcher_orig) );
  
-+    /* Install the real EC/non-EC call checker before calling into the CPU
-+     * module's ProcessInit()/ThreadInit(), instead of after. Those callbacks
-+     * run genuine ARM64EC code that can perform indirect/icall-checked calls
-+     * (e.g. C++ static initializers), and until now they ran under the
-+     * trivial early-bootstrap checker installed by LdrInitializeThunk, which
-+     * does not consult the EcCodeBitMap at all. */
 +    __os_arm64x_check_call = arm64x_check_call;
 +    __os_arm64x_check_icall = arm64x_check_call;
 +    __os_arm64x_check_icall_cfg = arm64x_check_call;
@@ -38,7 +26,7 @@ diff --git a/dlls/ntdll/signal_arm64ec.c b/dlls/ntdll/signal_arm64ec.c
      enter_syscall_callback();
      if (pProcessInit) status = pProcessInit();
      if (!status)
-@@ -236,9 +246,6 @@
+@@ -236,9 +240,6 @@ NTSTATUS arm64ec_process_init( HMODULE module )
      }
      if (!status && pThreadInit) status = pThreadInit();
      leave_syscall_callback();

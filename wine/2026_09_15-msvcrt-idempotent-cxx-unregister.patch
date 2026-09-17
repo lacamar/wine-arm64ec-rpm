@@ -1,8 +1,9 @@
-a
-b
---- a/dlls/msvcrt/except.c	2026-09-15 08:22:16.439864101 +0200
-+++ b/dlls/msvcrt/except.c	2026-09-15 08:22:26.986622425 +0200
-@@ -913,6 +913,12 @@
+msvcrt: make C++ catch frame unregistration idempotent.
+
+diff --git a/dlls/msvcrt/except.c b/dlls/msvcrt/except.c
+--- a/dlls/msvcrt/except.c
++++ b/dlls/msvcrt/except.c
+@@ -913,6 +913,12 @@ void CDECL _FindAndUnlinkFrame(frame_info *fi)
  
      TRACE("(%p)\n", fi);
  
@@ -15,7 +16,7 @@ b
      if (cur == fi)
      {
          data->frame_info_head = cur->next;
-@@ -1007,11 +1013,15 @@
+@@ -1007,11 +1013,13 @@ void CDECL __CxxUnregisterExceptionObject(cxx_frame_info *frame_info, BOOL in_us
          return;
  
      _FindAndUnlinkFrame(&frame_info->frame_info);
@@ -25,8 +26,6 @@ b
          __DestructExceptionObject(data->exc_record);
      data->exc_record = frame_info->rec;
      data->ctx_record = frame_info->context;
-+    /* On ARM64EC a rethrow from a catch block can run cxx_catch_cleanup twice for one
-+     * registration; a second unregister would corrupt the frame list and restore stale records. */
 +    frame_info->rec = (void*)-1;
 +    frame_info->context = (void*)-1;
  }

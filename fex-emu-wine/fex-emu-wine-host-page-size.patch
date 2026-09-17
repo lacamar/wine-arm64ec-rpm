@@ -1,5 +1,6 @@
+Size guard pages and host protection boundaries to the real host page size.
+
 diff --git a/FEXCore/Source/CMakeLists.txt b/FEXCore/Source/CMakeLists.txt
-index d292e5c..aac971d 100644
 --- a/FEXCore/Source/CMakeLists.txt
 +++ b/FEXCore/Source/CMakeLists.txt
 @@ -7,6 +7,7 @@ set(FEXCORE_BASE_SRCS
@@ -11,17 +12,13 @@ index d292e5c..aac971d 100644
  
  if (NOT MINGW)
 diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
-index c23f01a..95880ce 100644
 --- a/FEXCore/Source/Interface/Core/JIT/JIT.cpp
 +++ b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
-@@ -878,13 +878,17 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
+@@ -878,13 +878,14 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
  
    // Fairly excessive buffer range to make sure we don't overflow
    // One page baseline, plus SSANodeMultipler bytes, plus another page for guard page.
 -  const uint32_t DesiredBufferRange = AlignUp(FEXCore::Utils::FEX_PAGE_SIZE * 2 + SSACount * SSANodeMultiplier, FEXCore::Utils::FEX_PAGE_SIZE);
-+  // Sized in host pages: PooledAllocatorVirtualWithGuard protects the last *host* page, so the
-+  // request must be a host-page multiple of at least two pages or the guard would cover the
-+  // usable region, and the guard address computed below must match that protection exactly.
 +  const size_t HostPageSize = FEXCore::Utils::GetHostPageSize();
 +  const uint32_t DesiredBufferRange = AlignUp(HostPageSize * 2 + SSACount * SSANodeMultiplier, HostPageSize);
  
@@ -35,7 +32,6 @@ index c23f01a..95880ce 100644
    SetBuffer(TempCodeBuffer, UsableBufferRange);
  
 diff --git a/FEXCore/Source/Interface/Core/SharedCodeBufferManager.cpp b/FEXCore/Source/Interface/Core/SharedCodeBufferManager.cpp
-index d63ec3e..a47b50b 100644
 --- a/FEXCore/Source/Interface/Core/SharedCodeBufferManager.cpp
 +++ b/FEXCore/Source/Interface/Core/SharedCodeBufferManager.cpp
 @@ -6,6 +6,7 @@
@@ -46,19 +42,13 @@ index d63ec3e..a47b50b 100644
  
  #ifndef _WIN32
  #include <FEXCore/Utils/PrctlUtils.h>
-@@ -21,10 +22,14 @@ CodeBuffer::CodeBuffer(size_t Size)
-   Ptr = static_cast<uint8_t*>(FEXCore::Allocator::VirtualAlloc(Size, true));
+@@ -22,9 +23,9 @@ CodeBuffer::CodeBuffer(size_t Size)
    LOGMAN_THROW_A_FMT(!!Ptr, "Couldn't allocate code buffer");
  
--  // Protect the last page of the allocated buffer to trigger SIGSEGV on write access
+   // Protect the last page of the allocated buffer to trigger SIGSEGV on write access
 -  uintptr_t LastPageAddr = AlignDown(reinterpret_cast<uintptr_t>(Ptr) + Size - 1, FEXCore::Utils::FEX_PAGE_SIZE);
 -  if (!FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(LastPageAddr), FEXCore::Utils::FEX_PAGE_SIZE,
 -                                          FEXCore::Allocator::ProtectOptions::None)) {
-+  // Protect the last page of the allocated buffer to trigger SIGSEGV on write access.
-+  // This must be sized/aligned to the real host page size: a smaller guard region would share
-+  // its real host page with live, writable JIT code on hosts with page size > 4K (e.g. 16K on
-+  // Asahi Linux), and the protection change would silently apply to the whole shared host page
-+  // instead of trapping only the intended guard region.
 +  const size_t HostPageSize = FEXCore::Utils::GetHostPageSize();
 +  uintptr_t LastPageAddr = AlignDown(reinterpret_cast<uintptr_t>(Ptr) + Size - 1, HostPageSize);
 +  if (!FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(LastPageAddr), HostPageSize, FEXCore::Allocator::ProtectOptions::None)) {
@@ -66,17 +56,11 @@ index d63ec3e..a47b50b 100644
    }
  
 diff --git a/FEXCore/Source/Interface/Core/SharedCodeBufferManager.h b/FEXCore/Source/Interface/Core/SharedCodeBufferManager.h
-index c047eb8..b8e1225 100644
 --- a/FEXCore/Source/Interface/Core/SharedCodeBufferManager.h
 +++ b/FEXCore/Source/Interface/Core/SharedCodeBufferManager.h
-@@ -66,9 +66,11 @@ struct CodeBuffer {
-     };
-   }
+@@ -68,7 +68,7 @@ struct CodeBuffer {
  
--  // Returns the total number of bytes available for storing code
-+  // Returns the total number of bytes available for storing code.
-+  // Must match the guard-page size CodeBuffer's constructor actually protects (the real host
-+  // page size), not the fixed guest FEX_PAGE_SIZE.
+   // Returns the total number of bytes available for storing code
    size_t UsableSize() const {
 -    return AllocatedSize - FEXCore::Utils::FEX_PAGE_SIZE;
 +    return AllocatedSize - FEXCore::Utils::GetHostPageSize();
@@ -84,7 +68,6 @@ index c047eb8..b8e1225 100644
  
    // Returns the full size of the buffer, including the guard page.
 diff --git a/FEXCore/Source/Utils/Allocator.cpp b/FEXCore/Source/Utils/Allocator.cpp
-index 3a779ab..2c72bef 100644
 --- a/FEXCore/Source/Utils/Allocator.cpp
 +++ b/FEXCore/Source/Utils/Allocator.cpp
 @@ -314,9 +314,19 @@ void VirtualTHPNOP(const void* Ptr, size_t Size, THPControl Control) {}
@@ -109,7 +92,6 @@ index 3a779ab..2c72bef 100644
  
 diff --git a/FEXCore/Source/Utils/TypeDefines.cpp b/FEXCore/Source/Utils/TypeDefines.cpp
 new file mode 100644
-index 0000000..170ae51
 --- /dev/null
 +++ b/FEXCore/Source/Utils/TypeDefines.cpp
 @@ -0,0 +1,19 @@
@@ -131,9 +113,8 @@ index 0000000..170ae51
 +  return FEXCore::Allocator::GetRealHostPageSize();
 +#endif
 +}
-+} // namespace FEXCore::Utils
++}
 diff --git a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
-index c4cadf4..f6b32db 100644
 --- a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
 +++ b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
 @@ -37,9 +37,11 @@ FEX_DEFAULT_VISIBILITY void SetupHooks(size_t PageSize);
@@ -148,28 +129,22 @@ index c4cadf4..f6b32db 100644
  };
  FEX_DEFAULT_VISIBILITY void SetupHooks(size_t PageSize, HookPtrs Ptrs);
  #endif
-@@ -103,6 +105,10 @@ inline bool VirtualProtect(void* Ptr, size_t Size, ProtectOptions options) {
+@@ -103,6 +105,8 @@ inline bool VirtualProtect(void* Ptr, size_t Size, ProtectOptions options) {
  
  FEX_DEFAULT_VISIBILITY extern VirtualNamePtr VirtualName;
  FEX_DEFAULT_VISIBILITY extern VirtualTHPPtr VirtualTHPControl;
 +FEX_DEFAULT_VISIBILITY extern GetHostPageSizePtr GetHostPageSizeHook;
-+// Returns the real host page size on the native Unix side, via GetHostPageSizeHook.
-+// Falls back to FEXCore::Utils::FEX_PAGE_SIZE if the hook hasn't been set up yet.
 +FEX_DEFAULT_VISIBILITY size_t GetRealHostPageSize();
  #else
  using MMAP_Hook = void* (*)(void*, size_t, int, int, int, off_t);
  using MUNMAP_Hook = int (*)(void*, size_t);
 diff --git a/FEXCore/include/FEXCore/Utils/ThreadPoolAllocator.h b/FEXCore/include/FEXCore/Utils/ThreadPoolAllocator.h
-index 69e410c..8dd2407 100644
 --- a/FEXCore/include/FEXCore/Utils/ThreadPoolAllocator.h
 +++ b/FEXCore/include/FEXCore/Utils/ThreadPoolAllocator.h
-@@ -419,10 +419,14 @@ public:
+@@ -419,10 +419,11 @@ public:
  
  private:
    void* Alloc(size_t Size) override {
-+    // Guard region must be sized to the real host page size - see SharedCodeBufferManager.cpp
-+    // for why a fixed 4K guard is unsafe on hosts with a larger page size. The request must be a
-+    // host-page multiple of at least two pages, otherwise the guard would overlap the usable region.
 +    const size_t HostPageSize = FEXCore::Utils::GetHostPageSize();
 +    LOGMAN_THROW_A_FMT(Size >= HostPageSize * 2 && (Size % HostPageSize) == 0, "Guarded pool allocation of {} bytes is not a multiple of the {} byte host page", Size, HostPageSize);
      auto Ptr = FEXCore::Allocator::VirtualAlloc(Size);
@@ -182,29 +157,18 @@ index 69e410c..8dd2407 100644
      }
      if (Name) {
 diff --git a/FEXCore/include/FEXCore/Utils/TypeDefines.h b/FEXCore/include/FEXCore/Utils/TypeDefines.h
-index ec03ac6..507e212 100644
 --- a/FEXCore/include/FEXCore/Utils/TypeDefines.h
 +++ b/FEXCore/include/FEXCore/Utils/TypeDefines.h
-@@ -9,4 +9,17 @@ namespace FEXCore::Utils {
+@@ -9,4 +9,8 @@ namespace FEXCore::Utils {
  constexpr size_t FEX_PAGE_SIZE = 4096;
  constexpr size_t FEX_PAGE_SHIFT = 12;
  constexpr size_t FEX_PAGE_MASK = ~(FEX_PAGE_SIZE - 1);
 +
-+// Upper bound for compile-time layout (alignas/static_assert) that must stay valid across every
-+// host page size FEX supports (4K/16K/64K). Do not use this for runtime alignment math - use
-+// GetHostPageSize() for that.
 +constexpr size_t FEX_MAX_HOST_PAGE_SIZE = 65536;
 +
-+// Returns the real host page size (e.g. 4096, 16384, 65536), queried once and cached.
-+// Use this ONLY when computing the address/length of an actual host mprotect/VirtualProtect/
-+// mmap/VirtualAlloc boundary that must not split a single real host page between two regions
-+// that require different protection (guard pages, SMC traps, InterruptFaultPage). Do NOT use
-+// this for guest-page bookkeeping (LookupCache, on-disk CodeCache format, SMC guest-address
-+// interval tracking) - those must stay pinned to FEX_PAGE_SIZE regardless of host page size.
 +size_t GetHostPageSize();
  } // namespace FEXCore::Utils
 diff --git a/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp b/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
-index 6d6c899..0b277cd 100644
 --- a/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
 +++ b/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
 @@ -578,7 +578,7 @@ bool SignalDelegator::HandleFrontendSIGSEGV(FEXCore::Core::InternalThreadState*
@@ -217,23 +181,20 @@ index 6d6c899..0b277cd 100644
                                                      ArchHelpers::Context::GetArmGPRs(UContext), ArchHelpers::Context::GetArmFPRs(UContext),
                                                      ArchHelpers::Context::GetArmPc(UContext));
 diff --git a/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.cpp b/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.cpp
-index 69e10b3..e737e2e 100644
 --- a/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.cpp
 +++ b/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.cpp
-@@ -167,7 +167,11 @@ void ThreadManager::SetThreadName(const char* name) {
+@@ -167,7 +167,9 @@ void ThreadManager::SetThreadName(const char* name) {
    pthread_setname_np(pthread_self(), name);
  }
  
 -constexpr size_t CALLRET_STACK_ALLOC_SIZE = FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + 2 * FEXCore::Utils::FEX_PAGE_SIZE;
-+// Guards must be whole host pages or mprotect of the (then misaligned) base fails and 4K guards
-+// share a writable page with the stack on hosts with a larger page size.
 +static size_t CallRetStackAllocSize() {
 +  return FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + 2 * FEXCore::Utils::GetHostPageSize();
 +}
  
  FEX::HLE::ThreadStateObject*
  ThreadManager::CreateThread(const FEXCore::Core::CPUState* NewThreadState, uint64_t ParentTID, FEX::HLE::ThreadStateObject* InheritThread) {
-@@ -183,15 +187,15 @@ ThreadManager::CreateThread(const FEXCore::Core::CPUState* NewThreadState, uint6
+@@ -183,15 +185,15 @@ ThreadManager::CreateThread(const FEXCore::Core::CPUState* NewThreadState, uint6
  
    // Allocate the call-ret stack with guard pages on both sides
    auto AllocBase =
@@ -253,7 +214,7 @@ index 69e10b3..e737e2e 100644
    ::mprotect(ThreadStateObject->Thread->CallRetStackBase, FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE, PROT_READ | PROT_WRITE);
    Frame->State.callret_sp = ThreadStateObject->GetCallRetStackInfo().DefaultLocation;
  
-@@ -293,7 +297,7 @@ void ThreadManager::HandleThreadDeletion(FEX::HLE::ThreadStateObject* Thread, bo
+@@ -293,7 +295,7 @@ void ThreadManager::HandleThreadDeletion(FEX::HLE::ThreadStateObject* Thread, bo
    }
  
    // Free the call-ret stack
@@ -263,21 +224,18 @@ index 69e10b3..e737e2e 100644
    // If the LDT segment exists then deallocate it.
    if (Thread->ldt_entry_count) {
 diff --git a/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.h b/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.h
-index dfcd4b0..93e99f4 100644
 --- a/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.h
 +++ b/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.h
-@@ -118,7 +118,8 @@ struct ThreadStateObject : public FEXCore::Allocator::FEXAllocOperators {
+@@ -118,7 +118,7 @@ struct ThreadStateObject : public FEXCore::Allocator::FEXAllocOperators {
    CallRetStackInfo GetCallRetStackInfo() {
      uint64_t Base = reinterpret_cast<uint64_t>(Thread->CallRetStackBase);
      // Leave some room from the base for the default location to allow for underflows without constant exceptions
 -    return {Base - FEXCore::Utils::FEX_PAGE_SIZE, Base + FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + FEXCore::Utils::FEX_PAGE_SIZE,
-+    // Guards are whole host pages; see ThreadManager::CreateThread.
 +    return {Base - FEXCore::Utils::GetHostPageSize(), Base + FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + FEXCore::Utils::GetHostPageSize(),
              Base + FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE / 4};
    }
  
 diff --git a/Source/Windows/ARM64EC/Module.cpp b/Source/Windows/ARM64EC/Module.cpp
-index 7b04692..fa0c4b7 100644
 --- a/Source/Windows/ARM64EC/Module.cpp
 +++ b/Source/Windows/ARM64EC/Module.cpp
 @@ -630,9 +630,11 @@ NTSTATUS ProcessInit() {
@@ -296,7 +254,6 @@ index 7b04692..fa0c4b7 100644
  
    const uintptr_t KiUserExceptionDispatcherFFS = reinterpret_cast<uintptr_t>(GetProcAddress(NtDll, "KiUserExceptionDispatcher"));
 diff --git a/Source/Windows/Common/Allocator.cpp b/Source/Windows/Common/Allocator.cpp
-index d535bde..700e737 100644
 --- a/Source/Windows/Common/Allocator.cpp
 +++ b/Source/Windows/Common/Allocator.cpp
 @@ -20,6 +20,7 @@ void SetupHooks(HMODULE ntdll) {
@@ -308,7 +265,6 @@ index d535bde..700e737 100644
  
    SYSTEM_INFO system_info {};
 diff --git a/Source/Windows/Common/CallRetStack.h b/Source/Windows/Common/CallRetStack.h
-index 215591b..ad8eb3f 100644
 --- a/Source/Windows/Common/CallRetStack.h
 +++ b/Source/Windows/Common/CallRetStack.h
 @@ -5,6 +5,7 @@
@@ -319,13 +275,10 @@ index 215591b..ad8eb3f 100644
  
  namespace FEX::Windows::CallRetStack {
  struct CallRetStackInfo {
-@@ -13,24 +14,31 @@ struct CallRetStackInfo {
+@@ -13,24 +14,28 @@ struct CallRetStackInfo {
    uint64_t DefaultLocation;
  };
  
-+// Guards must be whole host pages: a 4K guard on a 16K host shares a page with the committed
-+// stack, stays writable, and the first real fault lands outside [AllocationBase, AllocationEnd),
-+// so HandleAccessViolation misses it and the imbalance surfaces as a guest access violation.
 +static inline size_t GuardSize() {
 +  return FEXCore::Utils::GetHostPageSize();
 +}
@@ -360,7 +313,6 @@ index 215591b..ad8eb3f 100644
  
    Thread->CurrentFrame->State.callret_sp = GetInfoThread(Thread).DefaultLocation;
 diff --git a/Source/Windows/Common/FEXUnixLib.cpp b/Source/Windows/Common/FEXUnixLib.cpp
-index 3188034..1b8ee2c 100644
 --- a/Source/Windows/Common/FEXUnixLib.cpp
 +++ b/Source/Windows/Common/FEXUnixLib.cpp
 @@ -1,6 +1,7 @@
@@ -390,66 +342,32 @@ index 3188034..1b8ee2c 100644
 +
  } // namespace FEX::Windows::UnixLib
 diff --git a/Source/Windows/Common/FEXUnixLib.h b/Source/Windows/Common/FEXUnixLib.h
-index c8a09bf..3910ac7 100644
 --- a/Source/Windows/Common/FEXUnixLib.h
 +++ b/Source/Windows/Common/FEXUnixLib.h
-@@ -48,4 +48,10 @@ SHMSlotResult AllocateSHMSlots(void* SHMBase, uint32_t MapSize, uint32_t MaxSize
+@@ -48,4 +48,6 @@ SHMSlotResult AllocateSHMSlots(void* SHMBase, uint32_t MapSize, uint32_t MaxSize
  void DeleteSHMStatsFile();
  
  void* MapFile(HANDLE FileHandle, uint64_t MapSize);
 +
-+// Returns the real host page size (e.g. 4096, 16384, 65536). Falls back to
-+// FEXCore::Utils::FEX_PAGE_SIZE if the unix lib call isn't available.
-+// Returns size_t (rather than uint64_t) so this matches FEXCore::Allocator::GetHostPageSizePtr
-+// exactly and can be passed directly as a HookPtrs::GetHostPageSize function pointer.
 +size_t GetHostPageSize();
  } // namespace FEX::Windows::UnixLib
 diff --git a/Source/Windows/Common/InvalidationTracker.cpp b/Source/Windows/Common/InvalidationTracker.cpp
-index 155403d..015d079 100644
 --- a/Source/Windows/Common/InvalidationTracker.cpp
 +++ b/Source/Windows/Common/InvalidationTracker.cpp
-@@ -43,6 +43,12 @@ static bool ProtIsWritable(ULONG Prot) {
-   return (Prot & (PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) != 0;
- }
- 
-+// XIntervals/RWXIntervals answer the guest-semantic question "is this guest address executable /
-+// self-modifiable", so they must stay at guest (FEX_PAGE_SIZE) granularity even on hosts with a
-+// larger page: rounding a non-executable region outward to the host page would strip
-+// executability from the tail of an adjacent code section (e.g. .text followed by .rdata inside
-+// one 16K host page) and make the DEP emulation fault on valid code. Sub-host-page protection
-+// changes are wine's responsibility (its NtProtectVirtualMemory tracks guest pages itself).
- void InvalidationTracker::HandleMemoryProtectionNotification(uint64_t Address, uint64_t Size, ULONG Prot) {
-   const auto AlignedBase = Address & FEXCore::Utils::FEX_PAGE_MASK;
-   const auto AlignedSize = (Address - AlignedBase + Size + FEXCore::Utils::FEX_PAGE_SIZE - 1) & FEXCore::Utils::FEX_PAGE_MASK;
-@@ -230,7 +236,12 @@ bool InvalidationTracker::HandleRWXAccessViolation(FEXCore::Core::InternalThread
+@@ -230,7 +230,8 @@ bool InvalidationTracker::HandleRWXAccessViolation(FEXCore::Core::InternalThread
      {
        std::scoped_lock Lock(CTX.GetCodeInvalidationMutex());
  
 -      InvalidateIntervalInternalLocked(FaultAddress & FEXCore::Utils::FEX_PAGE_MASK, FEXCore::Utils::FEX_PAGE_SIZE);
-+      // Invalidate a full real host page, not just FEX_PAGE_SIZE: the untrap call below removes
-+      // the write-trap from the whole real host page containing FaultAddress, so any other guest
-+      // code sharing that same real page must also be invalidated now, or SMC writes to it later
-+      // in this page (after it's already untrapped) would silently run stale JIT'd code.
 +      const auto HostPageSize = FEXCore::Utils::GetHostPageSize();
 +      InvalidateIntervalInternalLocked(FaultAddress & ~(HostPageSize - 1), HostPageSize);
  
        // Invalidate, then unprotect the faulting page with the compilation lock held to ensure that any racing invalidations are not dropped.
        ULONG TmpProt;
-@@ -289,6 +300,9 @@ void InvalidationTracker::DetectMonoBackpatcherBlock(FEXCore::Core::InternalThre
-     std::scoped_lock CodeLock(CTX.GetCodeInvalidationMutex());
-     CTX.MarkMonoBackpatcherBlock(BlockEntry);
-   }
-+  // Deliberately left at the fixed guest FEX_PAGE_SIZE: this invalidates a single guest code
-+  // block for Mono JIT backpatcher detection (a narrow, guest-instruction-granularity concern),
-+  // not a real host mprotect/VirtualProtect boundary, so host page size doesn't apply here.
-   InvalidateAlignedInterval(BlockEntry, FEXCore::Utils::FEX_PAGE_SIZE, false);
- }
- 
 diff --git a/Source/Windows/Common/JITGuardPage.h b/Source/Windows/Common/JITGuardPage.h
-index 007d498..9ab4f8d 100644
 --- a/Source/Windows/Common/JITGuardPage.h
 +++ b/Source/Windows/Common/JITGuardPage.h
-@@ -2,19 +2,21 @@
+@@ -2,19 +2,20 @@
  #pragma once
  #include <FEXCore/Debug/InternalThreadState.h>
  #include <FEXCore/Utils/LongJump.h>
@@ -473,13 +391,11 @@ index 007d498..9ab4f8d 100644
  
  static inline bool HandleJITGuardPage(FEXCore::Core::InternalThreadState* Thread, void* Address, uint64_t* GPRs, __uint128_t* FPRs, uint64_t* PC) {
 -  if (IsAddressInJITGuardPage(Thread->JITGuardPage, reinterpret_cast<uintptr_t>(Address))) {
-+  // The guard is one real host page (see Arm64JITCore::CompileCode / PooledAllocatorVirtualWithGuard).
 +  if (IsAddressInJITGuardPage(Thread->JITGuardPage, reinterpret_cast<uintptr_t>(Address), FEXCore::Utils::GetHostPageSize())) {
      FEXCore::UncheckedLongJump::ManuallyLoadJumpBuf(Thread->RestartJump, Thread->JITGuardOverflowArgument, GPRs, FPRs, PC);
      return true;
    }
 diff --git a/Source/Windows/UnixLib/FEXUnixLib.cpp b/Source/Windows/UnixLib/FEXUnixLib.cpp
-index ade8222..c05184c 100644
 --- a/Source/Windows/UnixLib/FEXUnixLib.cpp
 +++ b/Source/Windows/UnixLib/FEXUnixLib.cpp
 @@ -176,6 +176,12 @@ static NTSTATUS FEXUnixLib_MapFileHandler(void* _Args) {
@@ -504,7 +420,6 @@ index ade8222..c05184c 100644
  
  static_assert(sizeof(__wine_unix_call_funcs) / sizeof(__wine_unix_call_funcs[0]) == ToUnderlying(FEXUnixLibFunctions::MAX));
 diff --git a/Source/Windows/UnixLib/FEXUnixLib.h b/Source/Windows/UnixLib/FEXUnixLib.h
-index 80ff24c..cf835af 100644
 --- a/Source/Windows/UnixLib/FEXUnixLib.h
 +++ b/Source/Windows/UnixLib/FEXUnixLib.h
 @@ -11,6 +11,7 @@ enum class FEXUnixLibFunctions : uint32_t {
