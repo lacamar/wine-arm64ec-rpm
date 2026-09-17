@@ -1,0 +1,43 @@
+vkd3d-shader: accept linear and point as values inside state blocks.
+
+--- a/libs/vkd3d/libs/vkd3d-shader/hlsl.l
++++ b/libs/vkd3d/libs/vkd3d-shader/hlsl.l
+@@ -64,6 +64,20 @@
+ 
+ ANY                     (.)
+ 
++
++%{
++#define STATE_VALUE_OR(kw) \
++    do \
++    { \
++        struct hlsl_ctx *ctx = yyget_extra(yyscanner); \
++        if (ctx->in_state_block) \
++        { \
++            yylval->name = hlsl_strdup(ctx, yytext); \
++            return NEW_IDENTIFIER; \
++        } \
++        return kw; \
++    } while (0)
++%}
+ %%
+ {RESERVED1}             |
+ {RESERVED2}             |
+@@ -111,7 +125,7 @@
+ LineStream              {return KW_LINESTREAM;          }
+ line                    {return KW_LINE;                }
+ lineadj                 {return KW_LINEADJ;             }
+-linear                  {return KW_LINEAR;              }
++linear                  {STATE_VALUE_OR(KW_LINEAR);     }
+ matrix                  {return KW_MATRIX;              }
+ namespace               {return KW_NAMESPACE;           }
+ nointerpolation         {return KW_NOINTERPOLATION;     }
+@@ -124,7 +138,7 @@
+ PixelShader             {return KW_PIXELSHADER;         }
+ PointStream             {return KW_POINTSTREAM;         }
+ pixelshader             {return KW_PIXELSHADER;         }
+-point                   {return KW_POINT;               }
++point                   {STATE_VALUE_OR(KW_POINT);      }
+ RasterizerOrderedBuffer           {return KW_RASTERIZERORDEREDBUFFER;            }
+ RasterizerOrderedStructuredBuffer {return KW_RASTERIZERORDEREDSTRUCTUREDBUFFER;  }
+ RasterizerOrderedTexture1D        {return KW_RASTERIZERORDEREDTEXTURE1D;         }
