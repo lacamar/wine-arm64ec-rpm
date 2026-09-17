@@ -67,3 +67,24 @@ Verified: Dark Souls in-game (Undead Asylum), Limbo in-game, with the shadow ins
 
 - Nothing for these two games. The 16K SMC hole noted in the previous handover (code page sharing a
   host page with non-RWX writable pages is untrappable) is still a real gap; it just was not this.
+
+## Dark Souls PTDE with DSfix (added 2026-09-18, after the release)
+
+The user installed DSfix (`DATA/DINPUT8.dll`, imports `d3dx9_42`) at 23:30. It crashed at
+`DINPUT8.dll+0x6989` using an `ID3DXEffect*` it never checked: every `dsfix/*.fx` fails with Wine's
+builtin d3dx9/vkd3d-shader, whose fx_2_0 writer has no `sampler_state` initializers or
+`compile`-state assignments (`E5017 ... not implemented`). The native `d3dx9_42/43` and
+`d3dcompiler_42/43` DLLs were already in `syswow64` from the game's `REDIST/DirectX` cabs; only the
+load order was missing. Set in the prefix registry (`HKCU\Software\Wine\DllOverrides`, all four
+`native`), so Lutris launches pick them up. In-game verified.
+
+`fxtest.exe <file.fx>...` (source alongside in the dev cache) compiles effects through whichever
+d3dx9_43 the overrides select and prints the compiler messages; run it from the `dsfix/` dir.
+DSfix's own defines (`PIXEL_SIZE` etc.) are not passed, so those errors are expected.
+
+DSfix config notes: `presentWidth/Height 0` means "same as render", so with `renderWidth 1920` the
+game window must be 1920x1080 or smaller or the frame lands unscaled in the top-left. The game is
+configured windowed 2560x1440 (`AppData/Local/NBGI/DarkSouls/DarkSouls.ini`), which stretches fine;
+when niri tiled the window to the whole 4K output the quarter-frame appeared. Either set
+`renderWidth/Height 3840x2160` (the point of DSfix on this display) or give the game a niri
+`open-floating` rule.
