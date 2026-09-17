@@ -23,7 +23,18 @@
          if (dce->flags & DCX_CACHE)
          {
              dce->count = 0;
-@@ -1706,6 +1711,7 @@
+@@ -1386,6 +1391,10 @@
+ 
+     dce->hwnd = hwnd;
+     dce->flags = (dce->flags & ~user_flags) | (flags & user_flags);
++    /* Only the BeginPaint that follows may mark this as a paint DC. Without clearing it here the
++     * flag outlives a paint whose EndPaint never came, and every later user of that recycled
++     * cache DCE would be unable to release it. */
++    dce->in_paint = FALSE;
+ 
+     /* cross-process invalidation is not supported yet, so always update the vis rgn */
+     if (!is_current_process_window( hwnd )) update_vis_rgn = TRUE;
+@@ -1706,6 +1715,7 @@
   */
  HDC WINAPI NtUserBeginPaint( HWND hwnd, PAINTSTRUCT *ps )
  {
@@ -31,7 +42,7 @@
      HRGN hrgn;
      HDC hdc;
      BOOL erase;
-@@ -1728,6 +1734,11 @@
+@@ -1728,6 +1738,11 @@
      ps->fErase = erase;
      ps->rcPaint = rect;
      ps->hdc = hdc;

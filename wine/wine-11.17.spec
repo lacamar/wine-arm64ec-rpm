@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.17
-Release:        ec4%{dist}
+Release:        ec5%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2399,6 +2399,11 @@ fi
 %endif
 
 %changelog
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec5
+- win32u: clear the BeginPaint marker when a cache DC is handed out again. A paint whose EndPaint
+  never came left the marker set on a recycled DC, and every later GetDC/ReleaseDC pair on it
+  failed - visible as repeated "wined3d_release_dc Failed to release device context" in Lightroom
+
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec4
 - winewayland: follow the compositor for window decorations when X11 Driver\Decorated is unset,
   so winecfg's decoration checkbox matches what a fresh prefix actually does
