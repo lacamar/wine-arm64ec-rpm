@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.17
-Release:        ec11%{dist}
+Release:        ec12%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2405,6 +2405,10 @@ fi
 %endif
 
 %changelog
+* Fri Sep 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec12
+- winewayland: follow-output snaps into the target output
+- winewayland: fix output score sentinel
+
 * Fri Sep 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec11
 - server: signed DPI scaling of negative coordinates
 - winewayland: follow-output compares raw coordinates

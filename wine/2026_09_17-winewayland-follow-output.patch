@@ -154,7 +154,7 @@ winewayland: keep windows on the output their surface entered; compare rects in 
  WINE_DEFAULT_DEBUG_CHANNEL(waylanddrv);
  
 +static BOOL get_output_rect(int index, RECT *rect);
-+static BOOL rect_inside(const RECT *rect, const RECT *outer);
++static BOOL rect_on_output(const RECT *rect, const RECT *output);
 +
  
  static int wayland_win_data_cmp_rb(const void *key,
@@ -180,12 +180,12 @@ winewayland: keep windows on the output their surface entered; compare rects in 
      data->rects = *new_rects;
      data->is_fullscreen = fullscreen;
 +    if (data->output_index >= 0 && get_output_rect(data->output_index, &output_rect) &&
-+        !rect_inside(&new_rects->window, &output_rect))
++        !rect_on_output(&new_rects->window, &output_rect))
 +        NtUserPostMessage(hwnd, WM_WAYLAND_OUTPUT_ENTER, 0, data->output_index);
      data->resizeable = swp_flags & WINE_SWP_RESIZABLE;
      data->managed = managed;
  
-@@ -663,6 +672,102 @@
+@@ -663,6 +672,107 @@
      NtUserSetRawWindowPos(hwnd, rect, flags, FALSE);
  }
  
@@ -211,17 +211,12 @@ winewayland: keep windows on the output their surface entered; compare rects in 
 +    return TRUE;
 +}
 +
-+static BOOL rect_inside(const RECT *rect, const RECT *outer)
-+{
-+    RECT inter;
-+    return intersect_rect(&inter, rect, outer) && EqualRect(&inter, rect);
-+}
 +
 +/* output rects come from the display settings, in the same raw coordinates as the driver's window rects */
 +static BOOL get_current_output_rect(const RECT *window, RECT *best)
 +{
 +    RECT rect, inter;
-+    LONG score, best_score = LONG_MIN, dx, dy;
++    LONG score, best_score = INT_MIN, dx, dy;
 +    int i;
 +
 +    for (i = 0; get_output_rect(i, &rect); i++)
@@ -240,7 +235,13 @@ winewayland: keep windows on the output their surface entered; compare rects in 
 +            *best = rect;
 +        }
 +    }
-+    return best_score != LONG_MIN;
++    return best_score != INT_MIN;
++}
++
++static BOOL rect_on_output(const RECT *rect, const RECT *output)
++{
++    RECT current;
++    return get_current_output_rect(rect, &current) && EqualRect(&current, output);
 +}
 +
 +static void wayland_window_follow_output(HWND hwnd, int index)
@@ -270,7 +271,7 @@ winewayland: keep windows on the output their surface entered; compare rects in 
 +    wayland_win_data_release(data);
 +
 +    if (!toplevel || IsRectEmpty(&window)) return;
-+    if (rect_inside(&window, &target)) return;
++    if (rect_on_output(&window, &target)) return;
 +
 +    if (!get_current_output_rect(&window, &current)) return;
 +
@@ -278,6 +279,10 @@ winewayland: keep windows on the output their surface entered; compare rects in 
 +    else
 +    {
 +        OffsetRect(&window, target.left - current.left, target.top - current.top);
++        if (window.left < target.left || window.left >= target.right)
++            OffsetRect(&window, target.left - window.left, 0);
++        if (window.top < target.top || window.top >= target.bottom)
++            OffsetRect(&window, 0, target.top - window.top);
 +        flags |= SWP_NOSIZE;
 +    }
 +
@@ -288,7 +293,7 @@ winewayland: keep windows on the output their surface entered; compare rects in 
  /**********************************************************************
   *           WAYLAND_WindowMessage
   */
-@@ -679,6 +784,9 @@
+@@ -679,6 +789,9 @@
      case WM_WAYLAND_SET_FOREGROUND:
          NtUserSetForegroundWindowInternal(hwnd);
          return 0;
