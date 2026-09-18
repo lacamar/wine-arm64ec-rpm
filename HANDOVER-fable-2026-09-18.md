@@ -115,3 +115,21 @@ at 192 DPI enlarge the window or the right-hand column is cut off.
 Tools: `winrect.exe "<title substring>" [unaware|system|pm|pmv2]` prints monitors, the window's
 awareness, rect, client and DPI as seen from that awareness; `wclick.exe x y` clicks at raw screen
 coordinates. Pristine copies: `orig-full/server-user.h`, `orig-full/winewayland-*.617`.
+
+### Follow-up (ec12)
+
+ec11's follow-output was still wrong in one case and was never really tested on the shadow:
+`dlls/winewayland.drv/window.c` is part of the **unix lib**. Build
+`dlls/winewayland.drv/winewayland.so` and copy it to `shadow/lib64/wine/aarch64-unix/`; the
+`aarch64-windows/winewayland.drv` target is only the PE stub.
+
+- The GUI window first appears at the virtual-screen corner `(0,-200)`, which is inside no monitor.
+  Offsetting by `target - current` kept that bogus offset and left it 200 px above DP-1. Now the
+  origin is snapped into the target output after the offset.
+- A tiled window is wider than its output by the frame, so the strict "inside" test never passed
+  and follow-output fired no-op moves forever. Replaced by "the output it overlaps most is the
+  target" (`rect_on_output`).
+- `LONG` is `int` on the unix side: `LONG_MIN` truncated to 0 as the score sentinel. `INT_MIN` now.
+
+Seen once and cleared by any resize: a stale frame stretched horizontally after a configure
+(buffer/viewport size mismatch in the surface path). Not caused by these patches; not chased.
