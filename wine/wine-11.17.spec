@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.17
-Release:        ec10%{dist}
+Release:        ec11%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -134,6 +134,7 @@ Patch617:       2026_09_17-winewayland-follow-output.patch
 Patch618:       2026_09_17-win32u-extend-virtual-modes.patch
 # vkd3d-shader: "linear" is a valid sampler_state value
 Patch619:       2026_09_17-vkd3d-shader-state-block-keywords.patch
+Patch620:       2026_09_18-server-scale-dpi-signed.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -764,6 +765,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 617 -p1
 %patch -P 618 -p1
 %patch -P 619 -p1
+%patch -P 620 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2403,6 +2405,10 @@ fi
 %endif
 
 %changelog
+* Fri Sep 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec11
+- server: signed DPI scaling of negative coordinates
+- winewayland: follow-output compares raw coordinates
+
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec10
 - vkd3d-shader: accept point in state blocks
 

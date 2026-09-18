@@ -1,4 +1,4 @@
-winewayland: keep toplevel windows on the monitor of the output they are shown on.
+winewayland: keep windows on the output their surface entered; compare rects in raw coordinates.
 
 --- a/dlls/winewayland.drv/waylanddrv.h
 +++ b/dlls/winewayland.drv/waylanddrv.h
@@ -141,7 +141,15 @@ winewayland: keep toplevel windows on the monitor of the output they are shown o
          wp_viewporter_get_viewport(process_wayland.wp_viewporter,
 --- a/dlls/winewayland.drv/window.c
 +++ b/dlls/winewayland.drv/window.c
-@@ -35,6 +35,9 @@
+@@ -25,6 +25,7 @@
+ #include "config.h"
+ 
+ #include <assert.h>
++#include <limits.h>
+ #include <stdlib.h>
+ 
+ #include "ntstatus.h"
+@@ -35,6 +36,9 @@
  
  WINE_DEFAULT_DEBUG_CHANNEL(waylanddrv);
  
@@ -151,7 +159,7 @@ winewayland: keep toplevel windows on the monitor of the output they are shown o
  
  static int wayland_win_data_cmp_rb(const void *key,
                                     const struct rb_entry *entry)
-@@ -70,6 +73,7 @@
+@@ -70,6 +74,7 @@
      if (!(data = calloc(1, sizeof(*data)))) return NULL;
  
      data->hwnd = hwnd;
@@ -159,7 +167,7 @@ winewayland: keep toplevel windows on the monitor of the output they are shown o
      data->rects = *rects;
  
      pthread_mutex_lock(&win_data_mutex);
-@@ -452,6 +456,7 @@
+@@ -452,6 +457,7 @@
  void WAYLAND_WindowPosChanged(HWND hwnd, HWND insert_after, HWND owner_hint, UINT swp_flags,
                                const struct window_rects *new_rects, struct window_surface *surface)
  {
@@ -167,7 +175,7 @@ winewayland: keep toplevel windows on the monitor of the output they are shown o
      HWND owner = NtUserGetAncestor(hwnd, GA_ROOT);
      struct wayland_surface *owner_surface;
      struct wayland_win_data *data, *owner_data;
-@@ -470,6 +475,9 @@
+@@ -470,6 +476,9 @@
  
      data->rects = *new_rects;
      data->is_fullscreen = fullscreen;
@@ -177,7 +185,7 @@ winewayland: keep toplevel windows on the monitor of the output they are shown o
      data->resizeable = swp_flags & WINE_SWP_RESIZABLE;
      data->managed = managed;
  
-@@ -663,6 +671,80 @@
+@@ -663,6 +672,102 @@
      NtUserSetRawWindowPos(hwnd, rect, flags, FALSE);
  }
  
@@ -209,12 +217,36 @@ winewayland: keep toplevel windows on the monitor of the output they are shown o
 +    return intersect_rect(&inter, rect, outer) && EqualRect(&inter, rect);
 +}
 +
++/* output rects come from the display settings, in the same raw coordinates as the driver's window rects */
++static BOOL get_current_output_rect(const RECT *window, RECT *best)
++{
++    RECT rect, inter;
++    LONG score, best_score = LONG_MIN, dx, dy;
++    int i;
++
++    for (i = 0; get_output_rect(i, &rect); i++)
++    {
++        if (intersect_rect(&inter, window, &rect))
++            score = (inter.right - inter.left) * (inter.bottom - inter.top);
++        else
++        {
++            dx = max(0, max(rect.left - window->right, window->left - rect.right));
++            dy = max(0, max(rect.top - window->bottom, window->top - rect.bottom));
++            score = -(dx + dy);
++        }
++        if (score > best_score)
++        {
++            best_score = score;
++            *best = rect;
++        }
++    }
++    return best_score != LONG_MIN;
++}
++
 +static void wayland_window_follow_output(HWND hwnd, int index)
 +{
-+    MONITORINFO mi = {.cbSize = sizeof(mi)};
 +    struct wayland_win_data *data;
-+    RECT target, window;
-+    HMONITOR monitor;
++    RECT target, window, current;
 +    BOOL toplevel;
 +    UINT flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
 +
@@ -240,14 +272,12 @@ winewayland: keep toplevel windows on the monitor of the output they are shown o
 +    if (!toplevel || IsRectEmpty(&window)) return;
 +    if (rect_inside(&window, &target)) return;
 +
-+    if (!(monitor = NtUserMonitorFromRect(&window, MONITOR_DEFAULTTONEAREST)) ||
-+        !NtUserGetMonitorInfo(monitor, &mi))
-+        return;
++    if (!get_current_output_rect(&window, &current)) return;
 +
-+    if (EqualRect(&window, &mi.rcMonitor)) window = target;
++    if (EqualRect(&window, &current)) window = target;
 +    else
 +    {
-+        OffsetRect(&window, target.left - mi.rcMonitor.left, target.top - mi.rcMonitor.top);
++        OffsetRect(&window, target.left - current.left, target.top - current.top);
 +        flags |= SWP_NOSIZE;
 +    }
 +
@@ -258,7 +288,7 @@ winewayland: keep toplevel windows on the monitor of the output they are shown o
  /**********************************************************************
   *           WAYLAND_WindowMessage
   */
-@@ -679,6 +761,9 @@
+@@ -679,6 +784,9 @@
      case WM_WAYLAND_SET_FOREGROUND:
          NtUserSetForegroundWindowInternal(hwnd);
          return 0;

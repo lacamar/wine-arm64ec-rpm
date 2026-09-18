@@ -88,3 +88,30 @@ configured windowed 2560x1440 (`AppData/Local/NBGI/DarkSouls/DarkSouls.ini`), wh
 when niri tiled the window to the whole 4K output the quarter-frame appeared. Either set
 `renderWidth/Height 3840x2160` (the point of DSfix on this display) or give the game a niri
 `open-floating` rule.
+
+## DarkSoulsInputCustomizerGUI.exe: unclickable, unresizable (2026-09-18) — two real bugs
+
+WPF app (wine-mono 11.3 WPF), DPI-unaware, run in the `dsptde` prefix where Lutris sets
+`ExplicitDpi 192`. Two things went wrong at once, both only with DPI ≠ 96 on this layout (DP-1 at
+y = -200):
+
+1. **`server/user.h` `scale_dpi()` (upstream bug, patch 620).** `int val * unsigned num` promotes to
+   unsigned, so any negative coordinate mapped between DPIs becomes garbage: `-100` at 96→192 DPI
+   turned into `44739042` (= (2^32 − 19200)/96). Every cross-process rect query and all pointer
+   routing to the window went through it. Signed 64-bit math now. Reproduce with `winrect.exe`
+   (dev cache): run it `pmv2` against any DPI-unaware window on DP-1; the old server prints the
+   garbage top, the fixed one prints -200.
+2. **Patch 617 mixed coordinate spaces.** `wayland_window_follow_output` compared the driver's raw
+   window rect against `NtUserMonitorFromRect`/`GetMonitorInfo`, which answer in the thread's DPI
+   (halved for an unaware window at 192). The window was offset by the difference three times per
+   two seconds and drifted off-screen. It now picks the output from `NtUserEnumDisplaySettings`
+   rects only (largest overlap, else nearest), all raw.
+
+Verified with the shadow build: rect sane, niri resizes apply (`set-window-width`), clicks hit the
+tab headers (`wclick.exe <raw x> <raw y>`), no drift when other columns open, Dark Souls still
+launches. Remaining wine-mono quirk: the GUI draws its content at 2x but sizes its window at 1x, so
+at 192 DPI enlarge the window or the right-hand column is cut off.
+
+Tools: `winrect.exe "<title substring>" [unaware|system|pm|pmv2]` prints monitors, the window's
+awareness, rect, client and DPI as seen from that awareness; `wclick.exe x y` clicks at raw screen
+coordinates. Pristine copies: `orig-full/server-user.h`, `orig-full/winewayland-*.617`.
