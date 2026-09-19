@@ -828,6 +828,33 @@ unset PKG_CONFIG_PATH
 %else
  --without-wayland \
 %endif
+ --enable-crtdll \
+ --enable-ctl3d32 \
+ --enable-d3d8 \
+ --enable-d3dim \
+ --enable-d3dim700 \
+ --enable-dmband \
+ --enable-dmcompos \
+ --enable-dmime \
+ --enable-dmscript \
+ --enable-dmstyle \
+ --enable-dplay \
+ --enable-dplayx \
+ --enable-dpwsockx \
+ --enable-iccvid \
+ --enable-iprop \
+ --enable-msscript_ocx \
+ --enable-msvcp70 \
+ --enable-msvcp71 \
+ --enable-msvcr70 \
+ --enable-msvcr71 \
+ --enable-msvcrt20 \
+ --enable-msvcrt40 \
+ --enable-msvcrtd \
+ --enable-olecli32 \
+ --enable-olepro32 \
+ --enable-olethk32 \
+ --enable-vdmdbg \
  --disable-tests
 
 %make_build TARGETFLAGS=""
@@ -2405,8 +2432,9 @@ fi
 %endif
 
 %changelog
-* Fri Sep 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec1
+* Sat Sep 19 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec1
 - updated wine version to 11.18
+- keep 32-bit only modules enabled on all archs
 
 * Fri Sep 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec12
 - winewayland: follow-output snaps into the target output
