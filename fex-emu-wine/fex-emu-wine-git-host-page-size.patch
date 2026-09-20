@@ -1,0 +1,439 @@
+Size guard pages and host protection boundaries to the real host page size.
+
+diff --git a/FEXCore/Source/CMakeLists.txt b/FEXCore/Source/CMakeLists.txt
+--- a/FEXCore/Source/CMakeLists.txt
++++ b/FEXCore/Source/CMakeLists.txt
+@@ -7,6 +7,7 @@ set(FEXCORE_BASE_SRCS
+   Utils/ForcedAssert.cpp
+   Utils/LogManager.cpp
+   Utils/SpinWaitLock.cpp
++  Utils/TypeDefines.cpp
+   Utils/WildcardMatcher.cpp)
+ 
+ if (NOT MINGW)
+diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+--- a/FEXCore/Source/Interface/Core/JIT/JIT.cpp
++++ b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+@@ -915,13 +915,14 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
+ 
+   // Fairly excessive buffer range to make sure we don't overflow
+   // One page baseline, plus SSANodeMultipler bytes, plus another page for guard page.
+-  const uint32_t DesiredBufferRange = AlignUp(FEXCore::Utils::FEX_PAGE_SIZE * 2 + SSACount * SSANodeMultiplier, FEXCore::Utils::FEX_PAGE_SIZE);
++  const size_t HostPageSize = FEXCore::Utils::GetHostPageSize();
++  const uint32_t DesiredBufferRange = AlignUp(HostPageSize * 2 + SSACount * SSANodeMultiplier, HostPageSize);
+ 
+   // JIT output is first written to a temporary buffer and later relocated to the CodeBuffer.
+   // This minimizes lock contention of CodeBufferWriteMutex.
+   auto TempCodeBufferInfo = TempCodeBufferAllocator.ReownOrClaimBufferWithSize(DesiredBufferRange);
+   auto TempCodeBuffer = TempCodeBufferInfo.Ptr;
+-  const uint32_t UsableBufferRange = TempCodeBufferInfo.Size - FEXCore::Utils::FEX_PAGE_SIZE;
++  const uint32_t UsableBufferRange = TempCodeBufferInfo.Size - HostPageSize;
+ 
+   SetBuffer(TempCodeBuffer, UsableBufferRange);
+ 
+diff --git a/FEXCore/Source/Interface/Core/SharedCodeBufferManager.cpp b/FEXCore/Source/Interface/Core/SharedCodeBufferManager.cpp
+--- a/FEXCore/Source/Interface/Core/SharedCodeBufferManager.cpp
++++ b/FEXCore/Source/Interface/Core/SharedCodeBufferManager.cpp
+@@ -6,6 +6,7 @@
+ #include <FEXCore/Utils/AllocatorHooks.h>
+ #include <FEXCore/Utils/LogManager.h>
+ #include <FEXCore/Utils/MathUtils.h>
++#include <FEXCore/Utils/TypeDefines.h>
+ 
+ #ifndef _WIN32
+ #include <FEXCore/Utils/PrctlUtils.h>
+@@ -22,9 +23,9 @@ CodeBuffer::CodeBuffer(size_t Size, bool ShouldBeNamed)
+   LOGMAN_THROW_A_FMT(!!Ptr, "Couldn't allocate code buffer");
+ 
+   // Protect the last page of the allocated buffer to trigger SIGSEGV on write access
+-  uintptr_t LastPageAddr = AlignDown(reinterpret_cast<uintptr_t>(Ptr) + Size - 1, FEXCore::Utils::FEX_PAGE_SIZE);
+-  if (!FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(LastPageAddr), FEXCore::Utils::FEX_PAGE_SIZE,
+-                                          FEXCore::Allocator::ProtectOptions::None)) {
++  const size_t HostPageSize = FEXCore::Utils::GetHostPageSize();
++  uintptr_t LastPageAddr = AlignDown(reinterpret_cast<uintptr_t>(Ptr) + Size - 1, HostPageSize);
++  if (!FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(LastPageAddr), HostPageSize, FEXCore::Allocator::ProtectOptions::None)) {
+     LogMan::Msg::EFmt("Failed to mprotect last page of code buffer.");
+   }
+ 
+diff --git a/FEXCore/Source/Interface/Core/SharedCodeBufferManager.h b/FEXCore/Source/Interface/Core/SharedCodeBufferManager.h
+--- a/FEXCore/Source/Interface/Core/SharedCodeBufferManager.h
++++ b/FEXCore/Source/Interface/Core/SharedCodeBufferManager.h
+@@ -68,7 +68,7 @@ struct CodeBuffer {
+ 
+   // Returns the total number of bytes available for storing code
+   size_t UsableSize() const {
+-    return AllocatedSize - FEXCore::Utils::FEX_PAGE_SIZE;
++    return AllocatedSize - FEXCore::Utils::GetHostPageSize();
+   }
+ 
+   // Returns the full size of the buffer, including the guard page.
+diff --git a/FEXCore/Source/Utils/Allocator.cpp b/FEXCore/Source/Utils/Allocator.cpp
+--- a/FEXCore/Source/Utils/Allocator.cpp
++++ b/FEXCore/Source/Utils/Allocator.cpp
+@@ -314,9 +314,19 @@ void VirtualTHPNOP(const void* Ptr, size_t Size, THPControl Control) {}
+ VirtualNamePtr VirtualName {VirtualNameNOP};
+ VirtualTHPPtr VirtualTHPControl {VirtualTHPNOP};
+ 
++size_t GetHostPageSizeNOP() {
++  return FEXCore::Utils::FEX_PAGE_SIZE;
++}
++GetHostPageSizePtr GetHostPageSizeHook {GetHostPageSizeNOP};
++
++size_t GetRealHostPageSize() {
++  return GetHostPageSizeHook();
++}
++
+ void SetupHooks(size_t PageSize, HookPtrs Ptrs) {
+   VirtualName = Ptrs.VirtualName;
+   VirtualTHPControl = Ptrs.VirtualTHPControl;
++  GetHostPageSizeHook = Ptrs.GetHostPageSize;
+   SetupAllocatorHooks(VirtualName);
+ }
+ 
+diff --git a/FEXCore/Source/Utils/TypeDefines.cpp b/FEXCore/Source/Utils/TypeDefines.cpp
+new file mode 100644
+--- /dev/null
++++ b/FEXCore/Source/Utils/TypeDefines.cpp
+@@ -0,0 +1,19 @@
++// SPDX-License-Identifier: MIT
++#include <FEXCore/Utils/TypeDefines.h>
++
++#ifndef _WIN32
++#include <unistd.h>
++#else
++#include <FEXCore/Utils/AllocatorHooks.h>
++#endif
++
++namespace FEXCore::Utils {
++size_t GetHostPageSize() {
++#ifndef _WIN32
++  static const size_t Cached = static_cast<size_t>(::sysconf(_SC_PAGESIZE));
++  return Cached;
++#else
++  return FEXCore::Allocator::GetRealHostPageSize();
++#endif
++}
++}
+diff --git a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
+--- a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
++++ b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
+@@ -37,9 +37,11 @@ FEX_DEFAULT_VISIBILITY void SetupHooks(size_t PageSize);
+ #else
+ using VirtualNamePtr = void (*)(const char*, const void*, size_t);
+ using VirtualTHPPtr = void (*)(const void*, size_t, THPControl);
++using GetHostPageSizePtr = size_t (*)();
+ struct HookPtrs {
+   VirtualNamePtr VirtualName;
+   VirtualTHPPtr VirtualTHPControl;
++  GetHostPageSizePtr GetHostPageSize;
+ };
+ FEX_DEFAULT_VISIBILITY void SetupHooks(size_t PageSize, HookPtrs Ptrs);
+ #endif
+@@ -103,6 +105,8 @@ inline bool VirtualProtect(void* Ptr, size_t Size, ProtectOptions options) {
+ 
+ FEX_DEFAULT_VISIBILITY extern VirtualNamePtr VirtualName;
+ FEX_DEFAULT_VISIBILITY extern VirtualTHPPtr VirtualTHPControl;
++FEX_DEFAULT_VISIBILITY extern GetHostPageSizePtr GetHostPageSizeHook;
++FEX_DEFAULT_VISIBILITY size_t GetRealHostPageSize();
+ #else
+ using MMAP_Hook = void* (*)(void*, size_t, int, int, int, off_t);
+ using MUNMAP_Hook = int (*)(void*, size_t);
+diff --git a/FEXCore/include/FEXCore/Utils/ThreadPoolAllocator.h b/FEXCore/include/FEXCore/Utils/ThreadPoolAllocator.h
+--- a/FEXCore/include/FEXCore/Utils/ThreadPoolAllocator.h
++++ b/FEXCore/include/FEXCore/Utils/ThreadPoolAllocator.h
+@@ -419,10 +419,11 @@ public:
+ 
+ private:
+   void* Alloc(size_t Size) override {
++    const size_t HostPageSize = FEXCore::Utils::GetHostPageSize();
++    LOGMAN_THROW_A_FMT(Size >= HostPageSize * 2 && (Size % HostPageSize) == 0, "Guarded pool allocation of {} bytes is not a multiple of the {} byte host page", Size, HostPageSize);
+     auto Ptr = FEXCore::Allocator::VirtualAlloc(Size);
+-    uintptr_t LastPageAddr = AlignDown(reinterpret_cast<uintptr_t>(Ptr) + Size - 1, FEXCore::Utils::FEX_PAGE_SIZE);
+-    if (!FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(LastPageAddr), FEXCore::Utils::FEX_PAGE_SIZE,
+-                                            FEXCore::Allocator::ProtectOptions::None)) {
++    uintptr_t LastPageAddr = AlignDown(reinterpret_cast<uintptr_t>(Ptr) + Size - 1, HostPageSize);
++    if (!FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(LastPageAddr), HostPageSize, FEXCore::Allocator::ProtectOptions::None)) {
+       LogMan::Msg::EFmt("Failed to mprotect last page of code buffer.");
+     }
+     if (Name) {
+diff --git a/FEXCore/include/FEXCore/Utils/TypeDefines.h b/FEXCore/include/FEXCore/Utils/TypeDefines.h
+--- a/FEXCore/include/FEXCore/Utils/TypeDefines.h
++++ b/FEXCore/include/FEXCore/Utils/TypeDefines.h
+@@ -9,4 +9,8 @@ namespace FEXCore::Utils {
+ constexpr size_t FEX_PAGE_SIZE = 4096;
+ constexpr size_t FEX_PAGE_SHIFT = 12;
+ constexpr size_t FEX_PAGE_MASK = ~(FEX_PAGE_SIZE - 1);
++
++constexpr size_t FEX_MAX_HOST_PAGE_SIZE = 65536;
++
++size_t GetHostPageSize();
+ } // namespace FEXCore::Utils
+diff --git a/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp b/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
+--- a/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
++++ b/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
+@@ -578,7 +578,7 @@ bool SignalDelegator::HandleFrontendSIGSEGV(FEXCore::Core::InternalThreadState*
+ #ifdef ARCHITECTURE_arm64
+   if (Signal == SIGSEGV && SigInfo.si_code == SEGV_ACCERR && Thread->JITGuardPage &&
+       SigInfo.si_addr >= reinterpret_cast<void*>(Thread->JITGuardPage) &&
+-      SigInfo.si_addr < reinterpret_cast<void*>(Thread->JITGuardPage + FEXCore::Utils::FEX_PAGE_SIZE)) {
++      SigInfo.si_addr < reinterpret_cast<void*>(Thread->JITGuardPage + FEXCore::Utils::GetHostPageSize())) {
+     FEXCore::UncheckedLongJump::ManuallyLoadJumpBuf(Thread->RestartJump, Thread->JITGuardOverflowArgument,
+                                                     ArchHelpers::Context::GetArmGPRs(UContext), ArchHelpers::Context::GetArmFPRs(UContext),
+                                                     ArchHelpers::Context::GetArmPc(UContext));
+diff --git a/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.cpp b/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.cpp
+--- a/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.cpp
++++ b/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.cpp
+@@ -167,7 +167,9 @@ void ThreadManager::SetThreadName(const char* name) {
+   pthread_setname_np(pthread_self(), name);
+ }
+ 
+-constexpr size_t CALLRET_STACK_ALLOC_SIZE = FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + 2 * FEXCore::Utils::FEX_PAGE_SIZE;
++static size_t CallRetStackAllocSize() {
++  return FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + 2 * FEXCore::Utils::GetHostPageSize();
++}
+ 
+ FEX::HLE::ThreadStateObject*
+ ThreadManager::CreateThread(const FEXCore::Core::CPUState* NewThreadState, uint64_t ParentTID, FEX::HLE::ThreadStateObject* InheritThread) {
+@@ -183,15 +185,15 @@ ThreadManager::CreateThread(const FEXCore::Core::CPUState* NewThreadState, uint6
+ 
+   // Allocate the call-ret stack with guard pages on both sides
+   auto AllocBase =
+-    reinterpret_cast<uint64_t>(FEXCore::Allocator::mmap(nullptr, CALLRET_STACK_ALLOC_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
++    reinterpret_cast<uint64_t>(FEXCore::Allocator::mmap(nullptr, CallRetStackAllocSize(), PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+ 
+-  FEXCore::Allocator::VirtualName("FEXMem_CallRetStacks", reinterpret_cast<void*>(AllocBase), CALLRET_STACK_ALLOC_SIZE);
++  FEXCore::Allocator::VirtualName("FEXMem_CallRetStacks", reinterpret_cast<void*>(AllocBase), CallRetStackAllocSize());
+ 
+   // Disable HUGEPAGE on callret stacks.
+-  FEXCore::Allocator::VirtualTHPControl(reinterpret_cast<void*>(AllocBase), CALLRET_STACK_ALLOC_SIZE, FEXCore::Allocator::THPControl::Disable);
++  FEXCore::Allocator::VirtualTHPControl(reinterpret_cast<void*>(AllocBase), CallRetStackAllocSize(), FEXCore::Allocator::THPControl::Disable);
+ 
+   // Set the base used for invalidation to the start past the guard pages
+-  ThreadStateObject->Thread->CallRetStackBase = reinterpret_cast<void*>(AllocBase + FEXCore::Utils::FEX_PAGE_SIZE);
++  ThreadStateObject->Thread->CallRetStackBase = reinterpret_cast<void*>(AllocBase + FEXCore::Utils::GetHostPageSize());
+   ::mprotect(ThreadStateObject->Thread->CallRetStackBase, FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE, PROT_READ | PROT_WRITE);
+   Frame->State.callret_sp = ThreadStateObject->GetCallRetStackInfo().DefaultLocation;
+ 
+@@ -293,7 +295,7 @@ void ThreadManager::HandleThreadDeletion(FEX::HLE::ThreadStateObject* Thread, bo
+   }
+ 
+   // Free the call-ret stack
+-  FEXCore::Allocator::munmap(reinterpret_cast<void*>(Thread->GetCallRetStackInfo().AllocationBase), CALLRET_STACK_ALLOC_SIZE);
++  FEXCore::Allocator::munmap(reinterpret_cast<void*>(Thread->GetCallRetStackInfo().AllocationBase), CallRetStackAllocSize());
+ 
+   // If the LDT segment exists then deallocate it.
+   if (Thread->ldt_entry_count) {
+diff --git a/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.h b/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.h
+--- a/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.h
++++ b/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.h
+@@ -118,7 +118,7 @@ struct ThreadStateObject : public FEXCore::Allocator::FEXAllocOperators {
+   CallRetStackInfo GetCallRetStackInfo() {
+     uint64_t Base = reinterpret_cast<uint64_t>(Thread->CallRetStackBase);
+     // Leave some room from the base for the default location to allow for underflows without constant exceptions
+-    return {Base - FEXCore::Utils::FEX_PAGE_SIZE, Base + FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + FEXCore::Utils::FEX_PAGE_SIZE,
++    return {Base - FEXCore::Utils::GetHostPageSize(), Base + FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + FEXCore::Utils::GetHostPageSize(),
+             Base + FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE / 4};
+   }
+ 
+diff --git a/Source/Windows/ARM64EC/Module.cpp b/Source/Windows/ARM64EC/Module.cpp
+--- a/Source/Windows/ARM64EC/Module.cpp
++++ b/Source/Windows/ARM64EC/Module.cpp
+@@ -631,9 +631,11 @@ NTSTATUS ProcessInit() {
+ 
+   CPUFeatures.emplace(*CTX);
+ 
+-  X64ReturnInstr = ::VirtualAlloc(nullptr, FEXCore::Utils::FEX_PAGE_SIZE, MEM_COMMIT | MEM_TOP_DOWN, PAGE_EXECUTE_READWRITE);
+-  InvalidationTracker->HandleMemoryProtectionNotification(reinterpret_cast<uint64_t>(X64ReturnInstr), FEXCore::Utils::FEX_PAGE_SIZE,
+-                                                          PAGE_EXECUTE_READ);
++  {
++    const auto HostPageSize = FEXCore::Utils::GetHostPageSize();
++    X64ReturnInstr = ::VirtualAlloc(nullptr, HostPageSize, MEM_COMMIT | MEM_TOP_DOWN, PAGE_EXECUTE_READWRITE);
++    InvalidationTracker->HandleMemoryProtectionNotification(reinterpret_cast<uint64_t>(X64ReturnInstr), HostPageSize, PAGE_EXECUTE_READ);
++  }
+   *reinterpret_cast<uint8_t*>(X64ReturnInstr) = 0xc3;
+ 
+   const uintptr_t KiUserExceptionDispatcherFFS = reinterpret_cast<uintptr_t>(GetProcAddress(NtDll, "KiUserExceptionDispatcher"));
+diff --git a/Source/Windows/Common/Allocator.cpp b/Source/Windows/Common/Allocator.cpp
+--- a/Source/Windows/Common/Allocator.cpp
++++ b/Source/Windows/Common/Allocator.cpp
+@@ -20,6 +20,7 @@ void SetupHooks(HMODULE ntdll) {
+   Ptrs = {
+     .VirtualName = UnixLib::VirtualName,
+     .VirtualTHPControl = UnixLib::VirtualTHPControl,
++    .GetHostPageSize = UnixLib::GetHostPageSize,
+   };
+ 
+   SYSTEM_INFO system_info {};
+diff --git a/Source/Windows/Common/CallRetStack.h b/Source/Windows/Common/CallRetStack.h
+--- a/Source/Windows/Common/CallRetStack.h
++++ b/Source/Windows/Common/CallRetStack.h
+@@ -5,6 +5,7 @@
+ #include <FEXCore/Utils/Allocator.h>
+ #include <FEXCore/Utils/LogManager.h>
+ #include <FEXCore/Debug/InternalThreadState.h>
++#include <FEXCore/Utils/TypeDefines.h>
+ 
+ namespace FEX::Windows::CallRetStack {
+ struct CallRetStackInfo {
+@@ -13,24 +14,28 @@ struct CallRetStackInfo {
+   uint64_t DefaultLocation;
+ };
+ 
++static inline size_t GuardSize() {
++  return FEXCore::Utils::GetHostPageSize();
++}
++
+ CallRetStackInfo GetInfoThread(FEXCore::Core::InternalThreadState* Thread) {
+   uint64_t Base = reinterpret_cast<uint64_t>(Thread->CallRetStackBase);
+   // Leave some room from the base for the default location to allow for underflows without constant exceptions
+-  return {Base - FEXCore::Utils::FEX_PAGE_SIZE, Base + FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + FEXCore::Utils::FEX_PAGE_SIZE,
++  return {Base - GuardSize(), Base + FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + GuardSize(),
+           Base + FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE / 4};
+ }
+ 
+ void InitializeThread(FEXCore::Core::InternalThreadState* Thread) {
++  const size_t AllocationSize = FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + 2 * GuardSize();
++  LOGMAN_THROW_A_FMT((FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE % GuardSize()) == 0, "Call-ret stack size must be a multiple of the host page size");
++
+   // Allocate the call-ret stack with guard pages on both sides
+-  const void* CallRetStackAlloc = ::VirtualAlloc(nullptr, FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + 2 * FEXCore::Utils::FEX_PAGE_SIZE,
+-                                                 MEM_RESERVE | MEM_TOP_DOWN, PAGE_NOACCESS);
++  const void* CallRetStackAlloc = ::VirtualAlloc(nullptr, AllocationSize, MEM_RESERVE | MEM_TOP_DOWN, PAGE_NOACCESS);
+ 
+-  FEXCore::Allocator::VirtualName("FEXMem_CallRetStacks", CallRetStackAlloc,
+-                                  FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + 2 * FEXCore::Utils::FEX_PAGE_SIZE);
+-  FEXCore::Allocator::VirtualTHPControl(CallRetStackAlloc, FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE + 2 * FEXCore::Utils::FEX_PAGE_SIZE,
+-                                        FEXCore::Allocator::THPControl::Disable);
++  FEXCore::Allocator::VirtualName("FEXMem_CallRetStacks", CallRetStackAlloc, AllocationSize);
++  FEXCore::Allocator::VirtualTHPControl(CallRetStackAlloc, AllocationSize, FEXCore::Allocator::THPControl::Disable);
+ 
+-  Thread->CallRetStackBase = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(CallRetStackAlloc) + FEXCore::Utils::FEX_PAGE_SIZE);
++  Thread->CallRetStackBase = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(CallRetStackAlloc) + GuardSize());
+   ::VirtualAlloc(Thread->CallRetStackBase, FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE, MEM_COMMIT, PAGE_READWRITE);
+ 
+   Thread->CurrentFrame->State.callret_sp = GetInfoThread(Thread).DefaultLocation;
+diff --git a/Source/Windows/Common/FEXUnixLib.cpp b/Source/Windows/Common/FEXUnixLib.cpp
+--- a/Source/Windows/Common/FEXUnixLib.cpp
++++ b/Source/Windows/Common/FEXUnixLib.cpp
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: MIT
+ #include <FEXCore/fextl/fmt.h>
+ #include <FEXCore/Utils/LogManager.h>
++#include <FEXCore/Utils/TypeDefines.h>
+ 
+ #include <cstdint>
+ #include <windef.h>
+@@ -210,4 +211,17 @@ uint32_t GetPID() {
+   return GetCurrentProcessId();
+ }
+ 
++size_t GetHostPageSize() {
++  if (!Available()) {
++    return FEXCore::Utils::FEX_PAGE_SIZE;
++  }
++
++  FEXUnixLib_GetHostPageSize Args {};
++  if (Call(FEXUnixLibFunctions::GetHostPageSize, &Args) == STATUS_SUCCESS) {
++    return static_cast<size_t>(Args.Result);
++  }
++
++  return FEXCore::Utils::FEX_PAGE_SIZE;
++}
++
+ } // namespace FEX::Windows::UnixLib
+diff --git a/Source/Windows/Common/FEXUnixLib.h b/Source/Windows/Common/FEXUnixLib.h
+--- a/Source/Windows/Common/FEXUnixLib.h
++++ b/Source/Windows/Common/FEXUnixLib.h
+@@ -53,4 +53,5 @@ void* MapFile(HANDLE FileHandle, uint64_t MapSize);
+ // Or returns the process ID otherwise.
+ uint32_t GetPID();
+ 
++size_t GetHostPageSize();
+ } // namespace FEX::Windows::UnixLib
+diff --git a/Source/Windows/Common/InvalidationTracker.cpp b/Source/Windows/Common/InvalidationTracker.cpp
+--- a/Source/Windows/Common/InvalidationTracker.cpp
++++ b/Source/Windows/Common/InvalidationTracker.cpp
+@@ -230,7 +230,8 @@ bool InvalidationTracker::HandleRWXAccessViolation(FEXCore::Core::InternalThread
+     {
+       std::scoped_lock Lock(CTX.GetCodeInvalidationMutex());
+ 
+-      InvalidateIntervalInternalLocked(FaultAddress & FEXCore::Utils::FEX_PAGE_MASK, FEXCore::Utils::FEX_PAGE_SIZE);
++      const auto HostPageSize = FEXCore::Utils::GetHostPageSize();
++      InvalidateIntervalInternalLocked(FaultAddress & ~(HostPageSize - 1), HostPageSize);
+ 
+       // Invalidate, then unprotect the faulting page with the compilation lock held to ensure that any racing invalidations are not dropped.
+       ULONG TmpProt;
+diff --git a/Source/Windows/Common/JITGuardPage.h b/Source/Windows/Common/JITGuardPage.h
+--- a/Source/Windows/Common/JITGuardPage.h
++++ b/Source/Windows/Common/JITGuardPage.h
+@@ -2,19 +2,20 @@
+ #pragma once
+ #include <FEXCore/Debug/InternalThreadState.h>
+ #include <FEXCore/Utils/LongJump.h>
++#include <FEXCore/Utils/TypeDefines.h>
+ 
+ namespace FEX::Windows::JITGuardPage {
+-static constexpr bool IsAddressInJITGuardPage(uintptr_t GuardPage, uintptr_t Address) {
+-  return GuardPage != 0 && Address >= GuardPage && Address < GuardPage + FEXCore::Utils::FEX_PAGE_SIZE;
++static constexpr bool IsAddressInJITGuardPage(uintptr_t GuardPage, uintptr_t Address, size_t GuardSize) {
++  return GuardPage != 0 && Address >= GuardPage && Address < GuardPage + GuardSize;
+ }
+ 
+-static_assert(!IsAddressInJITGuardPage(0, 0));
+-static_assert(IsAddressInJITGuardPage(0x1000, 0x1000));
+-static_assert(IsAddressInJITGuardPage(0x1000, 0x1fff));
+-static_assert(!IsAddressInJITGuardPage(0x1000, 0x2000));
++static_assert(!IsAddressInJITGuardPage(0, 0, 0x1000));
++static_assert(IsAddressInJITGuardPage(0x1000, 0x1000, 0x1000));
++static_assert(IsAddressInJITGuardPage(0x1000, 0x1fff, 0x1000));
++static_assert(!IsAddressInJITGuardPage(0x1000, 0x2000, 0x1000));
+ 
+ static inline bool HandleJITGuardPage(FEXCore::Core::InternalThreadState* Thread, void* Address, uint64_t* GPRs, __uint128_t* FPRs, uint64_t* PC) {
+-  if (IsAddressInJITGuardPage(Thread->JITGuardPage, reinterpret_cast<uintptr_t>(Address))) {
++  if (IsAddressInJITGuardPage(Thread->JITGuardPage, reinterpret_cast<uintptr_t>(Address), FEXCore::Utils::GetHostPageSize())) {
+     FEXCore::UncheckedLongJump::ManuallyLoadJumpBuf(Thread->RestartJump, Thread->JITGuardOverflowArgument, GPRs, FPRs, PC);
+     return true;
+   }
+diff --git a/Source/Windows/UnixLib/FEXUnixLib.cpp b/Source/Windows/UnixLib/FEXUnixLib.cpp
+--- a/Source/Windows/UnixLib/FEXUnixLib.cpp
++++ b/Source/Windows/UnixLib/FEXUnixLib.cpp
+@@ -181,6 +181,12 @@ static NTSTATUS FEXUnixLib_GetPIDHandler(void* _Args) {
+   Args->Result = ::getpid();
+   return STATUS_SUCCESS;
+ }
++static NTSTATUS FEXUnixLib_GetHostPageSizeHandler(void* _Args) {
++  auto Args = reinterpret_cast<FEXUnixLib_GetHostPageSize*>(_Args);
++  Args->Result = static_cast<uint64_t>(sysconf(_SC_PAGESIZE));
++  return STATUS_SUCCESS;
++}
++
+ extern "C" const unixlib_entry_t __wine_unix_call_funcs[] = {
+   FEXUnixLib_SetHardwareTSOControlHandler,
+   FEXUnixLib_SetKernelUnalignedAtomicControlHandler,
+@@ -190,6 +196,7 @@ extern "C" const unixlib_entry_t __wine_unix_call_funcs[] = {
+   FEXUnixLib_DeleteSHMStatsFileHandler,
+   FEXUnixLib_MapFileHandler,
+   FEXUnixLib_GetPIDHandler,
++  FEXUnixLib_GetHostPageSizeHandler,
+ };
+ 
+ static_assert(sizeof(__wine_unix_call_funcs) / sizeof(__wine_unix_call_funcs[0]) == ToUnderlying(FEXUnixLibFunctions::MAX));
+diff --git a/Source/Windows/UnixLib/FEXUnixLib.h b/Source/Windows/UnixLib/FEXUnixLib.h
+--- a/Source/Windows/UnixLib/FEXUnixLib.h
++++ b/Source/Windows/UnixLib/FEXUnixLib.h
+@@ -12,6 +12,7 @@ enum class FEXUnixLibFunctions : uint32_t {
+   DeleteSHMStatsFile,
+   MapFile,
+   GetPID,
++  GetHostPageSize,
+   MAX,
+ };
+ 
+@@ -65,3 +66,7 @@ struct FEXUnixLib_GetPID {
+   uint32_t Result;
+ };
+ static_assert(sizeof(FEXUnixLib_GetPID) == 4);
++struct FEXUnixLib_GetHostPageSize {
++  uint64_t Result;
++};
++static_assert(sizeof(FEXUnixLib_GetHostPageSize) == 8);

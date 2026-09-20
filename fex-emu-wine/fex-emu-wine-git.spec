@@ -1,9 +1,9 @@
 %global srcname FEX
-%global tag 2608
+%global tag 2609
 
-%global bumpver 29
+%global bumpver 1
 
-%global commit a77d00acaefe80ae5feccc4720bb0e7305ec2bb4
+%global commit 48d71752e2a363d5535181f803b0b0e9666c1825
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -17,7 +17,7 @@
 
 Name:       fex-emu-wine-git
 Version:    %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:    4%{?dist}
+Release:    1%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -32,15 +32,15 @@ Source100:  https://github.com/bylaws/llvm-mingw/releases/download/20250920/llvm
 local externals = {
   { name="cpp-optparse", ref="9f94388", owner="Sonicadvance1", path="../Source/Common/cpp-optparse", license="MIT" },
   { name="Catch2", ref="b3fb4b9", owner="catchorg", version="3.11.0", license="BSL-1.0" },
-  { name="Vulkan-Headers", ref="450bd22", owner="KhronosGroup", package="vulkan-headers", version="1.4.337", license="Apache-2.0" },
+  { name="Vulkan-Headers", ref="ee2ec5f", owner="KhronosGroup", package="vulkan-headers", version="1.4.362", license="Apache-2.0" },
   { name="drm-headers", ref="3e49836", owner="FEX-Emu", package="kernel", version="6.13", license="GPL-2.0-only" },
-  { name="fmt", ref="407c905", owner="fmtlib", path="fmt", version="12.1.0" },
+  { name="fmt", ref="c07e2aa", owner="fmtlib", path="fmt", version="12.2.1" },
   { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
   { name="range-v3", ref="ca1388f", owner="ericniebler", license="MIT" },
-  { name="rpmalloc", ref="1d85c24", owner="FEX-Emu", license="0BSD" },
+  { name="rpmalloc", ref="09142d7", owner="FEX-Emu", license="0BSD" },
   { name="tracy", ref="650c98e", owner="wolfpld", license="BSD-2-Clause" },
   { name="unordered_dense", ref="3234af2", owner="martinus", version="4.8.1", license="MIT" },
-  { name="vixl", ref="5f41844", owner="FEX-Emu", license="BSD-3-Clause" },
+  { name="vixl", ref="585d860", owner="FEX-Emu", license="BSD-3-Clause" },
   { name="xxhash", ref="e626a72", owner="Cyan4973", path="xxhash", version="0.8.3",  license="BSD-2-Clause" },
   { name="zydis", ref="9bfadd6", owner="zyantific", version="4.1.1",  license="MIT" },
 }
@@ -70,6 +70,9 @@ Patch:          %{forgeurl}/commit/a37def2c22e528477f64296747228400ddc40222.patc
 Patch:          %{forgeurl}/commit/8eaf45414c05c9e7ef6f74a323d95fe7e0d883c1.patch
 # FEXServer: Don't time out while clients are still connected
 Patch:          %{forgeurl}/commit/c326e2d669fd5e9356f6107e188413a449cc1fd7.patch
+
+Patch100:       fex-emu-wine-git-host-page-size.patch
+Patch101:       fex-emu-wine-git-smc-untrap-host-page.patch
 
 
 BuildRequires:  cmake
@@ -120,6 +123,9 @@ FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 
 %prep
 %setup -q -n %{srcname}-%{commit}
+
+%patch -P 100 -p1
+%patch -P 101 -p1
 
 # Unpack bundled libraries
 %{lua: print_setup_externals()}
@@ -216,6 +222,11 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Mon Sep 21 2026 Lachlan Marie <lchlnm@pm.me> - 2609^1.git.48d7175-1
+ - Update to commit 48d71752e2a363d5535181f803b0b0e9666c1825
+ - Add host page size and SMC host page patches
+ - Refresh bundled externals
+
 * Sun Sep 06 2026 Lachlan Marie <lchlnm@pm.me> - 2608^29.git.a77d00a-4
  - Update to commit a77d00acaefe80ae5feccc4720bb0e7305ec2bb4
 

@@ -1,0 +1,60 @@
+Trap and untrap SMC pages at host page granularity.
+
+diff --git a/Source/Windows/Common/InvalidationTracker.cpp b/Source/Windows/Common/InvalidationTracker.cpp
+--- a/Source/Windows/Common/InvalidationTracker.cpp
++++ b/Source/Windows/Common/InvalidationTracker.cpp
+@@ -217,12 +217,9 @@ void InvalidationTracker::ReprotectRWXIntervals(uint64_t Address, uint64_t Size)
+ }
+ 
+ bool InvalidationTracker::HandleRWXAccessViolation(FEXCore::Core::InternalThreadState* Thread, uint64_t HostPc, uint64_t FaultAddress) {
+-  const auto [NeedsInvalidate, UntrapProt] = [&](uint64_t Address) -> std::pair<bool, ULONG> {
++  const bool NeedsInvalidate = [&](uint64_t Address) {
+     std::shared_lock Lock(IntervalsLock);
+-    if (!RWXIntervals.Query(Address).Enclosed) {
+-      return {false, 0};
+-    }
+-    return {true, GetUntrapProt(Address)};
++    return RWXIntervals.Query(Address).Enclosed;
+   }(FaultAddress);
+ 
+   if (NeedsInvalidate) {
+@@ -234,10 +231,19 @@ bool InvalidationTracker::HandleRWXAccessViolation(FEXCore::Core::InternalThread
+       InvalidateIntervalInternalLocked(FaultAddress & ~(HostPageSize - 1), HostPageSize);
+ 
+       // Invalidate, then unprotect the faulting page with the compilation lock held to ensure that any racing invalidations are not dropped.
+-      ULONG TmpProt;
+-      void* TmpAddress = reinterpret_cast<void*>(FaultAddress);
+-      SIZE_T TmpSize = 1;
+-      NtProtectVirtualMemory(NtCurrentProcess(), &TmpAddress, &TmpSize, UntrapProt, &TmpProt);
++      const uint64_t HostPageBase = FaultAddress & ~(HostPageSize - 1);
++      for (uint64_t Page = HostPageBase; Page < HostPageBase + HostPageSize; Page += FEXCore::Utils::FEX_PAGE_SIZE) {
++        {
++          std::shared_lock Lock(IntervalsLock);
++          if (!RWXIntervals.Query(Page).Enclosed) {
++            continue;
++          }
++        }
++        ULONG TmpProt;
++        void* TmpAddress = reinterpret_cast<void*>(Page);
++        SIZE_T TmpSize = FEXCore::Utils::FEX_PAGE_SIZE;
++        NtProtectVirtualMemory(NtCurrentProcess(), &TmpAddress, &TmpSize, GetUntrapProt(Page), &TmpProt);
++      }
+     }
+     DetectMonoBackpatcherBlock(Thread, HostPc);
+     return true;
+@@ -340,7 +346,14 @@ void InvalidationTracker::InvalidateIntervalInternalLocked(uint64_t Address, uin
+ }
+ 
+ bool InvalidationTracker::ProtectRWXIntervalsInternal(uint64_t Address, uint64_t Size, bool ForWriteLocked) {
+-  const auto End = Address + Size;
++  auto End = Address + Size;
++
++  if (!ForWriteLocked) {
++    const auto HostPageSize = FEXCore::Utils::GetHostPageSize();
++    Address &= ~(HostPageSize - 1);
++    End = (End + HostPageSize - 1) & ~(HostPageSize - 1);
++  }
++
+   std::shared_lock Lock(IntervalsLock);
+ 
+   if (SMCDetectionDisabled) {

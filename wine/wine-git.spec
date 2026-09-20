@@ -7,13 +7,13 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global tag 11.16
-%global bumpver 1
+%global tag 11.18
+%global bumpver 0
 
-%global commit 111e5197390aa008789b002222024229fa2b82cf
+%global commit 7b3fff76fa5178f6ce0141b2c776afa2a822f101
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit dc020173dc36007d06a88ff3fc5866de7faba826
+%global staging_commit 627ccf4f350f41c6cea57fda05f52e57ba9fab1f
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -22,7 +22,7 @@
 
 %global no64bit   0
 %global winegecko 2.47.4
-%global winemono  11.2.0
+%global winemono  11.3.0
 %if 0%{?fedora}
 %global opencl    1
 %endif
@@ -114,6 +114,24 @@ Patch511:       wine-cjk.patch
 Patch600:       2026_08_17_bylaws_rebased.patch
 Patch601:       wine-mono-arm.patch
 Patch602:       2026_08_30-arm64ec-fex-bootstrap-order.patch
+Patch603:       2026_09_15-msvcrt-idempotent-cxx-unregister.patch
+Patch604:       2026_09_15-uxtheme-clip-parent-background.patch
+Patch605:       2026_09_15-winewayland-popup-subsurfaces.patch
+Patch606:       2026_09_15-d2d1-layers-primitive-blend.patch
+Patch607:       2026_09_15-win32u-unclamped-window-sizes.patch
+Patch608:       2026_09_16-win32u-protect-paint-dc.patch
+Patch609:       2026_09_16-winewayland-follow-host-color-scheme.patch
+Patch610:       2026_09_16-win32u-monitor-physical-position.patch
+Patch611:       2026_09_16-comctl32-groupbox-caption-row.patch
+Patch612:       2026_09_16-win32u-vulkan-swapchain-pnext.patch
+Patch613:       2026_09_16-winewayland-primary-output.patch
+Patch614:       2026_09_17-winewayland-decorations-default.patch
+Patch615:       2026_09_17-d2d1-collinear-outline-join.patch
+Patch616:       2026_09_17-winewayland-tiled-fixed-size.patch
+Patch617:       2026_09_17-winewayland-follow-output.patch
+Patch618:       2026_09_17-win32u-extend-virtual-modes.patch
+Patch619:       2026_09_17-vkd3d-shader-state-block-keywords.patch
+Patch620:       2026_09_18-server-scale-dpi-signed.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -827,6 +845,24 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 600 -p1 -F3
 %patch -P 601 -p0 -F3
 %patch -P 602 -p1 -F3
+%patch -P 603 -p1
+%patch -P 604 -p1
+%patch -P 605 -p1
+%patch -P 606 -p1
+%patch -P 607 -p1
+%patch -P 608 -p1
+%patch -P 609 -p1
+%patch -P 610 -p1
+%patch -P 611 -p1
+%patch -P 612 -p1
+%patch -P 613 -p1
+%patch -P 614 -p1
+%patch -P 615 -p1
+%patch -P 616 -p1
+%patch -P 617 -p1
+%patch -P 618 -p1
+%patch -P 619 -p1
+%patch -P 620 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -889,6 +925,33 @@ unset PKG_CONFIG_PATH
 %else
  --without-wayland \
 %endif
+ --enable-crtdll \
+ --enable-ctl3d32 \
+ --enable-d3d8 \
+ --enable-d3dim \
+ --enable-d3dim700 \
+ --enable-dmband \
+ --enable-dmcompos \
+ --enable-dmime \
+ --enable-dmscript \
+ --enable-dmstyle \
+ --enable-dplay \
+ --enable-dplayx \
+ --enable-dpwsockx \
+ --enable-iccvid \
+ --enable-iprop \
+ --enable-msscript_ocx \
+ --enable-msvcp70 \
+ --enable-msvcp71 \
+ --enable-msvcr70 \
+ --enable-msvcr71 \
+ --enable-msvcrt20 \
+ --enable-msvcrt40 \
+ --enable-msvcrtd \
+ --enable-olecli32 \
+ --enable-olepro32 \
+ --enable-olethk32 \
+ --enable-vdmdbg \
  --disable-tests
 
 %make_build TARGETFLAGS=""
@@ -2465,6 +2528,12 @@ fi
 %endif
 
 %changelog
+* Mon Sep 21 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^0.git.7b3fff7-ec.1
+ - Update to commit 7b3fff76fa5178f6ce0141b2c776afa2a822f101
+ - Add patches 603-620 from the 11.17/11.18 packages
+ - Keep 32-bit only modules enabled on all archs
+ - wine-mono 11.3.0
+
 * Tue Aug 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.16^1.git.111e519-ec.1
  - Update to commit 111e5197390aa008789b002222024229fa2b82cf
 
