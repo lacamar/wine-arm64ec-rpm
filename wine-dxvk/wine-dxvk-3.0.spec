@@ -7,7 +7,7 @@
 
 Name:           wine-dxvk
 Version:        3.0
-Release:        ec1%{dist}
+Release:        ec2%{dist}
 Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 
 License:        zlib AND MIT
@@ -147,9 +147,9 @@ EOF
 %undefine __brp_strip_static_archive
 %undefine _auto_set_build_flags
 
-export CFLAGS="%optflags -DNDEBUG -fPIC -O2 -pthread -fno-strict-aliasing -fuse-linker-plugin -fno-stack-protector -fno-stack-clash-protection -fno-lto"
+export CFLAGS="-DNDEBUG -fPIC -O2 -pthread -fno-strict-aliasing -fno-stack-protector -fno-lto"
 export CXXFLAGS="${CFLAGS} -fpermissive"
-export LDFLAGS="-fPIC -Wl,--sort-common -Wl,--gc-sections -Wl,-O1 -fuse-linker-plugin -fno-lto"
+export LDFLAGS="-fPIC -Wl,--sort-common -Wl,--gc-sections -Wl,-O1 -fno-lto"
 export PATH="$PWD/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64/bin:$PATH"
 %meson --cross-file build-arm64ec.txt --buildtype=release -Dbuild_id=true
 %meson_build

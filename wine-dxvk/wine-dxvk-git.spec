@@ -13,7 +13,7 @@
 
 Name:           wine-dxvk-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec1%{?dist}
+Release:        ec2%{?dist}
 Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 
 Conflicts:      wine-dxvk
@@ -168,9 +168,9 @@ EOF
 %undefine __brp_strip_static_archive
 %undefine _auto_set_build_flags
 
-export CFLAGS="%optflags -DNDEBUG -fPIC -O2 -pthread -fno-strict-aliasing -fuse-linker-plugin -fno-stack-protector -fno-stack-clash-protection -fno-lto"
+export CFLAGS="-DNDEBUG -fPIC -O2 -pthread -fno-strict-aliasing -fno-stack-protector -fno-lto"
 export CXXFLAGS="${CFLAGS} -fpermissive"
-export LDFLAGS="-fPIC -Wl,--sort-common -Wl,--gc-sections -Wl,-O1 -fuse-linker-plugin -fno-lto"
+export LDFLAGS="-fPIC -Wl,--sort-common -Wl,--gc-sections -Wl,-O1 -fno-lto"
 export PATH="$PWD/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64/bin:$PATH"
 %meson --cross-file build-arm64ec.txt --buildtype=release -Dbuild_id=true
 %meson_build
@@ -268,6 +268,10 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Mon Sep 21 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^3.git.40e0164-ec2
+ - Drop gcc-only flags breaking meson arg probes
+ - Fix missing Win32 WSI
+
 * Sun Sep 20 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^3.git.40e0164-ec1
  - Update to commit 40e01640396d03f9fddeb697f5ee00ae893ecb75
 
