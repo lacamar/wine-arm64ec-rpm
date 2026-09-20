@@ -1399,6 +1399,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/hostname.exe
 %{_libdir}/wine/%{winepedirs}/ipconfig.exe
 %{_libdir}/wine/%{winepedirs}/klist.exe
+%{_libdir}/wine/%{winepedirs}/lsass.exe
 %{_libdir}/wine/%{winepedirs}/makecab.exe
 %{_libdir}/wine/%{winepedirs}/mshta.exe
 %{_libdir}/wine/%{winepedirs}/msidb.exe
@@ -2533,6 +2534,7 @@ fi
  - Add patches 603-620 from the 11.17/11.18 packages
  - Keep 32-bit only modules enabled on all archs
  - wine-mono 11.3.0
+ - Package lsass.exe
 
 * Tue Aug 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.16^1.git.111e519-ec.1
  - Update to commit 111e5197390aa008789b002222024229fa2b82cf
