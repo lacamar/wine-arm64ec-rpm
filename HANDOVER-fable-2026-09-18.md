@@ -133,3 +133,25 @@ ec11's follow-output was still wrong in one case and was never really tested on 
 
 Seen once and cleared by any resize: a stale frame stretched horizontally after a configure
 (buffer/viewport size mismatch in the surface path). Not caused by these patches; not chased.
+
+## Test tools now live in `tools/` (2026-09-22)
+
+`~/.cache/wine-arm64ec-dev` was wiped, taking the shadow install, source trees and every test tool
+with it. The tools are rewritten and kept in the repo; `make -C tools` builds them into
+`$XDG_CACHE_HOME/wine-arm64ec-dev/tools`.
+
+- `smctest32` in-place code patching per page (22/22 must pass), `suspendtest32/64 [cycles]`
+  SuspendThread on a spinning thread (syncs with GetThreadContext first, SuspendThread is async),
+  `tsospin32/64 [seconds]` spinning threads to inspect per-thread state from outside.
+- `winrect "<title>" [unaware|system|pm|pmv2]`, `wclick <raw x> <raw y> [right]`,
+  `wtool list|children|monitors|modes|click|vk|ctrlvk|shiftvk|redraw`, `fxtest <file.fx>...`
+  (`FXTEST_D3DX` selects the d3dx9 DLL), `dumpstack.py <pid> <+seh log>`.
+- `prtest` (native): hardware TSO and kernel unaligned-atomic prctls. On `7.1.13-2.fairydust` TSO
+  works and is inherited by every thread of a Wine process; `PR_ARM64_SET_UNALIGN_ATOMIC` is EINVAL,
+  so FEX handles unaligned atomics in the signal path. Checked per thread with gdb by calling libc
+  `prctl(0x6d4d444c)` by address (`libc base + nm -D offset`), since wine has no symbols.
+- `wkill.sh <exe>`, `wshot.sh <window id|title> <out.png>`.
+
+Not rewritten (sources lost, behaviour not recorded precisely enough): `xtest32`, `gltest*`,
+`d2dtest`, `gbtest*`, `stroketest`, `fonttest`. The shadow install and `full/`, `build-full/`,
+`build-i386/`, `orig-full/`, `fexsrc/` need recreating from the spec's `%prep` when next needed.
