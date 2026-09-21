@@ -1,9 +1,9 @@
 %global srcname FEX
 %global tag 2609
 
-%global bumpver 1
+%global bumpver 2
 
-%global commit 48d71752e2a363d5535181f803b0b0e9666c1825
+%global commit 177542e673b1f7d2179307c176ac8dd696784bed
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -222,6 +222,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Mon Sep 21 2026 Lachlan Marie <lchlnm@pm.me> - 2609^2.git.177542e-1
+ - Update to commit 177542e673b1f7d2179307c176ac8dd696784bed
+
 * Mon Sep 21 2026 Lachlan Marie <lchlnm@pm.me> - 2609^1.git.48d7175-1
  - Update to commit 48d71752e2a363d5535181f803b0b0e9666c1825
  - Add host page size and SMC host page patches
