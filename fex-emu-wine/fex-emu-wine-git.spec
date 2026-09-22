@@ -73,6 +73,7 @@ Patch:          %{forgeurl}/commit/c326e2d669fd5e9356f6107e188413a449cc1fd7.patc
 
 Patch100:       fex-emu-wine-git-host-page-size.patch
 Patch101:       fex-emu-wine-git-smc-untrap-host-page.patch
+Patch102:       fex-emu-wine-git-callback-code-buffer.patch
 
 
 BuildRequires:  cmake
@@ -126,6 +127,7 @@ FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 
 %patch -P 100 -p1
 %patch -P 101 -p1
+%patch -P 102 -p1
 
 # Unpack bundled libraries
 %{lua: print_setup_externals()}

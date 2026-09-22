@@ -3,7 +3,7 @@ CC32 = i686-w64-mingw32-gcc
 CC64 = x86_64-w64-mingw32-gcc
 CFLAGS = -O1 -Wall
 
-WIN32 = smctest suspendtest tsospin winrect wclick wtool fxtest
+WIN32 = smctest suspendtest tsospin winrect wclick wtool fxtest cbjittest
 WIN64 = suspendtest tsospin winrect
 SCRIPTS = dumpstack.py wkill.sh wshot.sh
 

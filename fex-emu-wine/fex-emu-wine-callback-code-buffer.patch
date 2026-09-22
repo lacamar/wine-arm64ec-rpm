@@ -1,0 +1,41 @@
+Keep the code buffer alive while a WOW64 syscall that can dispatch user callbacks is in flight.
+
+diff --git a/Source/Windows/WOW64/Module.cpp b/Source/Windows/WOW64/Module.cpp
+--- a/Source/Windows/WOW64/Module.cpp
++++ b/Source/Windows/WOW64/Module.cpp
+@@ -118,6 +118,8 @@
+ 
+ struct FrontendThreadData {
+   bool InLockedRWXRead {};
++  // Entry stack pointers of the BTCpuSimulate invocations that have a syscall handler waiting to return into JIT code
++  fextl::vector<uint64_t> SyscallSimulateSps;
+ };
+ 
+ class WowSyscallHandler;
+@@ -488,8 +490,26 @@
+     const auto TLS = GetTLS();
+     // Stash the the context pointer on the stack, as Simulate can be called from this syscall handler which would overwrite it
+     CONTEXT* EntryContext = TLS.EntryContext();
++
++    // This returns into the current code buffer, which a user callback dispatched by the syscall can fill up and replace,
++    // so it has to be kept alive like in the signal handler case. A simulate invocation has at most one syscall in
++    // flight, so entries for this or a deeper invocation are handlers that never returned (NtCallbackReturn, unwinds).
++    auto& SimulateSps = GetFrontendThreadData(TLS.ThreadState())->SyscallSimulateSps;
++    const uint64_t SimulateSp = EntryContext->Sp;
++    const auto DropFinished = [&] {
++      while (!SimulateSps.empty() && SimulateSps.back() <= SimulateSp) {
++        SimulateSps.pop_back();
++      }
++    };
++    DropFinished();
++    SimulateSps.push_back(SimulateSp);
++    Frame->SignalHandlerRefCounter = SimulateSps.size();
++
+     // Call the syscall handler with unwind information pointing to Simulate as its caller
+     SEHFrameTrampoline1Args(reinterpret_cast<void*>(Frame), reinterpret_cast<void*>(&HandleSyscallImpl), EntryContext->Sp, EntryContext->Pc);
++
++    DropFinished();
++    Frame->SignalHandlerRefCounter = SimulateSps.size();
+     TLS.EntryContext() = EntryContext;
+   }
+ 

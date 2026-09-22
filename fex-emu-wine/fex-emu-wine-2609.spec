@@ -10,7 +10,7 @@
 
 Name:       fex-emu-wine
 Version:    2609
-Release:    3%{?dist}
+Release:    4%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -74,6 +74,8 @@ Patch100:       fex-emu-wine-host-page-size.patch
 Patch101:       fex-emu-wine-smc-untrap-host-page.patch
 # thread suspension of JIT threads
 Patch102:       fex-emu-wine-interrupt-fault-page.patch
+# code buffer replaced under a WOW64 user callback
+Patch103:       fex-emu-wine-callback-code-buffer.patch
 
 
 BuildRequires:  cmake
@@ -125,6 +127,7 @@ FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 %patch -P 100 -p1
 %patch -P 101 -p1
 %patch -P 102 -p1
+%patch -P 103 -p1
 
 # Unpack bundled libraries
 %{lua: print_setup_externals()}
@@ -221,6 +224,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Tue Sep 22 2026 Lachlan Marie <lchlnm@pm.me> - 2609-4
+- fix WOW64 crash when the code buffer is replaced inside a user callback
+
 * Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 2609-3
 - fix suspending JIT threads
 
