@@ -1,7 +1,7 @@
-%global bumpver 3
+%global bumpver 4
 %global tag 3.1.1
 
-%global commit 40e01640396d03f9fddeb697f5ee00ae893ecb75
+%global commit ba62c4270969b9db525311d53ee2b9a60ea4b860
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -268,6 +268,9 @@ fi
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
 
 %changelog
+* Tue Sep 22 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^4.git.ba62c42-ec2
+ - Update to commit ba62c4270969b9db525311d53ee2b9a60ea4b860
+
 * Mon Sep 21 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^3.git.40e0164-ec2
  - Drop gcc-only flags breaking meson arg probes
  - Fix missing Win32 WSI
