@@ -8,7 +8,7 @@
 
 Name:           wine-vkd3d-proton
 Version:        3.0.1
-Release:        ec1%{dist}
+Release:        ec2%{dist}
 Summary:        Vulkan-based implementation of D3D12 for Wine (ARM64EC)
 
 License:        LGPL-2.1-or-later AND MIT
@@ -51,7 +51,7 @@ BuildRequires:  wine-devel
 
 Requires(pre):  vulkan-tools
 
-Requires:       wine-core >= 11.18-ec2
+Requires:       wine-core >= 11.18-ec3
 Requires:       wine-dxvk-dxgi
 Requires:       vulkan-loader
 
@@ -84,6 +84,23 @@ cpu = 'aarch64'
 endian = 'little'
 EOF
 
+cat << EOF > build-i686.txt
+[binaries]
+ar = 'i686-w64-mingw32-ar'
+c = 'i686-w64-mingw32-gcc'
+cpp = 'i686-w64-mingw32-g++'
+ld = 'i686-w64-mingw32-ld'
+windres = 'i686-w64-mingw32-windres'
+widl = 'i686-w64-mingw32-widl'
+strip = 'i686-w64-mingw32-strip'
+
+[host_machine]
+system = 'windows'
+cpu_family = 'x86'
+cpu = 'i686'
+endian = 'little'
+EOF
+
 
 %build
 %undefine _auto_set_build_flags
@@ -94,13 +111,17 @@ export LDFLAGS="-Wl,--gc-sections -fno-lto"
 export PATH="$PWD/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64/bin:$PATH"
 %meson --cross-file build-arm64ec.txt --buildtype=release -Denable_tests=false
 %meson_build
+meson setup --cross-file build-i686.txt --buildtype=release -Denable_tests=false build-i686
+meson compile -C build-i686 %{?_smp_mflags}
 
 
 %install
-mkdir -p %{buildroot}%{_libdir}/wine/%{winepedir}
+mkdir -p %{buildroot}%{_libdir}/wine/%{winepedir} %{buildroot}%{_libdir}/wine/i386-windows
 for dll in d3d12 d3d12core; do
     install -p -m 644 %{_vpath_builddir}/libs/$dll/$dll.dll %{buildroot}%{_libdir}/wine/%{winepedir}/vkd3d-proton-$dll.dll
     winebuild --builtin %{buildroot}%{_libdir}/wine/%{winepedir}/vkd3d-proton-$dll.dll
+    install -p -m 644 build-i686/libs/$dll/$dll.dll %{buildroot}%{_libdir}/wine/i386-windows/vkd3d-proton-$dll.dll
+    winebuild --builtin %{buildroot}%{_libdir}/wine/i386-windows/vkd3d-proton-$dll.dll
 done
 
 %posttrans
@@ -111,16 +132,24 @@ else
 fi
 %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d12.dll 'wine-d3d12%{?_isa}' %{_libdir}/wine/%{winepedir}/vkd3d-proton-d3d12.dll $prio \
     --slave %{_libdir}/wine/%{winepedir}/d3d12core.dll 'wine-d3d12core%{?_isa}' %{_libdir}/wine/%{winepedir}/vkd3d-proton-d3d12core.dll
+%{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d12.dll 'wine-d3d12(x86-32)' %{_libdir}/wine/i386-windows/vkd3d-proton-d3d12.dll $prio \
+    --slave %{_libdir}/wine/i386-windows/d3d12core.dll 'wine-d3d12core(x86-32)' %{_libdir}/wine/i386-windows/vkd3d-proton-d3d12core.dll
 
 %postun
 %{_sbindir}/alternatives --remove 'wine-d3d12%{?_isa}' %{_libdir}/wine/%{winepedir}/vkd3d-proton-d3d12.dll
+%{_sbindir}/alternatives --remove 'wine-d3d12(x86-32)' %{_libdir}/wine/i386-windows/vkd3d-proton-d3d12.dll
 
 %files
 %license LICENSE COPYING
 %doc README.md
 %{_libdir}/wine/%{winepedir}/vkd3d-proton-d3d12.dll
 %{_libdir}/wine/%{winepedir}/vkd3d-proton-d3d12core.dll
+%{_libdir}/wine/i386-windows/vkd3d-proton-d3d12.dll
+%{_libdir}/wine/i386-windows/vkd3d-proton-d3d12core.dll
 
 %changelog
+* Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec2
+- Add 32-bit DLLs
+
 * Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec1
 - Initial ARM64EC build

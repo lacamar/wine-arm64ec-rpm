@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.18
-Release:        ec2%{dist}
+Release:        ec3%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -901,12 +901,18 @@ mv %{buildroot}%{_libdir}/wine/i386-windows/d3d10.dll %{buildroot}%{_libdir}/win
 mv %{buildroot}%{_libdir}/wine/i386-windows/d3d10_1.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d10_1.dll
 mv %{buildroot}%{_libdir}/wine/i386-windows/d3d10core.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d10core.dll
 mv %{buildroot}%{_libdir}/wine/i386-windows/d3d11.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d11.dll
+mv %{buildroot}%{_libdir}/wine/i386-windows/d3d8.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d8.dll
+mv %{buildroot}%{_libdir}/wine/i386-windows/d3d12.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d12.dll
+mv %{buildroot}%{_libdir}/wine/i386-windows/d3d12core.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d12core.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/dxgi.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/d3d9.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/d3d10.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/d3d10_1.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/d3d10core.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/d3d11.dll
+touch %{buildroot}%{_libdir}/wine/i386-windows/d3d8.dll
+touch %{buildroot}%{_libdir}/wine/i386-windows/d3d12.dll
+touch %{buildroot}%{_libdir}/wine/i386-windows/d3d12core.dll
 %endif
 
 # setup new wow64
@@ -1193,10 +1199,22 @@ done
   'wine-dxgi(x86-32)' %{_libdir}/wine/i386-windows/wine-dxgi.dll 10
 %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d9.dll \
   'wine-d3d9(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d9.dll 10
+if %{_sbindir}/alternatives --display 'wine-d3d10(x86-32)' 2>/dev/null | grep -q 'wine-d3d10core(x86-32)'; then
+  %{_sbindir}/alternatives --remove 'wine-d3d10(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10.dll
+fi
+for dll in d3d12 d3d12core; do
+  [ -L %{_libdir}/wine/i386-windows/$dll.dll ] || rm -f %{_libdir}/wine/i386-windows/$dll.dll
+done
+%{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d8.dll \
+  'wine-d3d8(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d8.dll 10
+%{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d10core.dll \
+  'wine-d3d10core(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10core.dll 10
 %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d10.dll \
   'wine-d3d10(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10.dll 10 \
-  --slave  %{_libdir}/wine/i386-windows/d3d10_1.dll 'wine-d3d10_1(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10_1.dll \
-  --slave  %{_libdir}/wine/i386-windows/d3d10core.dll 'wine-d3d10core(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10core.dll
+  --slave  %{_libdir}/wine/i386-windows/d3d10_1.dll 'wine-d3d10_1(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10_1.dll
+%{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d12.dll \
+  'wine-d3d12(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d12.dll 10 \
+  --slave %{_libdir}/wine/i386-windows/d3d12core.dll 'wine-d3d12core(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d12core.dll || :
 %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d11.dll \
   'wine-d3d11(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d11.dll 10 || :
 %endif
@@ -1221,7 +1239,10 @@ if [ $1 -eq 0 ] ; then
 %if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
   %{_sbindir}/alternatives --remove 'wine-dxgi(x86-32)' %{_libdir}/wine/i386-windows/wine-dxgi.dll
   %{_sbindir}/alternatives --remove 'wine-d3d9(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d9.dll
+  %{_sbindir}/alternatives --remove 'wine-d3d8(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d8.dll
+  %{_sbindir}/alternatives --remove 'wine-d3d10core(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10core.dll
   %{_sbindir}/alternatives --remove 'wine-d3d10(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10.dll
+  %{_sbindir}/alternatives --remove 'wine-d3d12(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d12.dll || :
   %{_sbindir}/alternatives --remove 'wine-d3d11(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d11.dll || :
 %endif
 fi
@@ -1451,14 +1472,10 @@ fi
 %{_libdir}/wine/%{winepedirs}/wine-d3d10core.dll
 %ghost %{_libdir}/wine/%{winepedirs}/d3d11.dll
 %{_libdir}/wine/%{winepedirs}/wine-d3d11.dll
-%ghost %{_libdir}/wine/%{winepedir}/d3d12.dll
-%ghost %{_libdir}/wine/%{winepedir}/d3d12core.dll
-%{_libdir}/wine/%{winepedir}/wine-d3d12.dll
-%{_libdir}/wine/%{winepedir}/wine-d3d12core.dll
-%if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
-%{_libdir}/wine/i386-windows/d3d12.dll
-%{_libdir}/wine/i386-windows/d3d12core.dll
-%endif
+%ghost %{_libdir}/wine/%{winepedirs}/d3d12.dll
+%ghost %{_libdir}/wine/%{winepedirs}/d3d12core.dll
+%{_libdir}/wine/%{winepedirs}/wine-d3d12.dll
+%{_libdir}/wine/%{winepedirs}/wine-d3d12core.dll
 %{_libdir}/wine/%{winepedirs}/d3dcompiler_*.dll
 %{_libdir}/wine/%{winepedirs}/d3dim.dll
 %{_libdir}/wine/%{winepedirs}/d3dim700.dll
@@ -2449,6 +2466,10 @@ fi
 %endif
 
 %changelog
+* Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec3
+- Fix missing 32-bit d3d8
+- Split 32-bit d3d10core, add 32-bit d3d12 alternatives
+
 * Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec2
 - Make d3d12 an alternative
 

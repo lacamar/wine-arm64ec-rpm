@@ -13,7 +13,7 @@
 
 Name:           wine-dxvk-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec2%{?dist}
+Release:        ec3%{?dist}
 Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 
 Conflicts:      wine-dxvk
@@ -74,7 +74,7 @@ BuildRequires:  mingw64-spirv-headers
 
 Requires(pre):  vulkan-tools
 
-Requires:       wine-core
+Requires:       wine-core >= 11.18-ec3
 Requires:       wine-dxvk-dxgi = %{version}-%{release}
 Requires:       vulkan-loader
 
@@ -162,6 +162,23 @@ cpu = 'aarch64'
 endian = 'little'
 EOF
 
+cat << EOF > build-i686.txt
+[binaries]
+ar = 'i686-w64-mingw32-ar'
+c = 'i686-w64-mingw32-gcc'
+cpp = 'i686-w64-mingw32-g++'
+ld = 'i686-w64-mingw32-ld'
+windres = 'i686-w64-mingw32-windres'
+strip = 'strip'
+widl = 'i686-w64-mingw32-widl'
+
+[host_machine]
+system = 'windows'
+cpu_family = 'x86'
+cpu = 'i686'
+endian = 'little'
+EOF
+
 
 %build
 %undefine __brp_strip_lto
@@ -174,6 +191,8 @@ export LDFLAGS="-fPIC -Wl,--sort-common -Wl,--gc-sections -Wl,-O1 -fno-lto"
 export PATH="$PWD/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64/bin:$PATH"
 %meson --cross-file build-arm64ec.txt --buildtype=release -Dbuild_id=true
 %meson_build
+meson setup --cross-file build-i686.txt --buildtype=release -Dbuild_id=true build-i686
+meson compile -C build-i686 %{?_smp_mflags}
 
 
 %install
@@ -193,81 +212,110 @@ install -p -m 644 %{buildroot}%{_bindir}/d3d9.dll %{buildroot}%{_libdir}/wine/%{
 install -p -m 644 %{buildroot}%{_bindir}/d3d10core.dll %{buildroot}%{_libdir}/wine/%{winepedir}/dxvk-d3d10core.dll
 install -p -m 644 %{buildroot}%{_bindir}/d3d11.dll %{buildroot}%{_libdir}/wine/%{winepedir}/dxvk-d3d11.dll
 
+mkdir -p %{buildroot}%{_libdir}/wine/i386-windows/
+for dll in dxgi d3d8 d3d9 d3d10core d3d11; do
+    install -p -m 644 $(find build-i686/src -name $dll.dll) %{buildroot}%{_libdir}/wine/i386-windows/dxvk-$dll.dll
+    winebuild --builtin %{buildroot}%{_libdir}/wine/i386-windows/dxvk-$dll.dll
+done
+
 # Clean-up
 rm -rf %{buildroot}%{_bindir}
 
 %posttrans
 if vulkaninfo |& grep "ERROR_INITIALIZATION_FAILED\|ERROR_SURFACE_LOST_KHR\|Vulkan support is incomplete" > /dev/null; then
     %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d11.dll 'wine-d3d11%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d11.dll 5
+    %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d11.dll 'wine-d3d11(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d11.dll 5
 else
     %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d11.dll 'wine-d3d11%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d11.dll 20
+    %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d11.dll 'wine-d3d11(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d11.dll 20
 fi
 
 %posttrans dxgi
 if vulkaninfo |& grep "ERROR_INITIALIZATION_FAILED\|ERROR_SURFACE_LOST_KHR\|Vulkan support is incomplete" > /dev/null; then
     %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/dxgi.dll 'wine-dxgi%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll 5
+    %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/dxgi.dll 'wine-dxgi(x86-32)' %{_libdir}/wine/i386-windows/dxvk-dxgi.dll 5
 else
     %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/dxgi.dll 'wine-dxgi%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll 20
+    %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/dxgi.dll 'wine-dxgi(x86-32)' %{_libdir}/wine/i386-windows/dxvk-dxgi.dll 20
 fi
 
 %posttrans d3d10
 if vulkaninfo |& grep "ERROR_INITIALIZATION_FAILED\|ERROR_SURFACE_LOST_KHR\|Vulkan support is incomplete" > /dev/null; then
     %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d10core.dll 'wine-d3d10core%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d10core.dll 5
+    %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d10core.dll 'wine-d3d10core(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d10core.dll 5
 else
     %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d10core.dll 'wine-d3d10core%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d10core.dll 20
+    %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d10core.dll 'wine-d3d10core(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d10core.dll 20
 fi
 
 %posttrans d3d9
 if vulkaninfo |& grep "ERROR_INITIALIZATION_FAILED\|ERROR_SURFACE_LOST_KHR\|Vulkan support is incomplete" > /dev/null; then
     %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d9.dll 'wine-d3d9%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d9.dll 5
+    %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d9.dll 'wine-d3d9(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d9.dll 5
 else
     %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d9.dll 'wine-d3d9%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d9.dll 20
+    %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d9.dll 'wine-d3d9(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d9.dll 20
 fi
 
 %posttrans d3d8
 if vulkaninfo |& grep "ERROR_INITIALIZATION_FAILED\|ERROR_SURFACE_LOST_KHR\|Vulkan support is incomplete" > /dev/null; then
     %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d8.dll 'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d8.dll 5
+    %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d8.dll 'wine-d3d8(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d8.dll 5
 else
     %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d8.dll 'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d8.dll 20
+    %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d8.dll 'wine-d3d8(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d8.dll 20
 fi
 
 %postun
 %{_sbindir}/alternatives --remove 'wine-d3d11%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d11.dll
+%{_sbindir}/alternatives --remove 'wine-d3d11(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d11.dll
 
 %postun d3d10
 %{_sbindir}/alternatives --remove 'wine-d3d10core%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d10core.dll
+%{_sbindir}/alternatives --remove 'wine-d3d10core(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d10core.dll
 
 %postun d3d9
 %{_sbindir}/alternatives --remove 'wine-d3d9%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d9.dll
+%{_sbindir}/alternatives --remove 'wine-d3d9(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d9.dll
 
 %postun d3d8
 %{_sbindir}/alternatives --remove 'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-d3d8.dll
+%{_sbindir}/alternatives --remove 'wine-d3d8(x86-32)' %{_libdir}/wine/i386-windows/dxvk-d3d8.dll
 
 %postun dxgi
 %{_sbindir}/alternatives --remove 'wine-dxgi%{?_isa}' %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
+%{_sbindir}/alternatives --remove 'wine-dxgi(x86-32)' %{_libdir}/wine/i386-windows/dxvk-dxgi.dll
 
 %files
 %license LICENSE
 %doc README.md
 %{_libdir}/wine/%{winepedir}/dxvk-d3d11.dll
+%{_libdir}/wine/i386-windows/dxvk-d3d11.dll
 
 %files d3d10
 %license LICENSE
 %{_libdir}/wine/%{winepedir}/dxvk-d3d10core.dll
+%{_libdir}/wine/i386-windows/dxvk-d3d10core.dll
 
 %files d3d9
 %license LICENSE
 %{_libdir}/wine/%{winepedir}/dxvk-d3d9.dll
+%{_libdir}/wine/i386-windows/dxvk-d3d9.dll
 
 %files d3d8
 %license LICENSE
 %{_libdir}/wine/%{winepedir}/dxvk-d3d8.dll
+%{_libdir}/wine/i386-windows/dxvk-d3d8.dll
 
 %files dxgi
 %license LICENSE
 %{_libdir}/wine/%{winepedir}/dxvk-dxgi.dll
+%{_libdir}/wine/i386-windows/dxvk-dxgi.dll
 
 %changelog
+* Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^5.git.25ca63f-ec3
+ - Add 32-bit DLLs
+
 * Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^5.git.25ca63f-ec2
  - Update to commit 25ca63f17f34bdc05a39873ee63907d3cbbfa030
 
