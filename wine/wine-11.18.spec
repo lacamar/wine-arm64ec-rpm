@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.18
-Release:        ec1%{dist}
+Release:        ec2%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -883,6 +883,8 @@ mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10.dll %{buildroot}%{_libdir}/win
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10_1.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d10_1.dll
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10core.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d10core.dll
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d11.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d11.dll
+mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d12.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d12.dll
+mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d12core.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d12core.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/dxgi.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d8.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d9.dll
@@ -890,6 +892,8 @@ touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10_1.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10core.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d11.dll
+touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d12.dll
+touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d12core.dll
 %if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
 mv %{buildroot}%{_libdir}/wine/i386-windows/dxgi.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-dxgi.dll
 mv %{buildroot}%{_libdir}/wine/i386-windows/d3d9.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d9.dll
@@ -1178,6 +1182,12 @@ rm -f %{_bindir}/wine-preloader
   --slave  %{_libdir}/wine/%{winepedir}/d3d10_1.dll 'wine-d3d10_1%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d10_1.dll
 %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d11.dll \
   'wine-d3d11%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d11.dll 10 || :
+for dll in d3d12 d3d12core; do
+  [ -L %{_libdir}/wine/%{winepedir}/$dll.dll ] || rm -f %{_libdir}/wine/%{winepedir}/$dll.dll
+done
+%{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d12.dll \
+  'wine-d3d12%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d12.dll 10 \
+  --slave %{_libdir}/wine/%{winepedir}/d3d12core.dll 'wine-d3d12core%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d12core.dll || :
 %if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
 %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/dxgi.dll \
   'wine-dxgi(x86-32)' %{_libdir}/wine/i386-windows/wine-dxgi.dll 10
@@ -1207,6 +1217,7 @@ if [ $1 -eq 0 ] ; then
   %{_sbindir}/alternatives --remove 'wine-d3d10core%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d10core.dll
   %{_sbindir}/alternatives --remove 'wine-d3d10%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d10.dll
   %{_sbindir}/alternatives --remove 'wine-d3d11%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d11.dll || :
+  %{_sbindir}/alternatives --remove 'wine-d3d12%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d12.dll || :
 %if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
   %{_sbindir}/alternatives --remove 'wine-dxgi(x86-32)' %{_libdir}/wine/i386-windows/wine-dxgi.dll
   %{_sbindir}/alternatives --remove 'wine-d3d9(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d9.dll
@@ -1440,8 +1451,14 @@ fi
 %{_libdir}/wine/%{winepedirs}/wine-d3d10core.dll
 %ghost %{_libdir}/wine/%{winepedirs}/d3d11.dll
 %{_libdir}/wine/%{winepedirs}/wine-d3d11.dll
-%{_libdir}/wine/%{winepedirs}/d3d12.dll
-%{_libdir}/wine/%{winepedirs}/d3d12core.dll
+%ghost %{_libdir}/wine/%{winepedir}/d3d12.dll
+%ghost %{_libdir}/wine/%{winepedir}/d3d12core.dll
+%{_libdir}/wine/%{winepedir}/wine-d3d12.dll
+%{_libdir}/wine/%{winepedir}/wine-d3d12core.dll
+%if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
+%{_libdir}/wine/i386-windows/d3d12.dll
+%{_libdir}/wine/i386-windows/d3d12core.dll
+%endif
 %{_libdir}/wine/%{winepedirs}/d3dcompiler_*.dll
 %{_libdir}/wine/%{winepedirs}/d3dim.dll
 %{_libdir}/wine/%{winepedirs}/d3dim700.dll
@@ -2432,6 +2449,9 @@ fi
 %endif
 
 %changelog
+* Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec2
+- Make d3d12 an alternative
+
 * Sat Sep 19 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec1
 - updated wine version to 11.18
 - keep 32-bit only modules enabled on all archs
