@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease
+Release:        ec.%autorelease -b 2
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2546,6 +2546,9 @@ fi
 %endif
 
 %changelog
+* Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^2.git.df15af3-ec.2
+ - Make d3d12 an alternative
+
 * Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^2.git.df15af3-ec.1
  - Update to commit df15af3652511150490934682202d45af892f887
 
