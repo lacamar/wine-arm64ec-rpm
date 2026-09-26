@@ -1,0 +1,51 @@
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -2479,10 +2479,26 @@
+         size = view->size;
+         host_end = host_start + view->size;
+     }
+-    else host_end = ROUND_ADDR( base + size, host_page_mask );
++    else
++    {
++        char *addr, *end = base + size;
++
++        host_end = ROUND_ADDR( end, host_page_mask );
++        /* pages sharing a host page with committed ones can't be unmapped, but must read as zero once recommitted */
++        for (addr = base; addr < end; addr = ROUND_ADDR( addr, host_page_mask ) + host_page_size)
++        {
++            char *host = ROUND_ADDR( addr, host_page_mask );
++            char *stop = min( end, host + host_page_size );
++
++            if (addr == host && stop == host + host_page_size) continue;
++            mprotect_exec( host, host_page_size, get_unix_prot( get_host_page_vprot( host )) | PROT_READ | PROT_WRITE );
++            memset( addr, 0, stop - addr );
++        }
++    }
+ 
+     if (host_start < host_end) anon_mmap_fixed( host_start, host_end - host_start, PROT_NONE, 0 );
+     set_page_vprot_bits( base, size, 0, VPROT_COMMITTED );
++    if (size && (((UINT_PTR)base | size) & host_page_mask)) mprotect_range( base, size, 0, 0 );
+     if (host_start < host_end) kernel_writewatch_register_range( view, host_start, host_end - host_start );
+     return STATUS_SUCCESS;
+ }
+@@ -4717,9 +4733,18 @@
+         struct thread_stack_info stack_info;
+         if (!is_inside_thread_stack( data, page, &stack_info ))
+         {
+-            set_page_vprot_bits( page, host_page_size, 0, VPROT_GUARD );
++            /* the guard may belong to another page sharing this host page */
++            if (get_page_vprot( addr ) & VPROT_GUARD)
++            {
++                set_page_vprot_bits( ROUND_ADDR( addr, page_mask ), page_size, 0, VPROT_GUARD );
++                ret = STATUS_GUARD_PAGE_VIOLATION;
++            }
++            else
++            {
++                set_page_vprot_bits( page, host_page_size, 0, VPROT_GUARD );
++                ret = STATUS_SUCCESS;
++            }
+             mprotect_range( page, host_page_size, 0, 0 );
+-            ret = STATUS_GUARD_PAGE_VIOLATION;
+         }
+         else ret = grow_thread_stack( data, page, &stack_info );
+     }

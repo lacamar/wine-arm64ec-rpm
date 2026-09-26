@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.18
-Release:        ec3%{dist}
+Release:        ec4%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -135,6 +135,7 @@ Patch618:       2026_09_17-win32u-extend-virtual-modes.patch
 # vkd3d-shader: "linear" is a valid sampler_state value
 Patch619:       2026_09_17-vkd3d-shader-state-block-keywords.patch
 Patch620:       2026_09_18-server-scale-dpi-signed.patch
+Patch621:       2026_09_26-ntdll-subpage-guard-decommit.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -766,6 +767,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 618 -p1
 %patch -P 619 -p1
 %patch -P 620 -p1
+%patch -P 621 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2466,6 +2468,10 @@ fi
 %endif
 
 %changelog
+* Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec4
+- Raise guard faults only for the guard page itself on 16K hosts
+- Zero decommitted pages sharing a host page
+
 * Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec3
 - Fix missing 32-bit d3d8
 - Split 32-bit d3d10core, add 32-bit d3d12 alternatives
