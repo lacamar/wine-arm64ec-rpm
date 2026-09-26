@@ -132,6 +132,7 @@ Patch617:       2026_09_17-winewayland-follow-output.patch
 Patch618:       2026_09_17-win32u-extend-virtual-modes.patch
 Patch619:       2026_09_17-vkd3d-shader-state-block-keywords.patch
 Patch620:       2026_09_18-server-scale-dpi-signed.patch
+Patch621:       2026_09_26-ntdll-subpage-guard-decommit.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -863,6 +864,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 618 -p1
 %patch -P 619 -p1
 %patch -P 620 -p1
+%patch -P 621 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
