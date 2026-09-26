@@ -125,6 +125,13 @@ Findings along the way:
   the sweep created a fresh 2.5 GB prefix there at 04:01. I wasn't allowed to delete it — remove
   it by hand if you don't want it.
 
+## Regression check (final patch set)
+
+i386 conformance units, stock vs overlay, identical results: kernel32 heap, file, virtual,
+thread, sync, time; ntdll virtual, rtl, string, sync, threadpool, wow64. Remaining failures there
+are WoW64/FEX limits (LDT selectors, FPU control word, xtajit module name), not 16K. Game sweep
+identical (above), tools all pass, Lightroom 90 s clean.
+
 ## Release state
 
 Pushed to `main`. Built on COPR `wine-arm64ec`, **not installed** (the install needs the desktop
