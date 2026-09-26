@@ -1,0 +1,170 @@
+Validate code inline where a host page cannot be write-trapped; avoid nested invalidation on ARM64EC.
+
+--- a/FEXCore/include/FEXCore/HLE/SyscallHandler.h
++++ b/FEXCore/include/FEXCore/HLE/SyscallHandler.h
+@@ -21,6 +21,8 @@
+   uint64_t Base;
+   uint64_t Size;
+   bool Writable;
++  // Writes to the range can't be trapped, so code must be validated on entry
++  bool ForceFullSMC {};
+ };
+ 
+ class SyscallHandler;
+--- a/FEXCore/Source/Interface/Core/Frontend.h
++++ b/FEXCore/Source/Interface/Core/Frontend.h
+@@ -87,6 +87,7 @@
+ 
+   void ResetExecutableRangeCache() {
+     ExecutableRangeBase = ExecutableRangeEnd = 0;
++    ExecutableRangeForceSMC = false;
+   }
+ 
+ private:
+@@ -151,6 +152,7 @@
+   uint64_t ExecutableRangeBase {};
+   uint64_t ExecutableRangeEnd {};
+   bool ExecutableRangeWritable {};
++  bool ExecutableRangeForceSMC {};
+   bool HitNonExecutableRange {};
+   bool HitBadRelocation {};
+ 
+--- a/FEXCore/Source/Interface/Core/Frontend.cpp
++++ b/FEXCore/Source/Interface/Core/Frontend.cpp
+@@ -98,6 +98,7 @@
+     ExecutableRangeBase = RangeInfo.Base;
+     ExecutableRangeEnd = RangeInfo.Base + RangeInfo.Size;
+     ExecutableRangeWritable = RangeInfo.Writable;
++    ExecutableRangeForceSMC = RangeInfo.ForceFullSMC;
+ 
+     if (RangeInfo.Size == 0) {
+       return false;
+@@ -1334,6 +1335,7 @@
+           .NumInstructions = BlockIt->NumInstructions - SplitIdx,
+           .DecodedInstructions = BlockIt->DecodedInstructions + SplitIdx,
+           .BlockStatus = BlockIt->BlockStatus,
++          .ForceFullSMCDetection = BlockIt->ForceFullSMCDetection,
+         };
+ 
+         if (BlockIt->DataMasks.size()) {
+@@ -1568,8 +1570,14 @@
+       ++BlockIt->NumInstructions;
+       BlockIt->Size += DecodeInst->InstSize;
+ 
++      if (ExecutableRangeForceSMC && !BlockIt->ForceFullSMCDetection) {
++        BlockIt->ForceFullSMCDetection = true;
++        BlockIt->DataMasks.clear();
++      }
++
+       // if we weren't provided relocations (guest JIT), try to detect what we can
+-      if (WantsDataMasks && BlockIt->BlockStatus == DecodedBlockStatus::SUCCESS && BlockInfo.Is64BitMode && !Relocations) {
++      if (WantsDataMasks && BlockIt->BlockStatus == DecodedBlockStatus::SUCCESS && BlockInfo.Is64BitMode && !Relocations &&
++          !BlockIt->ForceFullSMCDetection) {
+         DetectDataMasks(OpAddress, *BlockIt);
+       }
+ 
+--- a/Source/Windows/Common/InvalidationTracker.h
++++ b/Source/Windows/Common/InvalidationTracker.h
+@@ -44,6 +44,9 @@
+ private:
+   void DetectMonoBackpatcherBlock(FEXCore::Core::InternalThreadState* Thread, uint64_t HostPC);
+   void DisableSMCDetection();
++  // True if a page sharing the host page is writable outside the RWX intervals, so write traps there can't take effect.
++  // NOTE: Must be called with IntervalsLock held.
++  bool HostPageHasUntrackedWritable(uint64_t HostBase) const;
+   void InvalidateIntervalInternal(uint64_t Address, uint64_t Size);
+   // NOTE: This assumed CodeInvalidationMutex is locked by the caller
+   void InvalidateIntervalInternalLocked(uint64_t Address, uint64_t Size);
+--- a/Source/Windows/Common/InvalidationTracker.cpp
++++ b/Source/Windows/Common/InvalidationTracker.cpp
+@@ -82,6 +82,22 @@
+     // IntervalsLock cannot be held during invalidation
+     InvalidateIntervalInternal(AlignedBase, AlignedSize);
+   }
++
++  // Code sharing a host page with memory that just became writable can no longer be write-trapped, recompile it with
++  // inline validation.
++  const auto HostPageSize = FEXCore::Utils::GetHostPageSize();
++  if (HostPageSize > FEXCore::Utils::FEX_PAGE_SIZE && ProtIsWritable(Prot) && !ProtHasExec(Prot)) {
++    const uint64_t HostBase = AlignedBase & ~(HostPageSize - 1);
++    const uint64_t HostEnd = (AlignedBase + AlignedSize + HostPageSize - 1) & ~(HostPageSize - 1);
++    bool SharesRWX;
++    {
++      std::shared_lock Lock(IntervalsLock);
++      SharesRWX = RWXIntervals.Intersect({HostBase, HostEnd});
++    }
++    if (SharesRWX) {
++      InvalidateIntervalInternal(HostBase, HostEnd - HostBase);
++    }
++  }
+ }
+ 
+ void InvalidationTracker::HandleProcessExecuteFlagsChange(ULONG Flags) {
+@@ -263,7 +279,25 @@
+   }
+   const auto RWXResult = RWXIntervals.Query(Address);
+   if (RWXResult.Enclosed) {
+-    return {RWXResult.Interval.Offset, RWXResult.Interval.End - RWXResult.Interval.Offset, true};
++    uint64_t Base = RWXResult.Interval.Offset;
++    uint64_t End = RWXResult.Interval.End;
++    bool ForceFullSMC = false;
++    const auto HostPageSize = FEXCore::Utils::GetHostPageSize();
++
++    if (HostPageSize > FEXCore::Utils::FEX_PAGE_SIZE && !SMCDetectionDisabled) {
++      const uint64_t HostBase = Address & ~(HostPageSize - 1);
++      const uint64_t HostEnd = HostBase + HostPageSize;
++      if (Base > HostBase || End < HostEnd) {
++        // Report partially covered host pages separately, their write traps depend on the neighbouring pages
++        Base = std::max(Base, HostBase);
++        End = std::min(End, HostEnd);
++        ForceFullSMC = HostPageHasUntrackedWritable(HostBase);
++      } else {
++        Base = (Base + HostPageSize - 1) & ~(HostPageSize - 1);
++        End &= ~(HostPageSize - 1);
++      }
++    }
++    return {Base, End - Base, true, ForceFullSMC};
+   } else if (RWXResult.Size && RWXResult.Size < XResult.Size) {
+     return {XResult.Interval.Offset, RWXResult.Interval.Offset - XResult.Interval.Offset, false};
+   }
+@@ -318,6 +352,24 @@
+   } while (Query.Size);
+ }
+ 
++bool InvalidationTracker::HostPageHasUntrackedWritable(uint64_t HostBase) const {
++  const auto HostPageSize = FEXCore::Utils::GetHostPageSize();
++
++  for (uint64_t Page = HostBase; Page < HostBase + HostPageSize; Page += FEXCore::Utils::FEX_PAGE_SIZE) {
++    if (RWXIntervals.Query(Page).Enclosed) {
++      continue;
++    }
++    MEMORY_BASIC_INFORMATION Info;
++    if (NtQueryVirtualMemory(NtCurrentProcess(), reinterpret_cast<void*>(Page), MemoryBasicInformation, &Info, sizeof(Info), nullptr)) {
++      continue;
++    }
++    if (Info.State == MEM_COMMIT && ProtIsWritable(Info.Protect)) {
++      return true;
++    }
++  }
++  return false;
++}
++
+ ULONG InvalidationTracker::GetTrapProt(uint64_t Address) const {
+   if (DEPDisabled && DEPPromotedIntervals.Query(Address).Enclosed) {
+     return PAGE_READONLY;
+--- a/Source/Windows/ARM64EC/Module.cpp
++++ b/Source/Windows/ARM64EC/Module.cpp
+@@ -544,7 +544,13 @@
+   }
+ 
+   void InvalidateGuestCodeRange(FEXCore::Core::InternalThreadState* Thread, uint64_t Start, uint64_t Length) override {
++    // Called from JIT code with the code invalidation lock about to be taken, FEX's own frees during the invalidation
++    // must not reach the memory notification callbacks as those invalidate again.
++    auto* Area = GetCPUArea().Area;
++    const bool Prev = Area->InSyscallCallback;
++    Area->InSyscallCallback = true;
+     InvalidationTracker->InvalidateAlignedInterval(Start, Length, false);
++    Area->InSyscallCallback = Prev;
+   }
+ 
+   void MarkOvercommitRange(uint64_t Start, uint64_t Length) override {

@@ -10,7 +10,7 @@
 
 Name:       fex-emu-wine
 Version:    2609
-Release:    4%{?dist}
+Release:    5%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -76,6 +76,8 @@ Patch101:       fex-emu-wine-smc-untrap-host-page.patch
 Patch102:       fex-emu-wine-interrupt-fault-page.patch
 # code buffer replaced under a WOW64 user callback
 Patch103:       fex-emu-wine-callback-code-buffer.patch
+# inline SMC validation where a host page can't be write-trapped
+Patch104:       fex-emu-wine-smc-untrappable-host-page.patch
 
 
 BuildRequires:  cmake
@@ -128,6 +130,7 @@ FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 %patch -P 101 -p1
 %patch -P 102 -p1
 %patch -P 103 -p1
+%patch -P 104 -p1
 
 # Unpack bundled libraries
 %{lua: print_setup_externals()}
@@ -224,6 +227,10 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 2609-5
+- fix stale code in RWX pages sharing a host page with writable data
+- fix ARM64EC deadlock in full SMC validation
+
 * Tue Sep 22 2026 Lachlan Marie <lchlnm@pm.me> - 2609-4
 - fix WOW64 crash when the code buffer is replaced inside a user callback
 

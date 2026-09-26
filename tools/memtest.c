@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define PG 4096
@@ -26,7 +27,7 @@ __asm__(".globl _probe_read\n_probe_read:\n movl 4(%esp),%ecx\n"
 
 static volatile DWORD last_code;
 static volatile LONG overflowed;
-static int passes, fails;
+static int passes, fails, verbose;
 
 static void overflow_exit(void)
 {
@@ -301,9 +302,13 @@ static void test_smc_shared_page(void)
     {
         memcpy(p + PG, code, sizeof(code));
         *(int *)(p + PG + 1) = 0x1000 + i;
+        if (verbose) printf("iter %d call1\n", i);
         r1 = fn();
+        if (verbose) printf("iter %d data write\n", i);
         p[100] = (char)i;
+        if (verbose) printf("iter %d patch\n", i);
         *(int *)(p + PG + 1) = 0x2000 + i;
+        if (verbose) printf("iter %d call2\n", i);
         r2 = fn();
         if (r1 != 0x1000 + i || r2 != 0x2000 + i) stale++;
     }
@@ -333,20 +338,22 @@ static void test_smc_readonly_code(void)
 
 int main(int argc, char **argv)
 {
+    verbose = !!getenv("MT_VERBOSE");
     AddVectoredExceptionHandler(1, handler);
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("memtest %d-bit\n", (int)sizeof(void *) * 8);
-    test_noaccess();
-    test_readonly();
-    test_guard();
-    test_decommit();
-    test_sparse_commit();
-    test_query();
-    test_write_watch();
-    test_readfile_readonly();
-    test_stack();
-    test_smc_readonly_code();
-    test_smc_shared_page();
+#define RUN(t) if (argc < 2 || strstr(#t, argv[1])) t()
+    RUN(test_noaccess);
+    RUN(test_readonly);
+    RUN(test_guard);
+    RUN(test_decommit);
+    RUN(test_sparse_commit);
+    RUN(test_query);
+    RUN(test_write_watch);
+    RUN(test_readfile_readonly);
+    RUN(test_stack);
+    RUN(test_smc_readonly_code);
+    RUN(test_smc_shared_page);
     printf("%d/%d pass\n", passes, passes + fails);
     return fails != 0;
 }
