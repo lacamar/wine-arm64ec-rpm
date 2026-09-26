@@ -1,9 +1,9 @@
 %global srcname FEX
 %global tag 2609.1
 
-%global bumpver 2
+%global bumpver 3
 
-%global commit e2f973fe931e6dc2ce523795e51ca1ac3ca85816
+%global commit 59f85d6b7df4eb053d2cc1b9d33411b4f31bfbaa
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -228,6 +228,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^3.git.59f85d6-3
+ - Update to commit 59f85d6b7df4eb053d2cc1b9d33411b4f31bfbaa
+
 * Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^2.git.e2f973f-3
  - fix divide-by-zero check reusing the divisor across a block split (corrupted divisions)
 
