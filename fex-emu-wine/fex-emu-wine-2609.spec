@@ -78,6 +78,8 @@ Patch102:       fex-emu-wine-interrupt-fault-page.patch
 Patch103:       fex-emu-wine-callback-code-buffer.patch
 # inline SMC validation where a host page can't be write-trapped
 Patch104:       fex-emu-wine-smc-untrappable-host-page.patch
+# precise fault RIP for absolute/relocated memory operands, #DE on divide by zero
+Patch105:       fex-emu-wine-precise-faults.patch
 
 
 BuildRequires:  cmake
@@ -131,6 +133,7 @@ FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 %patch -P 102 -p1
 %patch -P 103 -p1
 %patch -P 104 -p1
+%patch -P 105 -p1
 
 # Unpack bundled libraries
 %{lua: print_setup_externals()}
@@ -230,6 +233,8 @@ rm -rf %{buildroot}/usr/share
 * Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 2609-5
 - fix stale code in RWX pages sharing a host page with writable data
 - fix ARM64EC deadlock in full SMC validation
+- report the faulting instruction for absolute and relocated memory operands
+- raise divide-by-zero exceptions
 
 * Tue Sep 22 2026 Lachlan Marie <lchlnm@pm.me> - 2609-4
 - fix WOW64 crash when the code buffer is replaced inside a user callback

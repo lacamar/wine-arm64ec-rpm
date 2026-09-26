@@ -3,8 +3,8 @@ CC32 = i686-w64-mingw32-gcc
 CC64 = x86_64-w64-mingw32-gcc
 CFLAGS = -O1 -Wall
 
-WIN32 = smctest suspendtest tsospin winrect wclick wtool fxtest cbjittest memtest
-WIN64 = suspendtest tsospin winrect memtest
+WIN32 = smctest suspendtest tsospin winrect wclick wtool fxtest cbjittest memtest sehtest
+WIN64 = suspendtest tsospin winrect memtest sehtest
 SCRIPTS = dumpstack.py wkill.sh wshot.sh
 
 all: $(WIN32:%=$(OUT)/%32.exe) $(WIN64:%=$(OUT)/%64.exe) $(OUT)/prtest $(SCRIPTS:%=$(OUT)/%)

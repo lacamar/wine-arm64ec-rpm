@@ -1,0 +1,101 @@
+Report the faulting RIP for moffs and relocated memory operands; raise #DE for a zero divisor on Windows.
+
+--- a/FEXCore/Source/Interface/Core/OpcodeDispatcher.h
++++ b/FEXCore/Source/Interface/Core/OpcodeDispatcher.h
+@@ -254,6 +254,11 @@
+         return true;
+       }
+ 
++      if (TableInfo->Flags & X86Tables::InstFlags::FLAGS_MEM_OFFSET) {
++        // moffs addressing: the operand is a literal but the instruction always accesses memory
++        return true;
++      }
++
+       if (TableInfo->Flags & (X86Tables::InstFlags::FLAGS_SETS_RIP | X86Tables::InstFlags::FLAGS_BLOCK_END)) {
+         // Cooperative suspend interrupts can be triggered at any back-edge, the RIP must be reconstructed correctly in such cases
+         return true;
+@@ -268,7 +273,8 @@
+       }
+ 
+       // This isn't guaranteed that all of these types will access memory, but be safe.
+-      return Operand.IsGPRDirect() || Operand.IsGPRIndirect() || Operand.IsRIPRelative() || Operand.IsSIB();
++      return Operand.IsGPRDirect() || Operand.IsGPRIndirect() || Operand.IsRIPRelative() || Operand.IsSIB() ||
++             Operand.IsGPRIndirectRelocation() || Operand.IsRIPRelativeRelocation() || Operand.IsSIBRelocation();
+     };
+ 
+     CanHaveSideEffects |= HasPotentialMemoryAccess(Op->Dest);
+@@ -890,6 +896,7 @@
+   void Insertq(OpcodeArgs);
+ 
+   void BreakOp(OpcodeArgs, FEXCore::IR::BreakDefinition BreakDefinition);
++  void RaiseDivideErrorIfZero(OpcodeArgs, Ref Divisor, IR::OpSize Size);
+   void UnimplementedOp(OpcodeArgs);
+   void PermissionRestrictedOp(OpcodeArgs);
+ 
+--- a/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp
++++ b/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp
+@@ -3663,6 +3663,36 @@
+   }
+ }
+ 
++void OpDispatchBuilder::RaiseDivideErrorIfZero(OpcodeArgs, Ref Divisor, IR::OpSize Size) {
++  // The host divide returns 0 for a zero divisor, Windows applications rely on the #DE exception instead.
++  if (CTX->HostFeatures.HostType != FEXCore::HostFeatures::HostTypeEnum::Wow64 &&
++      CTX->HostFeatures.HostType != FEXCore::HostFeatures::HostTypeEnum::Arm64ec) {
++    return;
++  }
++
++  CalculateDeferredFlags();
++
++  const auto CompareSize = Size == OpSize::i64Bit ? OpSize::i64Bit : OpSize::i32Bit;
++  auto CondJump_ = CondJump(Divisor, Constant(0), InvalidNode, InvalidNode, CondClass::NEQ, CompareSize);
++  auto TrapBlock = CreateNewCodeBlockAfter(GetCurrentBlock());
++  SetFalseJumpTarget(CondJump_, TrapBlock);
++  SetCurrentCodeBlock(TrapBlock);
++  StartNewBlock();
++
++  _StoreContextGPR(GetGPROpSize(), GetRelocatedPC(Op, -Op->InstSize), offsetof(FEXCore::Core::CPUState, rip));
++  Break(FEXCore::IR::BreakDefinition {
++    .ErrorRegister = 0,
++    .Signal = Core::FAULT_SIGSEGV,
++    .TrapNumber = X86State::X86_TRAPNO_DE,
++    .si_code = 0x80,
++  });
++
++  auto ContinueBlock = CreateNewCodeBlockAfter(TrapBlock);
++  SetTrueJumpTarget(CondJump_, ContinueBlock);
++  SetCurrentCodeBlock(ContinueBlock);
++  StartNewBlock();
++}
++
+ void OpDispatchBuilder::DIVOp(OpcodeArgs) {
+   const auto GPRSize = GetGPROpSize();
+   auto Size = OpSizeFromSrc(Op);
+@@ -3676,6 +3706,8 @@
+     return;
+   }
+ 
++  RaiseDivideErrorIfZero(Op, Divisor, Size);
++
+   Ref Quotient = _AllocateGPR(true);
+   Ref Remainder = _AllocateGPR(true);
+ 
+@@ -3717,6 +3749,8 @@
+     return;
+   }
+ 
++  RaiseDivideErrorIfZero(Op, Divisor, Size);
++
+   Ref Quotient = _AllocateGPR(true);
+   Ref Remainder = _AllocateGPR(true);
+ 
+--- a/Source/Windows/Common/Exception.h
++++ b/Source/Windows/Common/Exception.h
+@@ -74,6 +74,7 @@
+       }
+       break;
+     case FEXCore::X86State::X86_TRAPNO_OF: Dst.ExceptionCode = EXCEPTION_INT_OVERFLOW; return Dst;
++    case FEXCore::X86State::X86_TRAPNO_DE: Dst.ExceptionCode = EXCEPTION_INT_DIVIDE_BY_ZERO; return Dst;
+     case FEXCore::X86State::X86_TRAPNO_PF:
+       // A page-fault raised by an explicit break in JIT code is always an execute fault
+       Dst.NumberParameters = 2;
