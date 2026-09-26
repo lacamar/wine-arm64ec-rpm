@@ -10,7 +10,7 @@
 
 Name:       fex-emu-wine
 Version:    2609
-Release:    5%{?dist}
+Release:    6%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -230,6 +230,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 2609-6
+- fix divide-by-zero check reusing the divisor across a block split (corrupted divisions)
+
 * Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 2609-5
 - fix stale code in RWX pages sharing a host page with writable data
 - fix ARM64EC deadlock in full SMC validation

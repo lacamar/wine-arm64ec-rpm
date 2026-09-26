@@ -29,7 +29,7 @@ leave RSP untouched when a POP to memory faults.
    void Insertq(OpcodeArgs);
  
    void BreakOp(OpcodeArgs, FEXCore::IR::BreakDefinition BreakDefinition);
-+  void RaiseDivideErrorIfZero(OpcodeArgs, Ref Divisor, IR::OpSize Size);
++  void RaiseDivideErrorIfZero(OpcodeArgs, IR::OpSize Size);
    void UnimplementedOp(OpcodeArgs);
    void PermissionRestrictedOp(OpcodeArgs);
  
@@ -61,11 +61,11 @@ leave RSP untouched when a POP to memory faults.
  }
  
  void OpDispatchBuilder::POPAOp(OpcodeArgs) {
-@@ -3663,6 +3679,36 @@
+@@ -3663,19 +3679,54 @@
    }
  }
  
-+void OpDispatchBuilder::RaiseDivideErrorIfZero(OpcodeArgs, Ref Divisor, IR::OpSize Size) {
++void OpDispatchBuilder::RaiseDivideErrorIfZero(OpcodeArgs, IR::OpSize Size) {
 +  // The host divide returns 0 for a zero divisor, Windows applications rely on the #DE exception instead.
 +  if (CTX->HostFeatures.HostType != FEXCore::HostFeatures::HostTypeEnum::Wow64 &&
 +      CTX->HostFeatures.HostType != FEXCore::HostFeatures::HostTypeEnum::Arm64ec) {
@@ -73,6 +73,9 @@ leave RSP untouched when a POP to memory faults.
 +  }
 +
 +  CalculateDeferredFlags();
++
++  // This splits the block, the divide itself must load its operands afterwards
++  Ref Divisor = LoadSourceGPR(Op, Op->Dest, Op->Flags, {.AllowUpperGarbage = Size >= OpSize::i32Bit});
 +
 +  const auto CompareSize = Size == OpSize::i64Bit ? OpSize::i64Bit : OpSize::i32Bit;
 +  auto CondJump_ = CondJump(Divisor, Constant(0), InvalidNode, InvalidNode, CondClass::NEQ, CompareSize);
@@ -98,20 +101,42 @@ leave RSP untouched when a POP to memory faults.
  void OpDispatchBuilder::DIVOp(OpcodeArgs) {
    const auto GPRSize = GetGPROpSize();
    auto Size = OpSizeFromSrc(Op);
-@@ -3676,6 +3722,8 @@
+ 
+-  // This loads the divisor. 32-bit/64-bit paths mask inside the JIT, 8/16 do not.
+-  Ref Divisor = LoadSourceGPR(Op, Op->Dest, Op->Flags, {.AllowUpperGarbage = Size >= OpSize::i32Bit});
+-
+   if (Size == OpSize::i64Bit && !Is64BitMode) {
+     LogMan::Msg::EFmt("Doesn't exist in 32bit mode");
+     DecodeFailure = true;
      return;
    }
  
-+  RaiseDivideErrorIfZero(Op, Divisor, Size);
++  RaiseDivideErrorIfZero(Op, Size);
++
++  // This loads the divisor. 32-bit/64-bit paths mask inside the JIT, 8/16 do not.
++  Ref Divisor = LoadSourceGPR(Op, Op->Dest, Op->Flags, {.AllowUpperGarbage = Size >= OpSize::i32Bit});
 +
    Ref Quotient = _AllocateGPR(true);
    Ref Remainder = _AllocateGPR(true);
  
-@@ -3717,6 +3765,8 @@
+@@ -3705,9 +3756,6 @@
+ }
+ 
+ void OpDispatchBuilder::IDIVOp(OpcodeArgs) {
+-  // This loads the divisor
+-  Ref Divisor = LoadSourceGPR(Op, Op->Dest, Op->Flags);
+-
+   const auto GPRSize = GetGPROpSize();
+   auto Size = OpSizeFromSrc(Op);
+ 
+@@ -3717,6 +3765,11 @@
      return;
    }
  
-+  RaiseDivideErrorIfZero(Op, Divisor, Size);
++  RaiseDivideErrorIfZero(Op, Size);
++
++  // This loads the divisor
++  Ref Divisor = LoadSourceGPR(Op, Op->Dest, Op->Flags);
 +
    Ref Quotient = _AllocateGPR(true);
    Ref Remainder = _AllocateGPR(true);
