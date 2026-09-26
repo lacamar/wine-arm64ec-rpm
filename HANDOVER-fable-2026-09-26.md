@@ -77,6 +77,17 @@ hooks, which invalidate again → self-deadlock on the non-recursive lock. Fixed
 
 All three are upstream FEX bugs on every host, not 16K-specific.
 
+**Regression caught and fixed before install (2609-5 → 2609-6).** The first `#DE` version reused
+the divisor SSA value after `CondJump` split the block; FEX IR only allows block-local defs
+(`IRValidation.cpp`: "We only allow defs local to a single block", checked in debug builds only).
+In release builds some divisions silently got a garbage divisor: Lightroom crashed in
+`xerces.dll+0x17f595` reading a non-canonical pointer, 3/3 runs, never on stock. Bisected with
+overlay variants (ntdll-only clean, FEX-only crashing, 104-only clean, 105-without-POP and
+105-without-RIP-markers crashing). Fix: the check loads its own copy of the divisor and runs
+before DIV/IDIV load their operands. 2609-5 (COPR 11036433) and fex-emu-wine-git -2 (11036432)
+contain the bug and are superseded by 2609-6 / git -3. `divtest` (multiplication-verified
+quotients) and `sehtest`'s `div mem` case do **not** reproduce it; a 90 s Lightroom launch does.
+
 ## Found, not fixed
 
 - **Host-page union** (memtest's remaining failures): NOACCESS/READONLY/reserved/decommitted 4K
