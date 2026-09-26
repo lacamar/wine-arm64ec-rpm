@@ -235,6 +235,7 @@ rm -rf %{buildroot}/usr/share
 - fix ARM64EC deadlock in full SMC validation
 - report the faulting instruction for absolute and relocated memory operands
 - raise divide-by-zero exceptions
+- keep RSP unchanged when a POP to memory faults
 
 * Tue Sep 22 2026 Lachlan Marie <lchlnm@pm.me> - 2609-4
 - fix WOW64 crash when the code buffer is replaced inside a user callback

@@ -1,4 +1,5 @@
-Report the faulting RIP for moffs and relocated memory operands; raise #DE for a zero divisor on Windows.
+Report the faulting RIP for moffs and relocated memory operands; raise #DE for a zero divisor on Windows;
+leave RSP untouched when a POP to memory faults.
 
 --- a/FEXCore/Source/Interface/Core/OpcodeDispatcher.h
 +++ b/FEXCore/Source/Interface/Core/OpcodeDispatcher.h
@@ -34,7 +35,33 @@ Report the faulting RIP for moffs and relocated memory operands; raise #DE for a
  
 --- a/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp
 +++ b/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp
-@@ -3663,6 +3663,36 @@
+@@ -393,8 +393,24 @@
+ }
+ 
+ void OpDispatchBuilder::POPOp(OpcodeArgs) {
+-  Ref Value = Pop(OpSizeFromSrc(Op));
++  const auto& Dest = Op->Dest;
++  const bool AddressUsesRSP =
++    (Dest.IsGPRDirect() && Dest.Data.GPR.GPR == X86State::REG_RSP) ||
++    ((Dest.IsGPRIndirect() || Dest.IsGPRIndirectRelocation()) && Dest.Data.GPRIndirect.GPR == X86State::REG_RSP) ||
++    ((Dest.IsSIB() || Dest.IsSIBRelocation()) && (Dest.Data.SIB.Base == X86State::REG_RSP || Dest.Data.SIB.Index == X86State::REG_RSP));
++
++  if (Dest.IsGPR() || AddressUsesRSP) {
++    Ref Value = Pop(OpSizeFromSrc(Op));
++    StoreResultGPR(Op, Value);
++    return;
++  }
++
++  // A faulting memory store must leave RSP unchanged, so only update it afterwards
++  const auto Size = OpSizeFromSrc(Op);
++  Ref OldSP = LoadGPRRegister(X86State::REG_RSP);
++  Ref Value = _LoadMemGPRAutoTSO(Size, OldSP);
+   StoreResultGPR(Op, Value);
++  StoreGPRRegister(X86State::REG_RSP, Add(GetGPROpSize(), OldSP, IR::OpSizeToSize(Size)));
+ }
+ 
+ void OpDispatchBuilder::POPAOp(OpcodeArgs) {
+@@ -3663,6 +3679,36 @@
    }
  }
  
@@ -71,7 +98,7 @@ Report the faulting RIP for moffs and relocated memory operands; raise #DE for a
  void OpDispatchBuilder::DIVOp(OpcodeArgs) {
    const auto GPRSize = GetGPROpSize();
    auto Size = OpSizeFromSrc(Op);
-@@ -3676,6 +3706,8 @@
+@@ -3676,6 +3722,8 @@
      return;
    }
  
@@ -80,7 +107,7 @@ Report the faulting RIP for moffs and relocated memory operands; raise #DE for a
    Ref Quotient = _AllocateGPR(true);
    Ref Remainder = _AllocateGPR(true);
  
-@@ -3717,6 +3749,8 @@
+@@ -3717,6 +3765,8 @@
      return;
    }
  

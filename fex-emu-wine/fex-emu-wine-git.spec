@@ -232,6 +232,7 @@ rm -rf %{buildroot}/usr/share
  - fix stale code in RWX pages sharing a host page with writable data
  - fix ARM64EC deadlock in full SMC validation
  - precise fault RIP for absolute/relocated operands, divide-by-zero exceptions
+ - keep RSP unchanged when a POP to memory faults
 
 * Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^2.git.e2f973f-1
  - Update to commit e2f973fe931e6dc2ce523795e51ca1ac3ca85816
