@@ -17,7 +17,7 @@
 
 Name:       fex-emu-wine-git
 Version:    %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:    1%{?dist}
+Release:    2%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -74,6 +74,8 @@ Patch:          %{forgeurl}/commit/c326e2d669fd5e9356f6107e188413a449cc1fd7.patc
 Patch100:       fex-emu-wine-git-host-page-size.patch
 Patch101:       fex-emu-wine-git-smc-untrap-host-page.patch
 Patch102:       fex-emu-wine-git-callback-code-buffer.patch
+Patch103:       fex-emu-wine-smc-untrappable-host-page.patch
+Patch104:       fex-emu-wine-precise-faults.patch
 
 
 BuildRequires:  cmake
@@ -128,6 +130,8 @@ FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 %patch -P 100 -p1
 %patch -P 101 -p1
 %patch -P 102 -p1
+%patch -P 103 -p1
+%patch -P 104 -p1
 
 # Unpack bundled libraries
 %{lua: print_setup_externals()}
@@ -224,6 +228,11 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^2.git.e2f973f-2
+ - fix stale code in RWX pages sharing a host page with writable data
+ - fix ARM64EC deadlock in full SMC validation
+ - precise fault RIP for absolute/relocated operands, divide-by-zero exceptions
+
 * Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^2.git.e2f973f-1
  - Update to commit e2f973fe931e6dc2ce523795e51ca1ac3ca85816
 
