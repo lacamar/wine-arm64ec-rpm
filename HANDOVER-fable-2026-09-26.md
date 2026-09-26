@@ -127,4 +127,22 @@ Findings along the way:
 
 ## Release state
 
-All commits are local on `main`; nothing pushed or built on COPR unless noted below.
+Pushed to `main`. Built on COPR `wine-arm64ec`, **not installed** (the install needs the desktop
+auth prompt):
+
+| Package | Build | Contents |
+|---|---|---|
+| wine 11.18-ec4 | 11036430 | 621, 622 |
+| wine-git 11.18^2.git.df15af3-ec.4 | 11036431 | 621, 622 |
+| fex-emu-wine 2609-6 | 11036516 | 104, 105 (fixed) |
+| fex-emu-wine-git 2609.1^2.git.e2f973f-3 | 11036514 | 104, 105 (fixed) |
+
+Superseded, contain the divide-check regression: fex-emu-wine 2609-5 (11036433),
+fex-emu-wine-git -2 (11036432). To install:
+
+```
+sudo dnf upgrade --refresh --allow-vendor-change --exclude=winetricks 'wine*' 'fex-emu-wine*'
+```
+
+`wine/wine-git.spec` still has your bot's uncommitted `staging_commit` bump (efba714) — left
+alone; the ec.4 SRPM was built from the committed spec.
