@@ -11,7 +11,7 @@
 +
 +        host_end = ROUND_ADDR( end, host_page_mask );
 +        /* pages sharing a host page with committed ones can't be unmapped, but must read as zero once recommitted */
-+        for (addr = base; addr < end; addr = ROUND_ADDR( addr, host_page_mask ) + host_page_size)
++        for (addr = base; addr < end; addr = (char *)ROUND_ADDR( addr, host_page_mask ) + host_page_size)
 +        {
 +            char *host = ROUND_ADDR( addr, host_page_mask );
 +            char *stop = min( end, host + host_page_size );

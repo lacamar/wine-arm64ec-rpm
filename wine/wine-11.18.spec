@@ -136,6 +136,7 @@ Patch618:       2026_09_17-win32u-extend-virtual-modes.patch
 Patch619:       2026_09_17-vkd3d-shader-state-block-keywords.patch
 Patch620:       2026_09_18-server-scale-dpi-signed.patch
 Patch621:       2026_09_26-ntdll-subpage-guard-decommit.patch
+Patch622:       2026_09_26-ntdll-unaligned-shared-sections.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -768,6 +769,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 619 -p1
 %patch -P 620 -p1
 %patch -P 621 -p1
+%patch -P 622 -p1
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -2471,6 +2473,7 @@ fi
 * Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec4
 - Raise guard faults only for the guard page itself on 16K hosts
 - Zero decommitted pages sharing a host page
+- Load images whose shared sections are not host page aligned
 
 * Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec3
 - Fix missing 32-bit d3d8

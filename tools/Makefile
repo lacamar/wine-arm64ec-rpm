@@ -7,7 +7,8 @@ WIN32 = smctest suspendtest tsospin winrect wclick wtool fxtest cbjittest memtes
 WIN64 = suspendtest tsospin winrect memtest sehtest
 SCRIPTS = dumpstack.py wkill.sh wshot.sh
 
-all: $(WIN32:%=$(OUT)/%32.exe) $(WIN64:%=$(OUT)/%64.exe) $(OUT)/prtest $(SCRIPTS:%=$(OUT)/%)
+all: $(WIN32:%=$(OUT)/%32.exe) $(WIN64:%=$(OUT)/%64.exe) $(OUT)/shtest32.exe $(OUT)/shtest64.exe \
+     $(OUT)/shdll32.dll $(OUT)/shdll64.dll $(OUT)/prtest $(SCRIPTS:%=$(OUT)/%)
 
 $(OUT):
 	mkdir -p $@
@@ -24,6 +25,12 @@ $(OUT)/%32.exe: %.c | $(OUT)
 
 $(OUT)/%64.exe: %.c | $(OUT)
 	$(CC64) $(CFLAGS) -o $@ $< -luser32 -lgdi32
+
+$(OUT)/shdll32.dll: shdll.c | $(OUT)
+	$(CC32) $(CFLAGS) -shared -o $@ $<
+
+$(OUT)/shdll64.dll: shdll.c | $(OUT)
+	$(CC64) $(CFLAGS) -shared -o $@ $<
 
 $(OUT)/prtest: prtest.c | $(OUT)
 	$(CC) $(CFLAGS) -o $@ $<

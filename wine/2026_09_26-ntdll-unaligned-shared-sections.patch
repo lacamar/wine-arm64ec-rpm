@@ -1,0 +1,36 @@
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -3168,8 +3168,31 @@
+                             debugstr_us(nt_name), sec[i].Name, ptr + sec[i].VirtualAddress,
+                             sec[i].PointerToRawData, (int)pos, file_size, map_size,
+                             sec[i].Characteristics );
+-            if (map_file_into_view( view, shared_fd, sec[i].VirtualAddress, map_size, pos,
+-                                    VPROT_COMMITTED | VPROT_READ | VPROT_WRITE, FALSE ) != STATUS_SUCCESS)
++            if (((sec[i].VirtualAddress | map_size) & host_page_mask) &&
++                sec[i].VirtualAddress + map_size < total_size)
++            {
++                /* only the host pages entirely inside the section can be shared, the rest gets a private copy */
++                SIZE_T shared_start = ROUND_SIZE( 0, sec[i].VirtualAddress, host_page_mask );
++                SIZE_T shared_end = (sec[i].VirtualAddress + map_size) & ~host_page_mask;
++                char *host = ROUND_ADDR( ptr + sec[i].VirtualAddress, host_page_mask );
++
++                FIXME_(module)( "%s shared section %.8s is not host page aligned, sharing %#lx of %#lx bytes\n",
++                                debugstr_us(nt_name), sec[i].Name,
++                                shared_end > shared_start ? (unsigned long)(shared_end - shared_start) : 0UL,
++                                (unsigned long)map_size );
++                mprotect( host, ROUND_SIZE( ptr + sec[i].VirtualAddress, map_size, host_page_mask ), PROT_READ | PROT_WRITE );
++                pread( shared_fd, ptr + sec[i].VirtualAddress, map_size, pos );
++                if (shared_end > shared_start &&
++                    map_file_into_view( view, shared_fd, shared_start, shared_end - shared_start,
++                                        pos + (shared_start - sec[i].VirtualAddress),
++                                        VPROT_COMMITTED | VPROT_READ | VPROT_WRITE, FALSE ) != STATUS_SUCCESS)
++                {
++                    ERR_(module)( "Could not map %s shared section %.8s\n", debugstr_us(nt_name), sec[i].Name );
++                    goto done;
++                }
++            }
++            else if (map_file_into_view( view, shared_fd, sec[i].VirtualAddress, map_size, pos,
++                                         VPROT_COMMITTED | VPROT_READ | VPROT_WRITE, FALSE ) != STATUS_SUCCESS)
+             {
+                 ERR_(module)( "Could not map %s shared section %.8s\n", debugstr_us(nt_name), sec[i].Name );
+                 goto done;
