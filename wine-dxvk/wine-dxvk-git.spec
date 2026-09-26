@@ -1,7 +1,7 @@
-%global bumpver 5
+%global bumpver 6
 %global tag 3.1.1
 
-%global commit 25ca63f17f34bdc05a39873ee63907d3cbbfa030
+%global commit 52fe923ca1496c8e44789b613fab8611dfcb5c4a
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -313,6 +313,9 @@ fi
 %{_libdir}/wine/i386-windows/dxvk-dxgi.dll
 
 %changelog
+* Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^6.git.52fe923-ec3
+ - Update to commit 52fe923ca1496c8e44789b613fab8611dfcb5c4a
+
 * Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^5.git.25ca63f-ec3
  - Add 32-bit DLLs
 
