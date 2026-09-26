@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 3
+Release:        ec.%autorelease -b 4
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2567,6 +2567,11 @@ fi
 %endif
 
 %changelog
+* Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^2.git.df15af3-ec.4
+ - Raise guard faults only for the guard page itself on 16K hosts
+ - Zero decommitted pages sharing a host page
+ - Load images whose shared sections are not host page aligned
+
 * Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^2.git.df15af3-ec.3
  - Fix missing 32-bit d3d8
  - Split 32-bit d3d10core, add 32-bit d3d12 alternatives
