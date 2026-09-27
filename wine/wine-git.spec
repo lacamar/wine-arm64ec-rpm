@@ -8,12 +8,12 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.18
-%global bumpver 2
+%global bumpver 3
 
-%global commit df15af3652511150490934682202d45af892f887
+%global commit 4e819f054dd2d9ee855ee3f1e30d8c1bb8f80fcf
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 627ccf4f350f41c6cea57fda05f52e57ba9fab1f
+%global staging_commit cc193df75673197f33523539a155c75c07ceb7c8
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 4
+Release:        ec.%autorelease -b 1
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2567,6 +2567,9 @@ fi
 %endif
 
 %changelog
+* Sun Sep 27 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^3.git.4e819f0-ec.1
+ - Update to wine 4e819f0, wine-staging cc193df
+
 * Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^2.git.df15af3-ec.4
  - Raise guard faults only for the guard page itself on 16K hosts
  - Zero decommitted pages sharing a host page
