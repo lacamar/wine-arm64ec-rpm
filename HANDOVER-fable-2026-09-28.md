@@ -57,3 +57,42 @@ Not Wine/FEX:
 - Leftover test prefixes you may delete: `fez-test-claude`, `terraria-test-claude`, and still
   `test-crysis3` from the 09-26 sweep.
 - `wine/wine-git.spec` now pins wine 4e819f0 (the bot bumped staging to cc193df, which targets it).
+
+## 2026-09-29: what the sweep data says about 16K
+
+Instrumented overlay builds (logging only, nothing installed): Wine `ntdll.so` logs every host page whose
+4K pages want different protections (`HP16 mixed ctx=… extra=W/X/R`), sub-host-page decommits and
+images with sub-16K section alignment; FEX logs SMC write faults. Scripts: `tools/gametest/` +
+scratch `hp16run.sh`/`perfrun.sh` (60 s per game, CPU seconds via `/usr/bin/time`, ~10 % run noise).
+
+### Fixed: thread suspension regressed in fex-emu-wine-git (Release 4)
+
+`fex-emu-wine-interrupt-fault-page.patch` (2609 Patch102) was never carried to the git spec. Upstream
+has since moved WOW64 to the doorbell, so only its `CondJump` back-edge hunk still matters, and it
+matters on both WOW64 and ARM64EC: without it `SuspendThread` on a thread spinning in a rotated loop
+never returns (`suspendtest32/64` hung on the installed build). New
+`fex-emu-wine-git-suspend-backedge.patch`: 20/20 cycles, worst 7–8 ms, both bitnesses; smctest32
+22/22; Lightroom clean. Psychopomp still hangs, so that is not its cause.
+
+### Measured, not shipped: SMC fault storms on 16K
+
+FEX write-protects code at host-page granularity, so data writes into the other 4K pages of a host
+page fault, invalidate the whole host page and wipe the 4 MB call-ret stack
+(`VirtualDontNeed` decommit+recommit, ~300/s in Dead Space 2). Per minute: DS3 ~24k faults, DS2 SotFS
+~37k (Arxan exes, a few hundred 4K pages each faulting thousands of times), Dead Space 2 ~12k (256
+heap pages, slow rate), Dishonored ~500 (one page).
+
+`fex-emu-wine/fex-emu-wine-git-smc-notrap-hot-pages.patch` (not in the spec): after 32 write faults
+within 1 s a host page stays writable and its code is compiled with full SMC checks. Faults −85 %
+(DS3), −93 % (DS2 SotFS); CPU unchanged on DS3, −11 % on DS2 SotFS, +4 % on Dishonored (its one hot
+page flips during a burst). Menu scenes at a 60 fps cap only — needs a gameplay/stutter test before it
+is worth shipping.
+
+### Other observations
+
+- Wine heap decommits are 64K-aligned; the frequent `base+0x1000 / 0xf000` and 4 MB decommits are FEX
+  `VirtualDontNeed`, each going through the sub-host-page zeroing path of patch 621.
+- 60 of 74 sub-16K-aligned images in Dishonored are Wine's own i386 DLLs (ntdll, libwow64fex …): their
+  code pages end up writable. Only a W^X hardening issue — FEX does not SMC-track non-RWX code.
+- Mixed pages are common everywhere (2–8k per minute per game) but mostly benign unions of
+  committed/uncommitted neighbours.

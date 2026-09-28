@@ -16,6 +16,7 @@ int main(int argc, char **argv)
     HANDLE thread = CreateThread(NULL, 0, spin, NULL, 0, NULL);
     DWORD worst = 0;
 
+    setvbuf(stdout, NULL, _IONBF, 0);
     Sleep(200);
     for (int i = 0; i < cycles; i++)
     {

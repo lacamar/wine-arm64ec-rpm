@@ -17,7 +17,7 @@
 
 Name:       fex-emu-wine-git
 Version:    %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:    3%{?dist}
+Release:    4%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -76,6 +76,7 @@ Patch101:       fex-emu-wine-git-smc-untrap-host-page.patch
 Patch102:       fex-emu-wine-git-callback-code-buffer.patch
 Patch103:       fex-emu-wine-smc-untrappable-host-page.patch
 Patch104:       fex-emu-wine-precise-faults.patch
+Patch105:       fex-emu-wine-git-suspend-backedge.patch
 
 
 BuildRequires:  cmake
@@ -132,6 +133,7 @@ FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 %patch -P 102 -p1
 %patch -P 103 -p1
 %patch -P 104 -p1
+%patch -P 105 -p1
 
 # Unpack bundled libraries
 %{lua: print_setup_externals()}
@@ -228,6 +230,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Tue Sep 29 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^3.git.59f85d6-4
+ - Suspend check on loop back-edges
+
 * Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^3.git.59f85d6-3
  - Update to commit 59f85d6b7df4eb053d2cc1b9d33411b4f31bfbaa
 

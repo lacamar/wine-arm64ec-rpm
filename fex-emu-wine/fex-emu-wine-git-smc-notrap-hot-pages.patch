@@ -1,0 +1,111 @@
+On hosts with pages larger than 4K, stop write-protecting host pages that keep faulting and compile their code with full SMC checks instead.
+
+diff --git a/Source/Windows/Common/InvalidationTracker.cpp b/Source/Windows/Common/InvalidationTracker.cpp
+index 2f24579..7f83f53 100644
+--- a/Source/Windows/Common/InvalidationTracker.cpp
++++ b/Source/Windows/Common/InvalidationTracker.cpp
+@@ -11,6 +11,10 @@
+ #include <winternl.h>
+ 
+ namespace FEX::Windows {
++// Write faults within one window after which a host page stops being trapped
++static constexpr uint32_t NoTrapFaultThreshold = 32;
++static constexpr int64_t NoTrapWindow = 10'000'000; // 1s in 100ns units
++
+ InvalidationTracker::InvalidationTracker(FEXCore::Context::Context& CTX, const std::unordered_map<DWORD, FEXCore::Core::InternalThreadState*>& Threads)
+   : CTX {CTX}
+   , Threads {Threads} {
+@@ -239,6 +243,19 @@ bool InvalidationTracker::HandleRWXAccessViolation(FEXCore::Core::InternalThread
+   }(FaultAddress);
+ 
+   if (NeedsInvalidate) {
++    if (const auto HostPageSize = FEXCore::Utils::GetHostPageSize(); HostPageSize > FEXCore::Utils::FEX_PAGE_SIZE) {
++      std::unique_lock Lock(IntervalsLock);
++      const uint64_t HostBase = FaultAddress & ~(HostPageSize - 1);
++      LARGE_INTEGER Now;
++      NtQuerySystemTime(&Now);
++      auto& Window = HostPageWriteFaults[HostBase];
++      if (Now.QuadPart - Window.Start > NoTrapWindow) {
++        Window = {Now.QuadPart, 0};
++      }
++      if (++Window.Count == NoTrapFaultThreshold) {
++        NoTrapHostPages.insert(HostBase);
++      }
++    }
+     // IntervalsLock cannot be held during invalidation
+     {
+       std::scoped_lock Lock(CTX.GetCodeInvalidationMutex());
+@@ -287,7 +304,12 @@ FEXCore::HLE::ExecutableRangeInfo InvalidationTracker::QueryExecutableRange(uint
+     if (HostPageSize > FEXCore::Utils::FEX_PAGE_SIZE && !SMCDetectionDisabled) {
+       const uint64_t HostBase = Address & ~(HostPageSize - 1);
+       const uint64_t HostEnd = HostBase + HostPageSize;
+-      if (Base > HostBase || End < HostEnd) {
++      if (!NoTrapHostPages.empty()) {
++        // Keep the range within one host page so no-trap pages are never covered by a trapped range
++        Base = std::max(Base, HostBase);
++        End = std::min(End, HostEnd);
++        ForceFullSMC = NoTrapHostPages.contains(HostBase) || ((Base > HostBase || End < HostEnd) && HostPageHasUntrackedWritable(HostBase));
++      } else if (Base > HostBase || End < HostEnd) {
+         // Report partially covered host pages separately, their write traps depend on the neighbouring pages
+         Base = std::max(Base, HostBase);
+         End = std::min(End, HostEnd);
+@@ -426,10 +448,29 @@ bool InvalidationTracker::ProtectRWXIntervalsInternal(uint64_t Address, uint64_t
+         }
+         HitRWXInterval = true;
+       }
+-      void* TmpAddress = reinterpret_cast<void*>(Address);
+-      SIZE_T TmpSize = static_cast<SIZE_T>(std::min(End, Address + Query.Size) - Address);
+-      ULONG TmpProt;
+-      NtProtectVirtualMemory(NtCurrentProcess(), &TmpAddress, &TmpSize, ForWriteLocked ? GetUntrapProt(Address) : GetTrapProt(Address), &TmpProt);
++      const uint64_t ChunkEnd = std::min(End, Address + Query.Size);
++      auto Protect = [&](uint64_t Start, uint64_t Stop) {
++        if (Stop <= Start) {
++          return;
++        }
++        void* TmpAddress = reinterpret_cast<void*>(Start);
++        SIZE_T TmpSize = static_cast<SIZE_T>(Stop - Start);
++        ULONG TmpProt;
++        NtProtectVirtualMemory(NtCurrentProcess(), &TmpAddress, &TmpSize, ForWriteLocked ? GetUntrapProt(Start) : GetTrapProt(Start), &TmpProt);
++      };
++      if (!ForWriteLocked && !NoTrapHostPages.empty()) {
++        const auto HostPageSize = FEXCore::Utils::GetHostPageSize();
++        uint64_t RunStart = Address;
++        for (uint64_t Page = Address & ~(HostPageSize - 1); Page < ChunkEnd; Page += HostPageSize) {
++          if (NoTrapHostPages.contains(Page)) {
++            Protect(RunStart, std::min(Page, ChunkEnd));
++            RunStart = std::max(RunStart, Page + HostPageSize);
++          }
++        }
++        Protect(RunStart, ChunkEnd);
++      } else {
++        Protect(Address, ChunkEnd);
++      }
+     } else if (!Query.Size) {
+       // No more regions past `Address` in the interval list
+       break;
+diff --git a/Source/Windows/Common/InvalidationTracker.h b/Source/Windows/Common/InvalidationTracker.h
+index 0b06a06..4a3ac42 100644
+--- a/Source/Windows/Common/InvalidationTracker.h
++++ b/Source/Windows/Common/InvalidationTracker.h
+@@ -6,6 +6,7 @@
+ #include <mutex>
+ #include <shared_mutex>
+ #include <unordered_map>
++#include <unordered_set>
+ #include <string_view>
+ 
+ namespace FEXCore::Core {
+@@ -69,6 +70,13 @@ private:
+   bool SMCDetectionDisabled {false};                    // Protected by IntervalsLock
+   bool DEPDisabled {false};                             // Protected by IntervalsLock
+   FEXCore::IntervalList<uint64_t> DEPPromotedIntervals; // Protected by IntervalsLock
++  // Host pages that keep faulting on writes are left writable and their code is compiled with full SMC checks instead.
++  struct WriteFaultWindow {
++    int64_t Start;
++    uint32_t Count;
++  };
++  std::unordered_map<uint64_t, WriteFaultWindow> HostPageWriteFaults; // Protected by IntervalsLock
++  std::unordered_set<uint64_t> NoTrapHostPages;                       // Protected by IntervalsLock
+ 
+   bool MonoBackpatcherDetectionPending {false};
+   uint64_t MonoBase {0};
