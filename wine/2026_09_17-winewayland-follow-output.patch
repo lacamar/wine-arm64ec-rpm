@@ -305,8 +305,8 @@ winewayland: keep windows on the output their surface is on; compare rects in ra
 +        for (index = 0; !(entered & (1u << index)); index++);
 +    if (!get_output_rect(index, &target)) return;
 +
-+    /* resizing a borderless fullscreen window resets the game's swapchain, let the compositor scale it */
-+    if (EqualRect(&window, &current) && !(style & WS_MAXIMIZE) && (style & WS_CAPTION) != WS_CAPTION) return;
++    /* moving a borderless or fullscreen window resets the game's swapchain */
++    if ((style & WS_CAPTION) != WS_CAPTION && !(style & WS_MAXIMIZE)) return;
 +
 +    if (!(data = wayland_win_data_get(hwnd))) return;
 +    data->output_index = index;

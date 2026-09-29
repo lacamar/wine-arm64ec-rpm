@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.18
-Release:        ec5%{dist}
+Release:        ec6%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2470,6 +2470,10 @@ fi
 %endif
 
 %changelog
+* Wed Sep 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec6
+- Make the largest output the primary display
+- Never move borderless or fullscreen windows between outputs
+
 * Tue Sep 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec5
 - Stop fullscreen windows ping-ponging between outputs
 

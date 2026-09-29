@@ -3,13 +3,14 @@ winewayland: add a PrimaryOutput setting.
 diff --git a/dlls/winewayland.drv/display.c b/dlls/winewayland.drv/display.c
 --- a/dlls/winewayland.drv/display.c
 +++ b/dlls/winewayland.drv/display.c
-@@ -45,8 +45,17 @@ static int output_info_cmp_primary_x_y(const void *va, const void *vb)
+@@ -45,8 +45,23 @@ static int output_info_cmp_primary_x_y(const void *va, const void *vb)
  {
      const struct output_info *a = va;
      const struct output_info *b = vb;
 -    BOOL a_is_primary = a->x == 0 && a->y == 0;
 -    BOOL b_is_primary = b->x == 0 && b->y == 0;
 +    BOOL a_is_primary, b_is_primary;
++    INT64 a_area, b_area;
 +
 +    if (primary_output_name[0])
 +    {
@@ -17,6 +18,11 @@ diff --git a/dlls/winewayland.drv/display.c b/dlls/winewayland.drv/display.c
 +        b_is_primary = !strcmp(b->output->name, primary_output_name);
 +        if (a_is_primary != b_is_primary) return a_is_primary ? -1 : 1;
 +    }
++
++    /* games size themselves to the primary display */
++    a_area = (INT64)a->output->current_mode->width * a->output->current_mode->height;
++    b_area = (INT64)b->output->current_mode->width * b->output->current_mode->height;
++    if (a_area != b_area) return a_area > b_area ? -1 : 1;
 +
 +    a_is_primary = a->x == 0 && a->y == 0;
 +    b_is_primary = b->x == 0 && b->y == 0;

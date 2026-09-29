@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 2
+Release:        ec.%autorelease -b 3
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2567,6 +2567,10 @@ fi
 %endif
 
 %changelog
+* Wed Sep 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^4.git.6880117-ec.3
+- Make the largest output the primary display
+- Never move borderless or fullscreen windows between outputs
+
 * Tue Sep 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^4.git.6880117-ec.2
  - Update to commit 6880117619afdf62b4ccc40a8c6268c86613131f
 
