@@ -40,6 +40,12 @@ case "$1" in
         awk '/^VmRSS/ {printf "%.2f GiB", $2 / 1048576}' /proc/$game/status ;;
     gpumem)
         awk '/\/dev\/dri\/renderD/ {split($1, a, "-"); s += strtonum("0x" a[2]) - strtonum("0x" a[1])} END {printf "%.2f GiB", s / 1073741824}' /proc/$game/maps ;;
+    memory)
+        r=$(awk '/^VmRSS/ {printf "%.2f", $2 / 1048576}' /proc/$game/status)
+        g=$(awk '/\/dev\/dri\/renderD/ {split($1, a, "-"); s += strtonum("0x" a[2]) - strtonum("0x" a[1])} END {printf "%.2f", s / 1073741824}' /proc/$game/maps)
+        echo "$r / $g GiB" ;;
+    graphics)
+        echo "$("$0" dxvk) / $("$0" mesa)" ;;
     power)
         h=$(grep -l '^macsmc_hwmon$' /sys/class/hwmon/*/name | head -1); h=${h%/name}
         awk '{printf "%.1f W", $1 / 1e6}' "$h/power1_input" ;;
