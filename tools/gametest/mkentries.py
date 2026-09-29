@@ -18,7 +18,10 @@ system:
   env:
     DISPLAY: ''
     FEX_X87REDUCEDPRECISION: '1'
+    MANGOHUD_CONFIGFILE: /home/lm/.config/MangoHud/asahi-test.conf
     PULSE_SINK: claude-test
+    WINEDEBUG: -all,+fps,err+seh,err+virtual,err+module
+  mangohud: true
   prelaunch_command: ''
 wine:
   dxvk: true
