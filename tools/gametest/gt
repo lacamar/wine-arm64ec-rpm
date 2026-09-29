@@ -1,0 +1,369 @@
+#!/usr/bin/env python3
+"""gt: drive -test-claude games in a headless, muted sway session.
+
+  gt up [--single]             start headless sway (eDP + 4K layout) and the virtual pointer
+  gt down                      stop it
+  gt run SLUG [--wine W] [--debug CH] [--lutris] [-- ARGS]
+  gt ps                        running test games
+  gt stop [SLUG|all]
+  gt shot [-o OUT] [-s SCALE] [PATH]   screenshot; pixels = output-local logical coords at scale 1
+  gt move X Y [-o OUT]  |  gt click [X Y] [-o OUT] [-b right]  |  gt scroll N  |  gt rel DX DY
+  gt key KEY...                keysyms (Return Escape space Up ...), chords as ctrl+s
+  gt type TEXT
+  gt win                       windows: output, rect, fullscreen
+  gt outputs
+  gt fps [SLUG]                last fps from the log
+  gt log SLUG [REGEX]
+  gt audio [SECS]              peak/RMS of what test games play (claude-test sink)
+  gt threads SLUG              per-thread CPU, state, wait channel (winedbg attach crashes wow64 games)
+"""
+import argparse, glob, json, os, re, shlex, signal, subprocess, sys, time
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+RUN = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")) / "gt"
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "wine-arm64ec-dev/gametest"
+LOGS = CACHE / "logs"
+LUTRIS = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "lutris/games"
+SINK = "claude-test"
+LAYOUT = [("HEADLESS-1", "3024x1964", 2, "0 100"), ("HEADLESS-2", "3840x2160", 2, "1512 0")]
+
+
+def state():
+    try:
+        return json.loads((RUN / "state.json").read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def alive(pid):
+    try:
+        os.kill(pid, 0)
+        return True
+    except (OSError, TypeError):
+        return False
+
+
+def session():
+    s = state()
+    if not alive(s.get("sway")):
+        sys.exit("no headless session, run: gt up")
+    return s
+
+
+def wenv(s=None):
+    s = s or session()
+    return dict(os.environ, WAYLAND_DISPLAY=s["wayland"], SWAYSOCK=s["swaysock"], DISPLAY="")
+
+
+def swaymsg(*a, s=None):
+    return subprocess.run(["swaymsg", *a], env=wenv(s), capture_output=True, text=True).stdout
+
+
+def outputs(s=None):
+    return [o for o in json.loads(swaymsg("-t", "get_outputs", "-r", s=s)) if o.get("active")]
+
+
+def output(name=None):
+    outs = outputs()
+    if name:
+        return next(o for o in outs if o["name"] == name)
+    return next((o for o in outs if o.get("focused")), outs[-1])
+
+
+def fifo(cmd):
+    with open(RUN / "vptr.fifo", "w") as f:
+        f.write(cmd + "\n")
+    time.sleep(0.05)
+
+
+def cmd_up(a):
+    s = state()
+    if alive(s.get("sway")):
+        print(f"up: {s['wayland']}")
+        return
+    RUN.mkdir(parents=True, exist_ok=True)
+    before = set(glob.glob(f"{RUN.parent}/wayland-*[0-9]"))
+    env = {k: v for k, v in os.environ.items() if k not in ("WAYLAND_DISPLAY", "DISPLAY", "SWAYSOCK")}
+    env.update(WLR_BACKENDS="headless", WLR_LIBINPUT_NO_DEVICES="1")
+    sway = subprocess.Popen(["sway", "-c", str(HERE / "sway.conf")], env=env, start_new_session=True,
+                            stdout=open(RUN / "sway.log", "w"), stderr=subprocess.STDOUT)
+    sock = f"{RUN.parent}/sway-ipc.{os.getuid()}.{sway.pid}.sock"
+    for _ in range(100):
+        new = set(glob.glob(f"{RUN.parent}/wayland-*[0-9]")) - before
+        if new and os.path.exists(sock):
+            break
+        time.sleep(0.1)
+    else:
+        sys.exit("sway did not start, see " + str(RUN / "sway.log"))
+    s = {"sway": sway.pid, "wayland": os.path.basename(new.pop()), "swaysock": sock}
+    layout = LAYOUT[:1] if a.single else LAYOUT
+    for name, mode, scale, pos in layout:
+        if name not in [o["name"] for o in outputs(s)]:
+            swaymsg("create_output", s=s)
+        swaymsg("output", name, "resolution", mode, "scale", str(scale), "position", *pos.split(), s=s)
+    outs = outputs(s)
+    vw = max(o["rect"]["x"] + o["rect"]["width"] for o in outs)
+    vh = max(o["rect"]["y"] + o["rect"]["height"] for o in outs)
+    if not (HERE / "proto").exists():
+        subprocess.run([str(HERE / "vptr-setup.sh")], check=True)
+    Path(RUN / "vptr.fifo").unlink(missing_ok=True)
+    os.mkfifo(RUN / "vptr.fifo")
+    vptr = subprocess.Popen([sys.executable, str(HERE / "vptr.py"), str(RUN / "vptr.fifo")],
+                            env=dict(wenv(s), VW=str(vw), VH=str(vh)), start_new_session=True,
+                            stdout=open(RUN / "vptr.log", "w"), stderr=subprocess.STDOUT)
+    s.update(vptr=vptr.pid, vw=vw, vh=vh)
+    (RUN / "state.json").write_text(json.dumps(s))
+    subprocess.run(["pactl", "load-module", "module-null-sink", f"sink_name={SINK}"], capture_output=True) \
+        if SINK not in subprocess.run(["pactl", "list", "short", "sinks"], capture_output=True, text=True).stdout else None
+    print(f"up: {s['wayland']} {vw}x{vh}", *(f"{o['name']}@{o['rect']['x']},{o['rect']['y']}" for o in outs))
+
+
+def cmd_down(a):
+    s = state()
+    for k in ("vptr", "sway"):
+        if alive(s.get(k)):
+            os.kill(s[k], signal.SIGTERM)
+    (RUN / "state.json").unlink(missing_ok=True)
+
+
+def entry(slug):
+    slug = slug.removesuffix("-test-claude")
+    import yaml
+    for f in sorted(LUTRIS.glob(f"{slug}-test-claude-*.yml")):
+        return slug, yaml.safe_load(f.read_text())
+    sys.exit(f"no Lutris entry {slug}-test-claude")
+
+
+def cmd_run(a):
+    s = session()
+    slug, y = entry(a.slug)
+    LOGS.mkdir(parents=True, exist_ok=True)
+    log = LOGS / f"{slug}.log"
+    env = wenv(s)
+    env.update({k: str(v) for k, v in (y.get("system", {}).get("env") or {}).items()})
+    env.update(PULSE_SINK=SINK, DISPLAY="", WINEPREFIX=y["game"]["prefix"])
+    if a.debug:
+        env["WINEDEBUG"] = a.debug
+    if a.lutris:
+        cmd = ["lutris", "-d", f"lutris:rungame/{slug}-test-claude"]
+    else:
+        cmd = [a.wine, y["game"]["exe"], *shlex.split(y["game"].get("args", "") or ""), *a.args]
+        if y.get("system", {}).get("mangohud") and not a.no_hud:
+            cmd = ["mangohud", *cmd]
+    p = subprocess.Popen(cmd, env=env, cwd=y["game"].get("working_dir"), start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=open(log, "w"), stderr=subprocess.STDOUT)
+    print(f"{slug} pid {p.pid} log {log}")
+
+
+def games():
+    for pid in filter(str.isdigit, os.listdir("/proc")):
+        try:
+            comm = Path(f"/proc/{pid}/comm").read_text().strip()
+            if not comm.lower().endswith(".exe") or comm in ("services.exe", "winedevice.exe", "explorer.exe",
+                                                              "plugplay.exe", "svchost.exe", "rpcss.exe", "conhost.exe", "start.exe"):
+                continue
+            env = Path(f"/proc/{pid}/environ").read_bytes().split(b"\0")
+        except OSError:
+            continue
+        pfx = next((e[11:].decode() for e in env if e.startswith(b"WINEPREFIX=")), "")
+        if pfx.endswith("-test-claude"):
+            yield int(pid), comm, os.path.basename(pfx).removesuffix("-test-claude"), pfx
+
+
+def last_fps(slug):
+    try:
+        with open(LOGS / f"{slug}.log", "rb") as f:
+            f.seek(max(0, os.path.getsize(f.name) - 200000))
+            m = re.findall(rb"approx ([\d.]+)fps", f.read())
+            return m[-1].decode() if m else "-"
+    except OSError:
+        return "-"
+
+
+def cmd_ps(a):
+    for pid, comm, slug, _ in games():
+        rss = next((l.split()[1] for l in open(f"/proc/{pid}/status") if l.startswith("VmRSS")), "0")
+        print(f"{slug:24} {pid:>8} {comm:28} {int(rss) / 1048576:6.2f} GiB  {last_fps(slug)} fps")
+
+
+def cmd_stop(a):
+    targets = {g[2]: g[3] for g in games()}
+    if a.slug and a.slug != "all":
+        slug, y = entry(a.slug)
+        targets = {slug: y["game"]["prefix"]}
+    for slug, pfx in targets.items():
+        subprocess.run(["wineserver", "-k"], env=dict(os.environ, WINEPREFIX=pfx), capture_output=True)
+        print("stopped", slug)
+
+
+def cmd_shot(a):
+    o = output(a.o)
+    path = a.path or f"{CACHE}/shot-{o['name']}.png"
+    scale = a.s if a.s else 1 / o["scale"]
+    subprocess.run(["grim", "-o", o["name"], "-s", str(scale), path], env=wenv(), check=True)
+    print(path)
+
+
+def to_layout(x, y, name):
+    o = output(name)
+    return int(o["rect"]["x"] + float(x)), int(o["rect"]["y"] + float(y))
+
+
+def cmd_move(a):
+    fifo("move %d %d" % to_layout(a.x, a.y, a.o))
+
+
+def cmd_click(a):
+    if a.x is not None:
+        cmd_move(a)
+        time.sleep(0.3)
+    fifo(f"click {a.b}")
+
+
+def cmd_key(a):
+    # games poll key state, so hold each key; the first key after keymap upload gets lost without a delay
+    args = ["-s", "250"]
+    for k in a.keys:
+        *mods, key = k.split("+")
+        for m in mods:
+            args += ["-M", m]
+        args += ["-P", key, "-s", "80", "-p", key]
+        for m in reversed(mods):
+            args += ["-m", m]
+        args += ["-s", "120"]
+    subprocess.run(["wtype", *args], env=wenv(), check=True)
+
+
+def cmd_type(a):
+    subprocess.run(["wtype", "-s", "250", "-d", "40", a.text], env=wenv(), check=True)
+
+
+def cmd_win(a):
+    def walk(n, out=None):
+        if n.get("type") == "output":
+            out = n["name"]
+        if n.get("pid"):
+            r = n["rect"]
+            print(f"{out:11} {r['x']},{r['y']} {r['width']}x{r['height']}"
+                  f"{' fs' if n.get('fullscreen_mode') else ''}{' *' if n.get('focused') else ''}  {n.get('app_id') or ''} {n.get('name')!r}")
+        for c in n.get("nodes", []) + n.get("floating_nodes", []):
+            walk(c, out)
+    walk(json.loads(swaymsg("-t", "get_tree", "-r")))
+
+
+def cmd_outputs(a):
+    for o in outputs():
+        r, m = o["rect"], o["current_mode"]
+        print(f"{o['name']} {m['width']}x{m['height']} scale {o['scale']} at {r['x']},{r['y']} logical {r['width']}x{r['height']}"
+              f"{' focused' if o.get('focused') else ''}")
+
+
+def cmd_fps(a):
+    slugs = [entry(a.slug)[0]] if a.slug else sorted({g[2] for g in games()})
+    for slug in slugs:
+        print(slug, last_fps(slug))
+
+
+def cmd_log(a):
+    slug = entry(a.slug)[0]
+    lines = open(LOGS / f"{slug}.log", errors="replace").read().splitlines()
+    if a.regex:
+        lines = [l for l in lines if re.search(a.regex, l)]
+    print("\n".join(lines[-a.n:]))
+
+
+def cmd_audio(a):
+    raw = subprocess.run(["timeout", str(a.secs), "parec", "-d", f"{SINK}.monitor", "--raw", "--format=s16le",
+                          "--channels=2", "--rate=48000"], capture_output=True).stdout
+    import array, math
+    s = array.array("h", raw)
+    if not s:
+        return print("no samples")
+    peak = max(map(abs, s))
+    rms = math.sqrt(sum(v * v for v in s) / len(s))
+    db = lambda v: 20 * math.log10(v / 32768) if v else float("-inf")
+    print(f"peak {db(peak):.1f} dBFS  rms {db(rms):.1f} dBFS  {'silent' if peak == 0 else 'audio'}")
+
+
+def cmd_threads(a):
+    slug = entry(a.slug)[0]
+    pid = next((p for p, _, s_, _ in games() if s_ == slug), None)
+    if not pid:
+        sys.exit(f"{slug} not running")
+    def ticks():
+        t = {}
+        for tid in os.listdir(f"/proc/{pid}/task"):
+            try:
+                f = Path(f"/proc/{pid}/task/{tid}/stat").read_text().rsplit(")", 1)[1].split()
+                t[tid] = (int(f[11]) + int(f[12]), f[0])
+            except OSError:
+                pass
+        return t
+    t0 = ticks()
+    time.sleep(a.secs)
+    hz = os.sysconf("SC_CLK_TCK")
+    rows = []
+    for tid, (c, st) in ticks().items():
+        try:
+            name = Path(f"/proc/{pid}/task/{tid}/comm").read_text().strip()
+            wchan = Path(f"/proc/{pid}/task/{tid}/wchan").read_text().strip()
+        except OSError:
+            continue
+        rows.append(((c - t0.get(tid, (c,))[0]) * 100 / hz / a.secs, tid, st, wchan, name))
+    for cpu, tid, st, wchan, name in sorted(rows, reverse=True)[:a.n]:
+        print(f"{cpu:6.1f}% {tid:>8} {st} {wchan[:24]:24} {name}")
+
+
+def main():
+    p = argparse.ArgumentParser(prog="gt", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sp = p.add_subparsers(dest="cmd", required=True)
+    sp.add_parser("up").add_argument("--single", action="store_true")
+    sp.add_parser("down")
+    r = sp.add_parser("run")
+    r.add_argument("slug")
+    r.add_argument("--wine", default="wine")
+    r.add_argument("--debug")
+    r.add_argument("--lutris", action="store_true")
+    r.add_argument("--no-hud", action="store_true")
+    r.add_argument("args", nargs="*")
+    sp.add_parser("ps")
+    sp.add_parser("stop").add_argument("slug", nargs="?")
+    sh = sp.add_parser("shot")
+    sh.add_argument("path", nargs="?")
+    sh.add_argument("-o")
+    sh.add_argument("-s", type=float)
+    for name in ("move", "click"):
+        m = sp.add_parser(name)
+        m.add_argument("x", type=float, nargs=None if name == "move" else "?")
+        m.add_argument("y", type=float, nargs=None if name == "move" else "?")
+        m.add_argument("-o")
+        m.add_argument("-b", default="left")
+    sp.add_parser("scroll").add_argument("n")
+    rl = sp.add_parser("rel")
+    rl.add_argument("dx")
+    rl.add_argument("dy")
+    sp.add_parser("key").add_argument("keys", nargs="+")
+    sp.add_parser("type").add_argument("text")
+    sp.add_parser("win")
+    sp.add_parser("outputs")
+    sp.add_parser("fps").add_argument("slug", nargs="?")
+    lg = sp.add_parser("log")
+    lg.add_argument("slug")
+    lg.add_argument("regex", nargs="?")
+    lg.add_argument("-n", type=int, default=40)
+    sp.add_parser("audio").add_argument("secs", nargs="?", type=float, default=3)
+    th = sp.add_parser("threads")
+    th.add_argument("slug")
+    th.add_argument("-n", type=int, default=25)
+    th.add_argument("--secs", type=float, default=1)
+    a = p.parse_args()
+    if a.cmd == "scroll":
+        return fifo(f"scroll {a.n}")
+    if a.cmd == "rel":
+        return fifo(f"rel {a.dx} {a.dy}")
+    globals()["cmd_" + a.cmd](a)
+
+
+if __name__ == "__main__":
+    main()
