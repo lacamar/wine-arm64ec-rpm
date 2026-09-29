@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.18
-Release:        ec4%{dist}
+Release:        ec5%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2470,6 +2470,9 @@ fi
 %endif
 
 %changelog
+* Tue Sep 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec5
+- Stop fullscreen windows ping-ponging between outputs
+
 * Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec4
 - Raise guard faults only for the guard page itself on 16K hosts
 - Zero decommitted pages sharing a host page

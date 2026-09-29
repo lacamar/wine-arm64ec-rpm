@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 1
+Release:        ec.%autorelease -b 2
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2567,6 +2567,9 @@ fi
 %endif
 
 %changelog
+* Tue Sep 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^3.git.4e819f0-ec.2
+ - Stop fullscreen windows ping-ponging between outputs
+
 * Sun Sep 27 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^3.git.4e819f0-ec.1
  - Update to wine 4e819f0, wine-staging cc193df
 

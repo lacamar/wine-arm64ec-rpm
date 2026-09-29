@@ -1,33 +1,5 @@
-winewayland: keep windows on the output their surface entered; compare rects in raw coordinates.
+winewayland: keep windows on the output their surface is on; compare rects in raw coordinates.
 
---- a/dlls/winewayland.drv/waylanddrv.h
-+++ b/dlls/winewayland.drv/waylanddrv.h
-@@ -72,6 +72,7 @@
-     WM_WAYLAND_INIT_DISPLAY_DEVICES = WM_WINE_FIRST_DRIVER_MSG,
-     WM_WAYLAND_CONFIGURE,
-     WM_WAYLAND_SET_FOREGROUND,
-+    WM_WAYLAND_OUTPUT_ENTER,
- };
- 
- enum wayland_surface_config_state
-@@ -390,6 +391,9 @@
-     BOOL resizeable;
-     BOOL managed;
-     BOOL layered_attribs_set;
-+    int output_index;
-+    ULONGLONG output_follow_time;
-+    int output_follow_count;
- };
- 
- struct wayland_win_data *wayland_win_data_get(HWND hwnd);
-@@ -471,6 +475,7 @@
- LRESULT WAYLAND_SysCommand(HWND hwnd, WPARAM wparam, LPARAM lparam, const POINT *pos);
- void WAYLAND_UpdateLayeredWindow(HWND hwnd, BYTE alpha, UINT flags);
- UINT WAYLAND_UpdateDisplayDevices(const struct gdi_device_manager *device_manager, void *param);
-+int wayland_output_win32_index(struct wayland_output *output);
- LRESULT WAYLAND_WindowMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
- void WAYLAND_WindowPosChanged(HWND hwnd, HWND insert_after, HWND owner_hint, UINT swp_flags,
-                               const struct window_rects *new_rects, struct window_surface *surface);
 --- a/dlls/winewayland.drv/display.c
 +++ b/dlls/winewayland.drv/display.c
 @@ -274,12 +274,44 @@
@@ -93,9 +65,45 @@ winewayland: keep windows on the output their surface entered; compare rects in 
  
      /* Populate GDI devices. */
      wayland_add_device_gpu(device_manager, param);
+--- a/dlls/winewayland.drv/waylanddrv.h
++++ b/dlls/winewayland.drv/waylanddrv.h
+@@ -72,6 +72,14 @@
+     WM_WAYLAND_INIT_DISPLAY_DEVICES = WM_WINE_FIRST_DRIVER_MSG,
+     WM_WAYLAND_CONFIGURE,
+     WM_WAYLAND_SET_FOREGROUND,
++    WM_WAYLAND_OUTPUT_ENTER,
++};
++
++enum wayland_output_event
++{
++    OUTPUT_RECHECK,
++    OUTPUT_ENTERED,
++    OUTPUT_LEFT,
+ };
+ 
+ enum wayland_surface_config_state
+@@ -390,6 +398,10 @@
+     BOOL resizeable;
+     BOOL managed;
+     BOOL layered_attribs_set;
++    int output_index;
++    UINT entered_outputs;
++    ULONGLONG output_follow_time;
++    int output_follow_count;
+ };
+ 
+ struct wayland_win_data *wayland_win_data_get(HWND hwnd);
+@@ -471,6 +483,7 @@
+ LRESULT WAYLAND_SysCommand(HWND hwnd, WPARAM wparam, LPARAM lparam, const POINT *pos);
+ void WAYLAND_UpdateLayeredWindow(HWND hwnd, BYTE alpha, UINT flags);
+ UINT WAYLAND_UpdateDisplayDevices(const struct gdi_device_manager *device_manager, void *param);
++int wayland_output_win32_index(struct wayland_output *output);
+ LRESULT WAYLAND_WindowMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
+ void WAYLAND_WindowPosChanged(HWND hwnd, HWND insert_after, HWND owner_hint, UINT swp_flags,
+                               const struct window_rects *new_rects, struct window_surface *surface);
 --- a/dlls/winewayland.drv/wayland_surface.c
 +++ b/dlls/winewayland.drv/wayland_surface.c
-@@ -182,6 +182,35 @@
+@@ -182,6 +182,48 @@
   *
   * Creates a role-less wayland surface.
   */
@@ -114,12 +122,25 @@ winewayland: keep windows on the output their surface entered; compare rects in 
 +
 +    TRACE("hwnd=%p output=%s index=%d\n", hwnd, output->current.name, index);
 +
-+    if (index >= 0) NtUserPostMessage(hwnd, WM_WAYLAND_OUTPUT_ENTER, 0, index);
++    if (index >= 0) NtUserPostMessage(hwnd, WM_WAYLAND_OUTPUT_ENTER, OUTPUT_ENTERED, index);
 +}
 +
 +static void surface_handle_leave(void *data, struct wl_surface *wl_surface,
 +                                 struct wl_output *wl_output)
 +{
++    HWND hwnd = wl_surface_get_user_data(wl_surface);
++    struct wayland_output *output = wl_output ? wl_output_get_user_data(wl_output) : NULL;
++    int index;
++
++    if (!hwnd || !output) return;
++
++    pthread_mutex_lock(&process_wayland.output_mutex);
++    index = wayland_output_win32_index(output);
++    pthread_mutex_unlock(&process_wayland.output_mutex);
++
++    TRACE("hwnd=%p output=%s index=%d\n", hwnd, output->current.name, index);
++
++    if (index >= 0) NtUserPostMessage(hwnd, WM_WAYLAND_OUTPUT_ENTER, OUTPUT_LEFT, index);
 +}
 +
 +static const struct wl_surface_listener surface_listener =
@@ -131,7 +152,7 @@ winewayland: keep windows on the output their surface entered; compare rects in 
  struct wayland_surface *wayland_surface_create(HWND hwnd)
  {
      struct wayland_surface *surface;
-@@ -203,6 +232,7 @@
+@@ -203,6 +245,7 @@
          goto err;
      }
      wl_surface_set_user_data(surface->wl_surface, hwnd);
@@ -181,11 +202,11 @@ winewayland: keep windows on the output their surface entered; compare rects in 
      data->is_fullscreen = fullscreen;
 +    if (data->output_index >= 0 && get_output_rect(data->output_index, &output_rect) &&
 +        !rect_on_output(&new_rects->window, &output_rect))
-+        NtUserPostMessage(hwnd, WM_WAYLAND_OUTPUT_ENTER, 0, data->output_index);
++        NtUserPostMessage(hwnd, WM_WAYLAND_OUTPUT_ENTER, OUTPUT_RECHECK, data->output_index);
      data->resizeable = swp_flags & WINE_SWP_RESIZABLE;
      data->managed = managed;
  
-@@ -663,6 +672,107 @@
+@@ -663,6 +672,131 @@
      NtUserSetRawWindowPos(hwnd, rect, flags, FALSE);
  }
  
@@ -244,36 +265,60 @@ winewayland: keep windows on the output their surface entered; compare rects in 
 +    return get_current_output_rect(rect, &current) && EqualRect(&current, output);
 +}
 +
-+static void wayland_window_follow_output(HWND hwnd, int index)
++static int get_output_index(const RECT *rect)
++{
++    RECT output;
++    int i;
++
++    for (i = 0; get_output_rect(i, &output); i++) if (EqualRect(&output, rect)) return i;
++    return -1;
++}
++
++static void wayland_window_follow_output(HWND hwnd, UINT event, int index)
 +{
 +    struct wayland_win_data *data;
 +    RECT target, window, current;
 +    BOOL toplevel;
-+    UINT flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
-+
-+    if (!get_output_rect(index, &target)) return;
++    UINT flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER, entered;
++    DWORD style = NtUserGetWindowLongW(hwnd, GWL_STYLE);
++    int current_index;
 +
 +    if (!(data = wayland_win_data_get(hwnd))) return;
++    if (index < 32)
++    {
++        if (event == OUTPUT_ENTERED) data->entered_outputs |= 1u << index;
++        else if (event == OUTPUT_LEFT) data->entered_outputs &= ~(1u << index);
++    }
++    entered = data->entered_outputs;
 +    window = data->rects.window;
 +    toplevel = data->wayland_surface && wayland_surface_is_toplevel(data->wayland_surface);
-+    if (toplevel)
-+    {
-+        if (data->output_index != index) data->output_follow_count = 0;
-+        data->output_index = index;
-+        if (NtGetTickCount() - data->output_follow_time > 2000) data->output_follow_count = 0;
-+        if (data->output_follow_count >= 3) toplevel = FALSE;
-+        else
-+        {
-+            data->output_follow_time = NtGetTickCount();
-+            data->output_follow_count++;
-+        }
-+    }
 +    wayland_win_data_release(data);
 +
-+    if (!toplevel || IsRectEmpty(&window)) return;
-+    if (rect_on_output(&window, &target)) return;
-+
++    if (!toplevel || IsRectEmpty(&window) || !entered) return;
 +    if (!get_current_output_rect(&window, &current)) return;
++
++    /* stay put while the surface is still shown on the output the window is on */
++    current_index = get_output_index(&current);
++    if (current_index >= 0 && current_index < 32 && (entered & (1u << current_index))) return;
++
++    if (event != OUTPUT_ENTERED || !(entered & (1u << index)))
++        for (index = 0; !(entered & (1u << index)); index++);
++    if (!get_output_rect(index, &target)) return;
++
++    /* resizing a borderless fullscreen window resets the game's swapchain, let the compositor scale it */
++    if (EqualRect(&window, &current) && !(style & WS_MAXIMIZE) && (style & WS_CAPTION) != WS_CAPTION) return;
++
++    if (!(data = wayland_win_data_get(hwnd))) return;
++    data->output_index = index;
++    if (NtGetTickCount() - data->output_follow_time > 2000) data->output_follow_count = 0;
++    if (data->output_follow_count >= 3) toplevel = FALSE;
++    else
++    {
++        data->output_follow_time = NtGetTickCount();
++        data->output_follow_count++;
++    }
++    wayland_win_data_release(data);
++    if (!toplevel) return;
 +
 +    if (EqualRect(&window, &current)) window = target;
 +    else
@@ -293,12 +338,12 @@ winewayland: keep windows on the output their surface entered; compare rects in 
  /**********************************************************************
   *           WAYLAND_WindowMessage
   */
-@@ -679,6 +789,9 @@
+@@ -679,6 +813,9 @@
      case WM_WAYLAND_SET_FOREGROUND:
          NtUserSetForegroundWindowInternal(hwnd);
          return 0;
 +    case WM_WAYLAND_OUTPUT_ENTER:
-+        wayland_window_follow_output(hwnd, lp);
++        wayland_window_follow_output(hwnd, wp, lp);
 +        return 0;
      default:
          FIXME("got window msg %x hwnd %p wp %lx lp %lx\n", msg, hwnd, (long)wp, lp);
