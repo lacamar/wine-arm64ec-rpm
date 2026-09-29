@@ -8,9 +8,9 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.18
-%global bumpver 3
+%global bumpver 4
 
-%global commit 4e819f054dd2d9ee855ee3f1e30d8c1bb8f80fcf
+%global commit 6880117619afdf62b4ccc40a8c6268c86613131f
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global staging_commit cc193df75673197f33523539a155c75c07ceb7c8
@@ -2567,6 +2567,9 @@ fi
 %endif
 
 %changelog
+* Tue Sep 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^4.git.6880117-ec.2
+ - Update to commit 6880117619afdf62b4ccc40a8c6268c86613131f
+
 * Tue Sep 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^3.git.4e819f0-ec.2
  - Stop fullscreen windows ping-ponging between outputs
 
