@@ -6,9 +6,9 @@ cache="${XDG_RUNTIME_DIR:-/tmp}/asahi-hud"
 pkg_of() {
     case "$1" in
         /usr/*) rpm -qf "$1" --qf '%{NAME} %{VERSION} %{RELEASE}\n' 2>/dev/null | head -1 |
-                sed -E 's/\.fc[0-9]+//' | sed -E 's/^[^ ]*-git(-core)? [^ ]*git\.([0-9a-f]+) (.*)/git \2 · \3/; t; s/^[^ ]+ ([^ ]+) (.*)/\1 · \2/' ;;
+                sed -E 's/\.fc[0-9]+//' | sed -E 's/^[^ ]*-git(-core)? [^ ]*git\.([0-9a-f]+) (.*)/git \2|\3/; t; s/^[^ ]+ ([^ ]+) (.*)/\1|\2/' ;;
         "") echo "?" ;;
-        *) echo "overlay ${1%%/lib64/*}" | sed "s|$HOME|~|" ;;
+        *) echo "overlay|$(basename "${1%%/lib64/*}")" ;;
     esac
 }
 
@@ -16,14 +16,20 @@ static() {
     case "$1" in
         wine) pkg_of "$(readlink -f /proc/$game/exe | sed 's|/wine-preloader$|/wine|')" ;;
         fex) pkg_of "$(grep -m1 -oE '/[^ ]*lib(arm64ec|wow64)fex\.so' /proc/$game/maps)" ;;
-        machine) tr -d '\0' < /proc/device-tree/model | sed -E 's/^Apple //; s/^MacBook Pro/MBP/; s/^MacBook Air/MBA/; s/\(([0-9]+)-inch, /\1" /; s/, [0-9]{4}\)//' ;;
-        kernel) uname -r | sed -E 's/\.fc[0-9]+\.aarch64//' ;;
+        machine) tr -d '\0' < /proc/device-tree/model | sed -E 's/^Apple //; s/^MacBook Pro/MBP/; s/^MacBook Air/MBA/; s/ \(([0-9]+)-inch, / \1"|/; s/, [0-9]{4}\)//' ;;
+        kernel) uname -r | sed -E 's/\.fc[0-9]+\.aarch64//; s/^([0-9.]+-[0-9]+)\./\1|/' ;;
         pages) echo "$(( $(getconf PAGESIZE) / 1024 ))K host / 4K guest" ;;
         mesa) rpm -q mesa-vulkan-drivers --qf '%{VERSION}\n' ;;
         dxvk) rpm -q wine-dxvk --qf '%{VERSION}\n' 2>/dev/null || echo "-" ;;
     esac
 }
 
+part=${2:-0}
+field() {
+    if [ "$part" = 0 ]; then cat; else cut -d'|' -f"$part"; fi
+}
+
+main() {
 case "$1" in
     wine|fex|kernel|pages|mesa|dxvk|machine)
         mkdir -p "$cache"
@@ -43,9 +49,9 @@ case "$1" in
     memory)
         r=$(awk '/^VmRSS/ {printf "%.2f", $2 / 1048576}' /proc/$game/status)
         g=$(awk '/\/dev\/dri\/renderD/ {split($1, a, "-"); s += strtonum("0x" a[2]) - strtonum("0x" a[1])} END {printf "%.2f", s / 1073741824}' /proc/$game/maps)
-        echo "$r / $g GiB" ;;
+        echo "$r GiB|GPU $g GiB" ;;
     graphics)
-        echo "$("$0" dxvk) / $("$0" mesa)" ;;
+        echo "$("$0" dxvk)|$("$0" mesa)" ;;
     power)
         h=$(grep -l '^macsmc_hwmon$' /sys/class/hwmon/*/name | head -1); h=${h%/name}
         awk '{printf "%.1f W", $1 / 1e6}' "$h/power1_input" ;;
@@ -57,3 +63,6 @@ case "$1" in
         echo "$(cat $b/capacity)% $(cat $b/status)" ;;
     *) echo "?" ;;
 esac
+}
+
+main "$@" | field
