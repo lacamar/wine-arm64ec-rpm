@@ -21,6 +21,7 @@ static() {
         pages) echo "$(( $(getconf PAGESIZE) / 1024 ))K host / 4K guest" ;;
         mesa) rpm -q mesa-vulkan-drivers --qf '%{VERSION}\n' ;;
         dxvk) rpm -q wine-dxvk --qf '%{VERSION}\n' 2>/dev/null || echo "-" ;;
+        graphics) echo "$(static dxvk)|$(static mesa)" ;;
     esac
 }
 
@@ -31,7 +32,7 @@ field() {
 
 main() {
 case "$1" in
-    wine|fex|kernel|pages|mesa|dxvk|machine)
+    wine|fex|kernel|pages|mesa|dxvk|graphics|machine)
         mkdir -p "$cache"
         f="$cache/$game.$1"
         [ -s "$f" ] || static "$1" > "$f"
@@ -42,6 +43,13 @@ case "$1" in
         p1=$(( $(cat /sys/devices/system/cpu/cpufreq/policy4/scaling_cur_freq) / 1000 ))
         p2=$(( $(cat /sys/devices/system/cpu/cpufreq/policy8/scaling_cur_freq 2>/dev/null || echo 0) / 1000 ))
         [ "$p2" -gt 0 ] && echo "${e} · ${p1} · ${p2} MHz" || echo "${e} · ${p1} MHz" ;;
+    cpu)
+        mkdir -p "$cache"
+        read -r _ u n s i w x y z _ < /proc/stat
+        busy=$((u + n + s + x + y + z)) total=$((busy + i + w))
+        read -r pb pt 2>/dev/null < "$cache/$game.cpu" || { pb=0; pt=0; }
+        echo "$busy $total" > "$cache/$game.cpu"
+        [ $((total - pt)) -gt 0 ] && [ "$pt" -gt 0 ] && echo "$(( (busy - pb) * 100 / (total - pt) )) %" || echo "- %" ;;
     mem)
         awk '/^VmRSS/ {printf "%.2f GiB", $2 / 1048576}' /proc/$game/status ;;
     gpumem)
@@ -50,8 +58,6 @@ case "$1" in
         r=$(awk '/^VmRSS/ {printf "%.2f", $2 / 1048576}' /proc/$game/status)
         g=$(awk '/\/dev\/dri\/renderD/ {split($1, a, "-"); s += strtonum("0x" a[2]) - strtonum("0x" a[1])} END {printf "%.2f", s / 1073741824}' /proc/$game/maps)
         echo "$r GiB|GPU $g GiB" ;;
-    graphics)
-        echo "$("$0" dxvk)|$("$0" mesa)" ;;
     power)
         h=$(grep -l '^macsmc_hwmon$' /sys/class/hwmon/*/name | head -1); h=${h%/name}
         awk '{printf "%.1f W", $1 / 1e6}' "$h/power1_input" ;;
