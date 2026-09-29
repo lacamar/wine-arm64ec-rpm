@@ -18,6 +18,7 @@ system:
   env:
     DISPLAY: ''
     FEX_X87REDUCEDPRECISION: '1'
+    PULSE_SINK: claude-test
   prelaunch_command: ''
 wine:
   dxvk: true

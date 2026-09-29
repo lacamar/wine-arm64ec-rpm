@@ -5,7 +5,7 @@ slug=$1-test-claude secs=${2:-60}
 P=/home/lm/.local/share/wine-prefixes/$slug
 log=$S/logs/$1.log
 start=$(date +%s)
-env WAYLAND_DISPLAY=wayland-2 DISPLAY= WINEDEBUG=+fps,err+seh,err+virtual,err+module setsid lutris -d lutris:rungame/$slug > $log 2>&1 < /dev/null &
+env WAYLAND_DISPLAY=wayland-2 DISPLAY= PULSE_SINK=claude-test WINEDEBUG=+fps,err+seh,err+virtual,err+module setsid lutris -d lutris:rungame/$slug > $log 2>&1 < /dev/null &
 lp=$!
 end=$((start+secs+60))
 alive=0 first=0
