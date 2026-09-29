@@ -16,8 +16,8 @@ static() {
     case "$1" in
         wine) pkg_of "$(readlink -f /proc/$game/exe | sed 's|/wine-preloader$|/wine|')" ;;
         fex) pkg_of "$(grep -m1 -oE '/[^ ]*lib(arm64ec|wow64)fex\.so' /proc/$game/maps)" ;;
-        machine) tr -d '\0' < /proc/device-tree/model | sed -E 's/^Apple //; s/^MacBook Pro/MBP/; s/^MacBook Air/MBA/; s/ \(([0-9]+)-inch, / \1"|/; s/, [0-9]{4}\)//' ;;
-        kernel) uname -r | sed -E 's/\.fc[0-9]+\.aarch64//; s/^([0-9.]+-[0-9]+)\./\1|/' ;;
+        machine) tr -d '\0' < /proc/device-tree/model | sed -E 's/^Apple //; s/^MacBook Pro/MBP/; s/^MacBook Air/MBA/; s/ \(([0-9]+)-inch, / \1" /; s/, [0-9]{4}\)//'; echo ;;
+        kernel) uname -r | sed -E 's/\.fc[0-9]+\.aarch64//' ;;
         pages) echo "$(( $(getconf PAGESIZE) / 1024 ))K host / 4K guest" ;;
         mesa) rpm -q mesa-vulkan-drivers --qf '%{VERSION}\n' ;;
         dxvk) rpm -q wine-dxvk --qf '%{VERSION}\n' 2>/dev/null || echo "-" ;;
@@ -26,7 +26,7 @@ static() {
 
 part=${2:-0}
 field() {
-    if [ "$part" = 0 ]; then cat; else cut -d'|' -f"$part"; fi
+    if [ "$part" = 0 ]; then sed 's/|/ · /'; else cut -d'|' -f"$part"; fi
 }
 
 main() {
