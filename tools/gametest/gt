@@ -8,8 +8,8 @@
   gt stop [SLUG|all]
   gt shot [-o OUT] [-s SCALE] [PATH]   screenshot; pixels = output-local logical coords at scale 1
   gt move X Y [-o OUT]  |  gt click [X Y] [-o OUT] [-b right]  |  gt scroll N  |  gt rel DX DY
-  gt key KEY...                keysyms (Return Escape space Up ...), chords as ctrl+s
-  gt type TEXT
+  gt key KEY...                Return Escape space Up w ..., chords as ctrl+s (real evdev codes, US keymap)
+  gt type TEXT | gt hold KEY SECS
   gt win                       windows: output, rect, fullscreen
   gt outputs
   gt sway CMD...                swaymsg passthrough, e.g. gt sway focus output HEADLESS-2
@@ -78,10 +78,31 @@ def fifo(cmd):
     time.sleep(0.05)
 
 
+def start_vptr(s):
+    outs = outputs(s)
+    vw = max(o["rect"]["x"] + o["rect"]["width"] for o in outs)
+    vh = max(o["rect"]["y"] + o["rect"]["height"] for o in outs)
+    if alive(s.get("vptr")) and (s.get("vw"), s.get("vh")) == (vw, vh) and \
+            s.get("vptr_mtime") == (HERE / "vptr.py").stat().st_mtime:
+        return
+    if alive(s.get("vptr")):
+        os.kill(s["vptr"], signal.SIGTERM)
+    if not (HERE / "proto").exists():
+        subprocess.run([str(HERE / "vptr-setup.sh")], check=True)
+    Path(RUN / "vptr.fifo").unlink(missing_ok=True)
+    os.mkfifo(RUN / "vptr.fifo")
+    vptr = subprocess.Popen([sys.executable, str(HERE / "vptr.py"), str(RUN / "vptr.fifo")],
+                            env=dict(wenv(s), VW=str(vw), VH=str(vh)), start_new_session=True,
+                            stdout=open(RUN / "vptr.log", "w"), stderr=subprocess.STDOUT)
+    s.update(vptr=vptr.pid, vw=vw, vh=vh, vptr_mtime=(HERE / "vptr.py").stat().st_mtime)
+    (RUN / "state.json").write_text(json.dumps(s))
+
+
 def cmd_up(a):
     s = state()
     if alive(s.get("sway")):
-        print(f"up: {s['wayland']}")
+        start_vptr(s)
+        print(f"up: {s['wayland']} {s['vw']}x{s['vh']}")
         return
     RUN.mkdir(parents=True, exist_ok=True)
     before = set(glob.glob(f"{RUN.parent}/wayland-*[0-9]"))
@@ -103,21 +124,11 @@ def cmd_up(a):
         if name not in [o["name"] for o in outputs(s)]:
             swaymsg("create_output", s=s)
         swaymsg("output", name, "resolution", mode, "scale", str(scale), "position", *pos.split(), s=s)
-    outs = outputs(s)
-    vw = max(o["rect"]["x"] + o["rect"]["width"] for o in outs)
-    vh = max(o["rect"]["y"] + o["rect"]["height"] for o in outs)
-    if not (HERE / "proto").exists():
-        subprocess.run([str(HERE / "vptr-setup.sh")], check=True)
-    Path(RUN / "vptr.fifo").unlink(missing_ok=True)
-    os.mkfifo(RUN / "vptr.fifo")
-    vptr = subprocess.Popen([sys.executable, str(HERE / "vptr.py"), str(RUN / "vptr.fifo")],
-                            env=dict(wenv(s), VW=str(vw), VH=str(vh)), start_new_session=True,
-                            stdout=open(RUN / "vptr.log", "w"), stderr=subprocess.STDOUT)
-    s.update(vptr=vptr.pid, vw=vw, vh=vh)
+    start_vptr(s)
     (RUN / "state.json").write_text(json.dumps(s))
     subprocess.run(["pactl", "load-module", "module-null-sink", f"sink_name={SINK}"], capture_output=True) \
         if SINK not in subprocess.run(["pactl", "list", "short", "sinks"], capture_output=True, text=True).stdout else None
-    print(f"up: {s['wayland']} {vw}x{vh}", *(f"{o['name']}@{o['rect']['x']},{o['rect']['y']}" for o in outs))
+    print(f"up: {s['wayland']} {s['vw']}x{s['vh']}", *(f"{o['name']}@{o['rect']['x']},{o['rect']['y']}" for o in outputs(s)))
 
 
 def cmd_down(a):
@@ -136,6 +147,17 @@ def entry(slug):
     sys.exit(f"no Lutris entry {slug}-test-claude")
 
 
+def isolate(prefix, env):
+    users = Path(prefix) / "drive_c/users" / os.environ["USER"]
+    if not users.exists():
+        subprocess.run(["wineboot", "-i"], env=env, capture_output=True)
+        subprocess.run(["wineserver", "-w"], env=env, capture_output=True)
+    for l in users.iterdir():
+        if l.is_symlink() and os.readlink(l).startswith(str(Path.home())):
+            l.unlink()
+            l.mkdir()
+
+
 def cmd_run(a):
     s = session()
     slug, y = entry(a.slug)
@@ -144,6 +166,8 @@ def cmd_run(a):
     env = wenv(s)
     env.update({k: str(v) for k, v in (y.get("system", {}).get("env") or {}).items()})
     env.update(PULSE_SINK=SINK, DISPLAY="", WINEPREFIX=y["game"]["prefix"])
+    # wine links Documents etc. to the real home; games would write settings and saves there
+    isolate(y["game"]["prefix"], dict(env, WINEDEBUG="-all"))
     if a.debug:
         env["WINEDEBUG"] = a.debug
     if a.lutris:
@@ -226,21 +250,19 @@ def cmd_click(a):
 
 
 def cmd_key(a):
-    # games poll key state, so hold each key; the first key after keymap upload gets lost without a delay
-    args = ["-s", "250"]
-    for k in a.keys:
-        *mods, key = k.split("+")
-        for m in mods:
-            args += ["-M", m]
-        args += ["-P", key, "-s", "80", "-p", key]
-        for m in reversed(mods):
-            args += ["-m", m]
-        args += ["-s", "120"]
-    subprocess.run(["wtype", *args], env=wenv(), check=True)
+    fifo("key " + " ".join(a.keys))
+    time.sleep(0.2 * len(a.keys))
 
 
 def cmd_type(a):
-    subprocess.run(["wtype", "-s", "250", "-d", "40", a.text], env=wenv(), check=True)
+    fifo("type " + a.text)
+    time.sleep(0.2 * len(a.text))
+
+
+def cmd_hold(a):
+    fifo(f"keydown {a.key}")
+    time.sleep(a.secs)
+    fifo(f"keyup {a.key}")
 
 
 def cmd_win(a):
@@ -353,6 +375,9 @@ def main():
     rl.add_argument("dy")
     sp.add_parser("key").add_argument("keys", nargs="+")
     sp.add_parser("type").add_argument("text")
+    hd = sp.add_parser("hold")
+    hd.add_argument("key")
+    hd.add_argument("secs", type=float)
     sp.add_parser("win")
     sp.add_parser("outputs")
     sp.add_parser("fps").add_argument("slug", nargs="?")
