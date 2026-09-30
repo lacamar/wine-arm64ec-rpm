@@ -320,6 +320,8 @@ def cmd_threads(a):
 
 
 def main():
+    if sys.argv[1:2] == ["sway"]:
+        return print(swaymsg(*sys.argv[2:]), end="")
     p = argparse.ArgumentParser(prog="gt", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sp = p.add_subparsers(dest="cmd", required=True)
     sp.add_parser("up").add_argument("--single", action="store_true")
@@ -364,8 +366,6 @@ def main():
     th.add_argument("-n", type=int, default=25)
     th.add_argument("--secs", type=float, default=1)
     a = p.parse_args()
-    if a.cmd == "sway":
-        return print(swaymsg(*a.args), end="")
     if a.cmd == "scroll":
         return fifo(f"scroll {a.n}")
     if a.cmd == "rel":

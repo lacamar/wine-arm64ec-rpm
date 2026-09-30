@@ -20,9 +20,15 @@ static() {
         kernel) uname -r | sed -E 's/\.fc[0-9]+\.aarch64//' ;;
         pages) echo "$(( $(getconf PAGESIZE) / 1024 ))K host / 4K guest" ;;
         mesa) rpm -q mesa-vulkan-drivers --qf '%{VERSION}\n' ;;
-        dxvk) rpm -q wine-dxvk --qf '%{VERSION}\n' 2>/dev/null || echo "-" ;;
-        graphics) echo "$(static dxvk)|$(static mesa)" ;;
+        dxvk) p=$(tr '\0' '\n' < /proc/$game/environ | sed -n 's/^WINEPREFIX=//p')
+              strings -a "$p"/drive_c/windows/syswow64/d3d9.dll "$p"/drive_c/windows/system32/dxgi.dll 2>/dev/null | grep -m1 -oE '^DXVK [0-9.]+' | cut -d' ' -f2 ;;
     esac
+}
+
+cached() {
+    mkdir -p "$cache"
+    [ -s "$cache/$game.$1" ] || static "$1" > "$cache/$game.$1"
+    cat "$cache/$game.$1"
 }
 
 part=${2:-0}
@@ -32,17 +38,20 @@ field() {
 
 main() {
 case "$1" in
-    wine|fex|kernel|pages|mesa|dxvk|graphics|machine)
-        mkdir -p "$cache"
-        f="$cache/$game.$1"
-        [ -s "$f" ] || static "$1" > "$f"
-        cat "$f"
+    wine|fex|kernel|pages|mesa|dxvk|machine)
+        cached "$1"
         find "$cache" -type f -mmin +720 -delete 2>/dev/null ;;
     clusters)
         e=$(( $(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq) / 1000 ))
         p1=$(( $(cat /sys/devices/system/cpu/cpufreq/policy4/scaling_cur_freq) / 1000 ))
         p2=$(( $(cat /sys/devices/system/cpu/cpufreq/policy8/scaling_cur_freq 2>/dev/null || echo 0) / 1000 ))
         [ "$p2" -gt 0 ] && echo "${e} · ${p1} · ${p2} MHz" || echo "${e} · ${p1} MHz" ;;
+    graphics)
+        f="$cache/$game.graphics"
+        if [ ! -s "$f" ] && ls -l /proc/$game/fd 2>/dev/null | grep -q '/AppData/Local/dxvk/'; then
+            echo "DXVK $(cached dxvk)|Mesa $(cached mesa)" > "$f"
+        fi
+        [ -s "$f" ] && cat "$f" || echo "Mesa $(cached mesa)" ;;
     cpu)
         mkdir -p "$cache"
         read -r _ u n s i w x y z _ < /proc/stat

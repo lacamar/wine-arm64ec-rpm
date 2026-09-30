@@ -1,0 +1,311 @@
+assets
+bin
+build
+build_deps.sh
+build.sh
+build-source.sh
+build-srt.sh
+build-with-srt-docker.sh
+control
+data
+include
+LICENSE
+meson.build
+meson_options.txt
+mingw32.txt
+mingw64.txt
+modules
+pkgbuild
+README.md
+src
+steamrt.Dockerfile.in
+subprojects
+tests
+version.h.in
+diff --git a/src/hud_elements.cpp b/src/hud_elements.cpp
+index 2f5b69d..a5bd9c0 100644
+--- a/src/hud_elements.cpp
++++ b/src/hud_elements.cpp
+@@ -141,28 +141,33 @@ R format_units(T value, const char*& unit)
+     return out_value;
+ }
+ 
++ImVec4 HudElements::convert_color(unsigned color, const struct overlay_params& params)
++{
++    ImVec4 fc = ImGui::ColorConvertU32ToFloat4(color);
++    fc.w = params.alpha;
++    if (HUDElements.colors.convert)
++    {
++        switch (params.transfer_function)
++        {
++            case PQ:
++                fc = SRGBToLinear(fc);
++                return LinearToPQ(fc);
++            case HLG:
++                fc = SRGBToLinear(fc);
++                return LinearToHLG(fc);
++            case SRGB:
++                return SRGBToLinear(fc);
++            default: break;
++        }
++    }
++    return fc;
++}
++
+ void HudElements::convert_colors(const struct overlay_params& params)
+ {
+     HUDElements.colors.update = false;
+     auto convert = [&params](unsigned color) -> ImVec4 {
+-        ImVec4 fc = ImGui::ColorConvertU32ToFloat4(color);
+-        fc.w = params.alpha;
+-        if (HUDElements.colors.convert)
+-        {
+-            switch (params.transfer_function)
+-            {
+-                case PQ:
+-                    fc = SRGBToLinear(fc);
+-                    return LinearToPQ(fc);
+-                case HLG:
+-                    fc = SRGBToLinear(fc);
+-                    return LinearToHLG(fc);
+-                case SRGB:
+-                    return SRGBToLinear(fc);
+-                default: break;
+-            }
+-        }
+-        return fc;
++        return HUDElements.convert_color(color, params);
+     };
+ 
+     HUDElements.colors.cpu = convert(params.cpu_color);
+@@ -170,6 +175,7 @@ void HudElements::convert_colors(const struct overlay_params& params)
+     HUDElements.colors.vram = convert(params.vram_color);
+     HUDElements.colors.ram = convert(params.ram_color);
+     HUDElements.colors.engine = convert(params.engine_color);
++    HUDElements.colors.resolution = convert(params.resolution_color);
+     HUDElements.colors.io = convert(params.io_color);
+     HUDElements.colors.frametime = convert(params.frametime_color);
+     HUDElements.colors.background = convert(params.background_color);
+@@ -223,6 +229,27 @@ int HudElements::convert_to_fahrenheit(int celsius){
+     return fahrenheit;
+ }
+ 
++static const char* color_markup(const char* s, ImVec4& col)
++{
++    unsigned rgb;
++    if (s[0] == '{' && strlen(s) >= 8 && s[7] == '}' && sscanf(s + 1, "%6x", &rgb) == 1) {
++        col = HUDElements.convert_color(IM_COL32(rgb >> 16 & 0xff, rgb >> 8 & 0xff, rgb & 0xff, 255), *HUDElements.params);
++        return s + 8;
++    }
++    return s;
++}
++
++static float unit_width(const char* unit)
++{
++    if (!HUDElements.params->enabled[OVERLAY_PARAM_ENABLED_align_right] ||
++        (!strcmp(unit, "FPS") && HUDElements.params->enabled[OVERLAY_PARAM_ENABLED_hide_fps_superscript]))
++        return 0;
++    ImGui::PushFont(HUDElements.sw_stats->font_small);
++    float w = ImGui::CalcTextSize(unit).x + 1.0f;
++    ImGui::PopFont();
++    return w;
++}
++
+ static void ImguiNextColumnFirstItem()
+ {
+     ImGui::TableNextColumn();
+@@ -844,11 +871,14 @@ void HudElements::fps(){
+             HUDElements.params->fps_value[1]
+             };
+             auto load_color = change_on_load_temp(fps_data, fps);
++            HUDElements.ralign_reserve = unit_width("FPS");
+             right_aligned_text(load_color, HUDElements.ralign_width, "%.0f", HUDElements.sw_stats->fps);
+         }
+         else {
++            HUDElements.ralign_reserve = unit_width("FPS");
+             right_aligned_text(HUDElements.colors.text, HUDElements.ralign_width, "%.0f", HUDElements.sw_stats->fps);
+         }
++        HUDElements.ralign_reserve = 0;
+         ImGui::SameLine(0, 1.0f);
+         if(!HUDElements.params->enabled[OVERLAY_PARAM_ENABLED_hide_fps_superscript]){
+             ImGui::PushFont(HUDElements.sw_stats->font_small);
+@@ -857,7 +887,9 @@ void HudElements::fps(){
+         }
+         if (HUDElements.params->enabled[OVERLAY_PARAM_ENABLED_frametime]){
+             ImguiNextColumnOrNewRow();
++            HUDElements.ralign_reserve = unit_width("ms");
+             right_aligned_text(HUDElements.colors.text, HUDElements.ralign_width, "%.1f", 1000 / HUDElements.sw_stats->fps);
++            HUDElements.ralign_reserve = 0;
+             ImGui::SameLine(0, 1.0f);
+             ImGui::PushFont(HUDElements.sw_stats->font_small);
+             HUDElements.TextColored(HUDElements.colors.text, "ms");
+@@ -1112,13 +1144,17 @@ void HudElements::resolution(){
+         const auto res  = ImGui::GetIO().DisplaySize;
+         ImGui::PushFont(HUDElements.sw_stats->font_secondary);
+         const char * title = "Resolution";
+-        HUDElements.TextColored(HUDElements.colors.engine, title);
+-        ImguiNextColumnOrNewRow();
+-
+-        // Jump a column if title is overflowing
+-        if (ImGuiTextOverflow(title))
++        HUDElements.TextColored(HUDElements.colors.resolution, title);
++        if (HUDElements.params->enabled[OVERLAY_PARAM_ENABLED_align_right])
++            ImguiNextColumnOrNewRow(ImGui::TableGetColumnCount() - 1);
++        else {
+             ImguiNextColumnOrNewRow();
+ 
++            // Jump a column if title is overflowing
++            if (ImGuiTextOverflow(title))
++                ImguiNextColumnOrNewRow();
++        }
++
+         right_aligned_text(HUDElements.colors.text, HUDElements.ralign_width * 1.5f, "%.0fx%.0f", res.x, res.y);
+         ImGui::PopFont();
+     }
+@@ -1171,7 +1207,9 @@ void HudElements::custom_text(){
+         ImGui::PopFont();
+         return;
+     }
+-    HUDElements.TextColored(HUDElements.colors.text, "%s",value);
++    ImVec4 col = HUDElements.colors.text;
++    value = color_markup(value, col);
++    HUDElements.TextColored(col, "%s",value);
+     ImGui::PopFont();
+ }
+ 
+@@ -1183,8 +1221,11 @@ void HudElements::_exec(){
+         if (item.pos == HUDElements.place){
+             if (HUDElements.params->enabled[OVERLAY_PARAM_ENABLED_horizontal])
+                 HUDElements.TextColored(HUDElements.colors.text, "%s",item.ret.c_str());
+-            else
+-                right_aligned_text(HUDElements.colors.text,HUDElements.ralign_width, "%s", item.ret.c_str());
++            else {
++                ImVec4 col = HUDElements.colors.text;
++                const char* text = color_markup(item.ret.c_str(), col);
++                right_aligned_text(col, HUDElements.ralign_width, "%s", text);
++            }
+         }
+     }
+     ImGui::PopFont();
+diff --git a/src/hud_elements.h b/src/hud_elements.h
+index 70deb51..3ee9cce 100644
+--- a/src/hud_elements.h
++++ b/src/hud_elements.h
+@@ -29,6 +29,7 @@ class HudElements{
+             std::string     ret;
+         };
+         float ralign_width;
++        float ralign_reserve = 0;
+         float old_scale;
+         float res_width, res_height;
+         bool is_vulkan = true, gamemode_bol = false, vkbasalt_bol = false;
+@@ -119,6 +120,7 @@ class HudElements{
+         static void ftrace();
+ 
+         void convert_colors(const struct overlay_params& params);
++        ImVec4 convert_color(unsigned color, const struct overlay_params& params);
+         void convert_colors(bool do_conv, const struct overlay_params& params);
+         struct hud_colors {
+             bool convert, update;
+@@ -128,6 +130,7 @@ class HudElements{
+                 ram,
+                 swap,
+                 engine,
++                resolution,
+                 io,
+                 frametime,
+                 background,
+diff --git a/src/overlay.cpp b/src/overlay.cpp
+index 2e6f837..149b40e 100644
+--- a/src/overlay.cpp
++++ b/src/overlay.cpp
+@@ -335,7 +335,11 @@ void overlay_new_frame(const struct overlay_params& params)
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8,-3));
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, params.alpha);
+-   if (!params.enabled[OVERLAY_PARAM_ENABLED_hud_compact]){
++   if (params.enabled[OVERLAY_PARAM_ENABLED_align_right]){
++      // keep text clear of the rounded corners
++      ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(std::max(5.f, params.round_corners * 0.6f), std::max(5.f, params.round_corners * 0.3f)));
++   }
++   else if (!params.enabled[OVERLAY_PARAM_ENABLED_hud_compact]){
+       ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5,5));
+    }
+    else {
+@@ -441,7 +445,11 @@ void right_aligned_text(ImVec4& col, float off_x, const char *fmt, ...)
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+ 
+-   if (!HUDElements.params->enabled[OVERLAY_PARAM_ENABLED_hud_compact]){
++   if (HUDElements.params->enabled[OVERLAY_PARAM_ENABLED_align_right]){
++      ImVec2 sz = ImGui::CalcTextSize(buffer);
++      ImGui::SetCursorPosX(pos.x + ImGui::GetContentRegionAvail().x - sz.x - HUDElements.ralign_reserve);
++   }
++   else if (!HUDElements.params->enabled[OVERLAY_PARAM_ENABLED_hud_compact]){
+       ImVec2 sz = ImGui::CalcTextSize(buffer);
+       ImGui::SetCursorPosX(pos.x + off_x - sz.x);
+    }
+diff --git a/src/overlay_params.cpp b/src/overlay_params.cpp
+index 3bc9d5d..dfdac45 100644
+--- a/src/overlay_params.cpp
++++ b/src/overlay_params.cpp
+@@ -568,6 +568,7 @@ parse_ftrace(const char *str) {
+ #define parse_vram_color(s) parse_color(s)
+ #define parse_ram_color(s) parse_color(s)
+ #define parse_engine_color(s) parse_color(s)
++#define parse_resolution_color(s) parse_color(s)
+ #define parse_io_color(s) parse_color(s)
+ #define parse_frametime_color(s) parse_color(s)
+ #define parse_background_color(s) parse_color(s)
+@@ -849,6 +850,7 @@ static void set_param_defaults(struct overlay_params *params){
+    params->vram_color = 0xad64c1;
+    params->ram_color = 0xc26693;
+    params->engine_color = 0xeb5b5b;
++   params->resolution_color = 0xeb5b5b;
+    params->io_color = 0xa491d3;
+    params->frametime_color = 0x00ff00;
+    params->background_color = 0x020202;
+@@ -1003,12 +1005,13 @@ parse_overlay_config(struct overlay_params *params,
+       params->font_scale_media_player = 0.55f;
+ 
+    // Convert from 0xRRGGBB to ImGui's format
+-   std::array<unsigned *, 24> colors = {
++   std::array<unsigned *, 25> colors = {
+       &params->cpu_color,
+       &params->gpu_color,
+       &params->vram_color,
+       &params->ram_color,
+       &params->engine_color,
++      &params->resolution_color,
+       &params->io_color,
+       &params->background_color,
+       &params->frametime_color,
+diff --git a/src/overlay_params.h b/src/overlay_params.h
+index 306be3f..3d0f663 100644
+--- a/src/overlay_params.h
++++ b/src/overlay_params.h
+@@ -114,6 +114,7 @@ struct Tracepoint;
+    OVERLAY_PARAM_BOOL(engine_short_names)            \
+    OVERLAY_PARAM_BOOL(hide_engine_names)             \
+    OVERLAY_PARAM_BOOL(hide_fps_superscript)          \
++   OVERLAY_PARAM_BOOL(align_right)                   \
+    OVERLAY_PARAM_BOOL(text_outline)                  \
+    OVERLAY_PARAM_BOOL(temp_fahrenheit)               \
+    OVERLAY_PARAM_BOOL(dynamic_frame_timing)          \
+@@ -175,6 +176,7 @@ struct Tracepoint;
+    OVERLAY_PARAM_CUSTOM(vram_color)                  \
+    OVERLAY_PARAM_CUSTOM(ram_color)                   \
+    OVERLAY_PARAM_CUSTOM(engine_color)                \
++   OVERLAY_PARAM_CUSTOM(resolution_color)            \
+    OVERLAY_PARAM_CUSTOM(frametime_color)             \
+    OVERLAY_PARAM_CUSTOM(background_color)            \
+    OVERLAY_PARAM_CUSTOM(io_color)                    \
+@@ -303,7 +305,7 @@ struct overlay_params {
+    bool gl_dont_flip {false};
+    int64_t log_duration, log_interval;
+    unsigned cpu_color, gpu_color, vram_color, ram_color,
+-            engine_color, io_color, frametime_color, background_color,
++            engine_color, resolution_color, io_color, frametime_color, background_color,
+             text_color, wine_color, battery_color, network_color,
+             horizontal_separator_color;
+    std::vector<unsigned> gpu_load_color;
