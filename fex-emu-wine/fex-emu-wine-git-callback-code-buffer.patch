@@ -10,9 +10,9 @@ diff --git a/Source/Windows/WOW64/Module.cpp b/Source/Windows/WOW64/Module.cpp
 +  // Entry stack pointers of the BTCpuSimulate invocations that have a syscall handler waiting to return into JIT code
 +  fextl::vector<uint64_t> SyscallSimulateSps;
  
-   FrontendThreadData(FEXCore::Core::InternalThreadState* Thread) {
-     CpuArea.SuspendDoorbell = reinterpret_cast<ULONG*>(&Thread->CurrentFrame->SuspendDoorbell);
-@@ -464,8 +466,26 @@
+   FrontendThreadData(const TLS& TLS) {
+     CpuArea.SuspendDoorbell = reinterpret_cast<ULONG*>(&TLS.ThreadState()->CurrentFrame->SuspendDoorbell);
+@@ -461,8 +463,26 @@
      const auto TLS = GetTLS();
      // Stash the the context pointer on the stack, as Simulate can be called from this syscall handler which would overwrite it
      CONTEXT* EntryContext = TLS.EntryContext();
