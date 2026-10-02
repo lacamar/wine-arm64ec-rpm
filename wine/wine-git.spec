@@ -8,12 +8,12 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.18
-%global bumpver 4
+%global bumpver 5
 
-%global commit 6880117619afdf62b4ccc40a8c6268c86613131f
+%global commit 13625e51fd62639c8a60d7c2774ae70d93eaf446
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit cc193df75673197f33523539a155c75c07ceb7c8
+%global staging_commit 6544c23f781686f41e16863bb29512ecf3d410a0
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 3
+Release:        ec.%autorelease -b 4
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2567,6 +2567,10 @@ fi
 %endif
 
 %changelog
+* Fri Oct 02 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^5.git.13625e5-ec.4
+- Update to commit 13625e51fd62639c8a60d7c2774ae70d93eaf446
+- Update wine-staging to 6544c23
+
 * Wed Sep 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^4.git.6880117-ec.3
 - Make the largest output the primary display
 - Never move borderless or fullscreen windows between outputs
