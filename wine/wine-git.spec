@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 6
+Release:        ec.%autorelease -b 7
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -309,6 +309,18 @@ Requires:       wine-pulseaudio(aarch-64) = %{version}-%{release}
 Requires:       wine-opencl(aarch-64) = %{version}-%{release}
 Requires:       mingw64-wine-gecko = %winegecko
 Requires:       mesa-dri-drivers(aarch-64)
+Requires:       mingw32-wine-gecko = %winegecko
+Requires:       ntsync-autoload = %{version}-%{release}
+Requires:       fex-emu-wine
+Requires:       wine-dxvk
+Requires:       wine-dxvk-d3d8
+Requires:       wine-dxvk-d3d9
+Requires:       wine-dxvk-d3d10
+Requires:       wine-vkd3d-proton
+Requires:       wine-d7vk
+%if 0%{?fedora} >= 44
+Requires:       wine-mono = %winemono
+%endif
 %endif
 
 %description
@@ -2567,6 +2579,9 @@ fi
 %endif
 
 %changelog
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.7
+- Require FEX, dxvk, vkd3d-proton, d7vk, mono, gecko, ntsync
+
 * Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.6
 - Rebase on Fedora 11.0-4 spec
 - Move to wine-wow64 libdir
