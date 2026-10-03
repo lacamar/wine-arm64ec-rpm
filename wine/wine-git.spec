@@ -7,10 +7,10 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global tag 11.18
-%global bumpver 5
+%global tag 11.19
+%global bumpver 0
 
-%global commit 13625e51fd62639c8a60d7c2774ae70d93eaf446
+%global commit 455e3509b98a6919fd4ad1def4803e08c41c03b2
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global staging_commit 6544c23f781686f41e16863bb29512ecf3d410a0
@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 4
+Release:        ec.%autorelease -b 5
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2567,6 +2567,9 @@ fi
 %endif
 
 %changelog
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.5
+- Update to 11.19
+
 * Fri Oct 02 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^5.git.13625e5-ec.4
 - Update to commit 13625e51fd62639c8a60d7c2774ae70d93eaf446
 - Update wine-staging to 6544c23
