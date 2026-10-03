@@ -1,3 +1,6 @@
+# _libdir was restructured in F42 wine package to support a directory/symlink replacement
+%global _libdir %{_libdir}/wine-wow64
+
 %global debug_package %{nil}
 
 %global winepedir aarch64-windows
@@ -8,7 +11,7 @@
 
 Name:           wine-vkd3d-proton
 Version:        3.0.1
-Release:        ec2%{dist}
+Release:        ec3%{dist}
 Summary:        Vulkan-based implementation of D3D12 for Wine (ARM64EC)
 
 License:        LGPL-2.1-or-later AND MIT
@@ -51,7 +54,7 @@ BuildRequires:  wine-devel
 
 Requires(pre):  vulkan-tools
 
-Requires:       wine-core >= 11.18-ec3
+Requires:       wine-core >= 11.19-ec2
 Requires:       wine-dxvk-dxgi
 Requires:       vulkan-loader
 
@@ -148,6 +151,9 @@ fi
 %{_libdir}/wine/i386-windows/vkd3d-proton-d3d12core.dll
 
 %changelog
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec3
+- Move to wine-wow64 libdir
+
 * Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec2
 - Add 32-bit DLLs
 

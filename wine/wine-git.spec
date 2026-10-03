@@ -1,6 +1,6 @@
 # The new wow64 mode is disabled by default
 # https://gitlab.winehq.org/wine/wine/-/releases/wine-9.0#wow64
-%if 0%{?fedora} >= 42
+%if 0%{?fedora} >= 43
 %bcond new_wow64 1
 %else
 %bcond new_wow64 0
@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 5
+Release:        ec.%autorelease -b 6
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -253,6 +253,7 @@ BuildRequires:  mingw64-zlib
 
 Requires:       wine-common = %{version}-%{release}
 Requires:       wine-desktop = %{version}-%{release}
+#Requires:       ntsync-autoload = %{version}-%{release}
 Requires:       wine-winefonts = %{version}-%{release}
 
 # x86-32 parts
@@ -424,8 +425,8 @@ Requires:       libva
 %endif
 %endif
 
-Provides:       bundled(libjpeg) = 9f
-Provides:       bundled(mpg123-libs) = 1.32.9
+Provides:       bundled(mingw-libjpeg) = 10
+Provides:       bundled(mingw-mpg123-libs) = 1.33.5
 
 %description core
 Wine core package includes the basic wine stuff needed by all other packages.
@@ -481,11 +482,15 @@ Provides:      wine-desktop = %{version}-%{release}
 Desktop integration features for wine, including mime-types and a binary format
 handler service.
 
-%package ntsync
+%package ntsync-autoload
 Summary:       Kernel module load file for ntsync
 BuildArch:     noarch
+Conflicts:     ntsync-autoload
+Provides:      ntsync-autoload = %{version}-%{release}
+Provides:      wine-git-ntsync = %{version}-%{release}
+Obsoletes:     wine-git-ntsync < %{version}-%{release}
 
-%description ntsync
+%description ntsync-autoload
 Kernel module load file for ntsync
 
 %package winefonts
@@ -842,6 +847,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 %endif
 # 0%%{?wine_staging}
 
+%ifarch aarch64
 %if 0%{?fedora} >= 45
 sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %endif
@@ -869,6 +875,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 620 -p1
 %patch -P 621 -p1
 %patch -P 622 -p1
+%endif
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -904,12 +911,18 @@ export CFLAGS="$(echo "$CFLAGS" | sed -e 's/-mbranch-protection=standard//')"
 # required so that both Linux and Windows development files can be found
 unset PKG_CONFIG_PATH
 
+# _libdir was restructured and must use a new prefix until at least Fedora 45
+%global _x_libdir %{_libdir}
+%if %{with new_wow64}
+%global _libdir %{_libdir}/wine-wow64
+%endif
+
 %configure \
  --sysconfdir=%{_sysconfdir}/wine \
- --x-includes=%{_includedir} --x-libraries=%{_libdir} \
+ --x-includes=%{_includedir} --x-libraries=%{_x_libdir} \
  --with-dbus \
  --with-x \
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
  --enable-win64 \
 %ifarch x86_64
 %if %{with new_wow64}
@@ -926,11 +939,7 @@ unset PKG_CONFIG_PATH
 %ifarch %{ix86}
  --with-system-dllpath=%{mingw32_bindir} \
 %endif
-%if 0%{?wine_staging}
- --with-wayland \
-%else
- --without-wayland \
-%endif
+%{?wine_staging: --with-xattr} \
  --enable-crtdll \
  --enable-ctl3d32 \
  --enable-d3d8 \
@@ -969,7 +978,7 @@ unset PKG_CONFIG_PATH
         UPDATE_DESKTOP_DATABASE=/bin/true
 
 # setup for alternatives usage
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 mv %{buildroot}%{_bindir}/wine %{buildroot}%{_bindir}/wine64
 mv %{buildroot}%{_bindir}/wineserver %{buildroot}%{_bindir}/wineserver64
 %endif
@@ -1035,7 +1044,7 @@ ln -sf /usr/lib64/wine/x86_64-windows %{buildroot}%{_libdir}/wine/x86_64-windows
 # remove rpath
 chrpath --delete %{buildroot}%{_bindir}/wmc
 chrpath --delete %{buildroot}%{_bindir}/wrc
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 chrpath --delete %{buildroot}%{_bindir}/wine64
 chrpath --delete %{buildroot}%{_bindir}/wineserver64
 %else
@@ -1234,38 +1243,27 @@ fi
 %ldconfig_post core
 
 %pretrans -p <lua> core
-%if %{with new_wow64}
-%ifarch %{ix86}
-pathA = "%{_libdir}/wine/x86_64-unix"
-pathB = "%{_libdir}/wine/x86_64-windows"
-stA = posix.stat(pathA)
-stB = posix.stat(pathB)
-if stA and stA.type == "link" then
-  os.remove(pathA)
-end
-if stB and stB.type == "link" then
-  os.remove(pathB)
-end
+%ifarch x86_64 aarch64
+%define _oldlibdir /usr/lib64
+%else
+%define _oldlibdir /usr/lib
 %endif
-%ifarch x86_64
-pathA = "%{_libdir}/wine/i386-unix"
-pathB = "%{_libdir}/wine/i386-windows"
-stA = posix.stat(pathA)
-stB = posix.stat(pathB)
-if stA and stA.type == "link" then
-  os.remove(pathA)
-end
-if stB and stB.type == "link" then
-  os.remove(pathB)
-end
+oldPath = "%{_oldlibdir}/wine/%{winepedir}/wine-dxgi.dll"
+opStat = posix.stat(oldPath)
+if opStat and opStat.type == "regular" then
+for _, alt in ipairs({"dxgi", "d3d8", "d3d9", "d3d10core", "d3d10_1", "d3d10", "d3d11", "d3d12", "d3d12core"}) do
+os.execute("%{_sbindir}/alternatives --remove 'wine-" .. alt .. "%{?_isa}' %{_oldlibdir}/wine/%{winepedir}/wine-" .. alt .. ".dll")
+%if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
+os.execute("%{_sbindir}/alternatives --remove 'wine-" .. alt .. "(x86-32)' %{_oldlibdir}/wine/i386-windows/wine-" .. alt .. ".dll")
 %endif
-%endif
+end
+end
 
 %posttrans core
 # handle upgrades for a few package updates
 rm -f %{_libdir}/wine/%{winepedirs}/d3d8.dll
 rm -f %{_bindir}/wine-preloader
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 %{_sbindir}/alternatives --remove wine %{_bindir}/wine64
 %{_sbindir}/alternatives --install %{_bindir}/wine \
   wine %{_bindir}/wine64 20
@@ -1325,7 +1323,7 @@ done
 %postun core
 %{?ldconfig}
 if [ $1 -eq 0 ] ; then
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
   %{_sbindir}/alternatives --remove wine %{_bindir}/wine64
   %{_sbindir}/alternatives --remove wineserver %{_bindir}/wineserver64
 %else
@@ -1403,7 +1401,7 @@ fi
 %{_bindir}/wineserver32
 %endif
 
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 %{_bindir}/wine64
 %{_bindir}/wineserver64
 %endif
@@ -2015,7 +2013,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/vcomp120.dll
 %{_libdir}/wine/%{winepedirs}/vcomp140.dll
 %{_libdir}/wine/%{winepedirs}/vcruntime140.dll
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 %{_libdir}/wine/%{winepedirs}/vcruntime140_1.dll
 %endif
 %{_libdir}/wine/%{winepedirs}/vdmdbg.dll
@@ -2128,7 +2126,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/wmphoto.dll
 %{_libdir}/wine/%{winepedirs}/wnaspi32.dll
 %{_libdir}/wine/%{winepedirs}/wofutil.dll
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 %{_libdir}/wine/%{winepedirs}/wow64.dll
 %{_libdir}/wine/%{winepedirs}/wow64win.dll
 %endif
@@ -2212,7 +2210,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/xpssvcs.dll
 
 %if 0%{?wine_staging}
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 #%%{_libdir}/wine/%%{winepedirs}/nvapi64.dll
 #%%{_libdir}/wine/%%{winepedirs}/nvencodeapi64.dll
 #%%{_libdir}/wine/%%{winesodir}/nvencodeapi64.dll.so
@@ -2498,7 +2496,7 @@ fi
 %{_metainfodir}/%{name}.appdata.xml
 %{_datadir}/icons/hicolor/scalable/apps/*svg
 
-%files ntsync
+%files ntsync-autoload
 %{_modulesloaddir}/ntsync.conf
 
 %files systemd
@@ -2569,6 +2567,12 @@ fi
 %endif
 
 %changelog
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.6
+- Rebase on Fedora 11.0-4 spec
+- Move to wine-wow64 libdir
+- Rename wine-ntsync to ntsync-autoload
+- Restore xattr support
+
 * Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.5
 - Update to 11.19
 - Drop staging d3d12 options structs (merged upstream)
@@ -2641,6 +2645,9 @@ fi
 
 * Fri Jul 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^3.git.93e084a-ec.1
  - Update to commit 93e084a7df63faaf148b1c945b9a7c921d9584f4
+
+* Fri Jul 17 2026 Fedora Release Engineering <releng@fedoraproject.org> - 11.0-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_45_Mass_Rebuild
 
 * Wed Jul 15 2026 Lachlan Marie <lchlnm@pm.me> - 11.13^2.git.d30dcd7-ec.1
  - Update to commit d30dcd75bc9f24277f13ae3605c8a4bb506885e4
@@ -2795,8 +2802,17 @@ fi
 * Sat Jan 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^24.git.905be52-ec.1
  - Update to commit 905be521d322c85bb63b34ab9230b4bab791fb0b
 
+* Sat Jan 17 2026 Fedora Release Engineering <releng@fedoraproject.org> - 11.0-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_44_Mass_Rebuild
+
 * Wed Jan 14 2026 Lachlan Marie <lchlnm@pm.me> - 11.0^23.git.db11d0f-ec.1
  - Update to commit db11d0fe6a169c457e23d007e20404643d067aa8
+
+* Wed Jan 14 2026 Michael Cronenworth <mike@cchtml.com> - 11.0-2
+- wine-mono 10.4.1
+
+* Tue Jan 13 2026 Michael Cronenworth <mike@cchtml.com> - 11.0-1
+- version update
 
 * Sat Jan 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.0rc4^22.git.b3319fa-ec.1
  - Update to commit b3319fa671a1f9f7b7aa09e9d9016b250cb848cb
@@ -2822,8 +2838,14 @@ fi
 * Sat Dec 27 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc3^15.git.ca1a99f-ec.1
  - Update to commit ca1a99f22adca7aaf4eab7bec10f7a3bc8c62314
 
+* Fri Dec 26 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-5
+- Fix x86_64 alternatives upgrade path
+
 * Wed Dec 24 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc3^14.git.3d9b48b-ec.1
  - Update to commit 3d9b48bc5e443f83653faf48653573da880d9008
+
+* Tue Dec 23 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-4
+- Account for alternatives in upgrade path
 
 * Sat Dec 20 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^13.git.72b941e-ec.1
  - Update to commit 72b941ef7393c0052b0288e0dbb7185201296a09
@@ -2855,6 +2877,9 @@ fi
 * Tue Dec 09 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^5.git.d60f828-ec.1
  - Update to commit d60f8286056559233e992c4084f31990723849b6
 
+* Tue Dec 09 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-3
+- Bring sanity to the upgrade path, credit Gordon Messmer (RHBZ#2401666)
+
 * Sun Dec 07 2025 Lachlan Marie <lchlnm@pm.me> - 11.0rc1^4.git.a3d49db-ec.1
  - Update to commit a3d49dbc8db25fdd5907b497f7993d214bf8d0b8
 
@@ -2867,8 +2892,20 @@ fi
 * Tue Dec 02 2025 Lachlan Marie <lchlnm@pm.me> - 10.20^1.git.d671927-ec.1
  - Update to commit d671927488486b8541cc235a73c94989a21e9caa
 
+* Mon Dec 01 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-2
+- remove Conflicts
+
+* Mon Dec 01 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-1
+- version update
+
 * Sat Nov 29 2025 Lachlan Marie <lchlnm@pm.me> - 10.20^0.git.4dfbf07-ec.1
  - Update to commit 4dfbf077cf708e4bbffa8e086d78d6652bbd69d8
 
 * Sat Nov 22 2025 Lachlan Marie <lchlnm@pm.me> - 10.19^0.git.548ee6c-ec.1
  - Update to commit 548ee6cc0f6fec0acd88218700b2d50cddbf0630
+
+* Fri Nov 21 2025 Michael Cronenworth <mike@cchtml.com> - 10.19-2
+- wine-ntsync rename to ntsync-autoload
+
+* Tue Nov 18 2025 Michael Cronenworth <mike@cchtml.com> - 10.19-1
+- version update

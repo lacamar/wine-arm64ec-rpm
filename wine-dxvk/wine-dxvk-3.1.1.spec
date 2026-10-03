@@ -1,3 +1,6 @@
+# _libdir was restructured in F42 wine package to support a directory/symlink replacement
+%global _libdir %{_libdir}/wine-wow64
+
 %global debug_package %{nil}
 
 %global winepedir aarch64-windows
@@ -7,7 +10,7 @@
 
 Name:           wine-dxvk
 Version:        3.1.1
-Release:        ec1%{dist}
+Release:        ec2%{dist}
 Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 
 License:        zlib AND MIT
@@ -65,7 +68,7 @@ BuildRequires:  mingw64-spirv-headers
 
 Requires(pre):  vulkan-tools
 
-Requires:       wine-core >= 11.18-ec3
+Requires:       wine-core >= 11.19-ec2
 Requires:       wine-dxvk-dxgi = %{version}-%{release}
 Requires:       vulkan-loader
 

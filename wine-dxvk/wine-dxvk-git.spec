@@ -1,3 +1,6 @@
+# _libdir was restructured in F42 wine package to support a directory/symlink replacement
+%global _libdir %{_libdir}/wine-wow64
+
 %global bumpver 7
 %global tag 3.1.1
 
@@ -13,7 +16,7 @@
 
 Name:           wine-dxvk-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec4%{?dist}
+Release:        ec5%{?dist}
 Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 
 Conflicts:      wine-dxvk
@@ -74,7 +77,7 @@ BuildRequires:  mingw64-spirv-headers
 
 Requires(pre):  vulkan-tools
 
-Requires:       wine-core >= 11.18-ec3
+Requires:       wine-core >= 11.19-ec2
 Requires:       wine-dxvk-dxgi = %{version}-%{release}
 Requires:       vulkan-loader
 
@@ -313,6 +316,9 @@ fi
 %{_libdir}/wine/i386-windows/dxvk-dxgi.dll
 
 %changelog
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^7.git.d30be2b-ec5
+ - Move to wine-wow64 libdir
+
 * Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^7.git.d30be2b-ec4
  - Update to commit d30be2baea02a67b9502bffda0ec8b0d915bb3d2
  - Update dxbc-spirv to c7f0697

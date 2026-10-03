@@ -1,3 +1,6 @@
+# _libdir was restructured in F42 wine package to support a directory/symlink replacement
+%global _libdir %{_libdir}/wine-wow64
+
 %global srcname FEX
 %global forgeurl https://github.com/FEX-Emu/FEX
 %undefine _hardened_build
@@ -10,7 +13,7 @@
 
 Name:       fex-emu-wine
 Version:    2609
-Release:    6%{?dist}
+Release:    7%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -230,6 +233,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 2609-7
+- Move to wine-wow64 libdir
+
 * Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 2609-6
 - fix divide-by-zero check reusing the divisor across a block split (corrupted divisions)
 

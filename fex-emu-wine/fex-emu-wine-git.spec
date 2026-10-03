@@ -1,3 +1,6 @@
+# _libdir was restructured in F42 wine package to support a directory/symlink replacement
+%global _libdir %{_libdir}/wine-wow64
+
 %global srcname FEX
 %global tag 2609.1
 
@@ -17,7 +20,7 @@
 
 Name:       fex-emu-wine-git
 Version:    %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:    6%{?dist}
+Release:    7%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -230,6 +233,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^5.git.79a7afe-7
+- Move to wine-wow64 libdir
+
 * Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^5.git.79a7afe-6
 - Update to commit 79a7afe7e1424ef1e2b4e8ab66aaeb6dda76a059
 

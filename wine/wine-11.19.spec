@@ -1,6 +1,6 @@
 # The new wow64 mode is disabled by default
 # https://gitlab.winehq.org/wine/wine/-/releases/wine-9.0#wow64
-%if 0%{?fedora} >= 42
+%if 0%{?fedora} >= 43
 %bcond new_wow64 1
 %else
 %bcond new_wow64 0
@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec1%{dist}
+Release:        ec2%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -257,6 +257,7 @@ BuildRequires:  mingw64-zlib
 
 Requires:       wine-common = %{version}-%{release}
 Requires:       wine-desktop = %{version}-%{release}
+#Requires:       ntsync-autoload = %{version}-%{release}
 Requires:       wine-winefonts = %{version}-%{release}
 
 # x86-32 parts
@@ -424,8 +425,8 @@ Requires:       libva
 %endif
 %endif
 
-Provides:       bundled(libjpeg) = 9f
-Provides:       bundled(mpg123-libs) = 1.32.9
+Provides:       bundled(mingw-libjpeg) = 10
+Provides:       bundled(mingw-mpg123-libs) = 1.33.5
 
 %description core
 Wine core package includes the basic wine stuff needed by all other packages.
@@ -470,11 +471,13 @@ BuildArch:      noarch
 Desktop integration features for wine, including mime-types and a binary format
 handler service.
 
-%package ntsync
+%package -n ntsync-autoload
 Summary:       Kernel module load file for ntsync
 BuildArch:     noarch
+Provides:      wine-ntsync = %{version}-%{release}
+Obsoletes:     wine-ntsync < %{version}-%{release}
 
-%description ntsync
+%description -n ntsync-autoload
 Kernel module load file for ntsync
 
 %package winefonts
@@ -747,6 +750,7 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 %endif
 # 0%%{?wine_staging}
 
+%ifarch aarch64
 %if 0%{?fedora} >= 45
 sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %endif
@@ -773,6 +777,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 620 -p1
 %patch -P 621 -p1
 %patch -P 622 -p1
+%endif
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -808,12 +813,18 @@ export CFLAGS="$(echo "$CFLAGS" | sed -e 's/-mbranch-protection=standard//')"
 # required so that both Linux and Windows development files can be found
 unset PKG_CONFIG_PATH
 
+# _libdir was restructured and must use a new prefix until at least Fedora 45
+%global _x_libdir %{_libdir}
+%if %{with new_wow64}
+%global _libdir %{_libdir}/wine-wow64
+%endif
+
 %configure \
  --sysconfdir=%{_sysconfdir}/wine \
- --x-includes=%{_includedir} --x-libraries=%{_libdir} \
+ --x-includes=%{_includedir} --x-libraries=%{_x_libdir} \
  --with-dbus \
  --with-x \
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
  --enable-win64 \
 %ifarch x86_64
 %if %{with new_wow64}
@@ -830,11 +841,7 @@ unset PKG_CONFIG_PATH
 %ifarch %{ix86}
  --with-system-dllpath=%{mingw32_bindir} \
 %endif
-%if 0%{?wine_staging}
- --with-wayland \
-%else
- --without-wayland \
-%endif
+%{?wine_staging: --with-xattr} \
  --enable-crtdll \
  --enable-ctl3d32 \
  --enable-d3d8 \
@@ -873,7 +880,7 @@ unset PKG_CONFIG_PATH
         UPDATE_DESKTOP_DATABASE=/bin/true
 
 # setup for alternatives usage
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 mv %{buildroot}%{_bindir}/wine %{buildroot}%{_bindir}/wine64
 mv %{buildroot}%{_bindir}/wineserver %{buildroot}%{_bindir}/wineserver64
 %endif
@@ -939,7 +946,7 @@ ln -sf /usr/lib64/wine/x86_64-windows %{buildroot}%{_libdir}/wine/x86_64-windows
 # remove rpath
 chrpath --delete %{buildroot}%{_bindir}/wmc
 chrpath --delete %{buildroot}%{_bindir}/wrc
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 chrpath --delete %{buildroot}%{_bindir}/wine64
 chrpath --delete %{buildroot}%{_bindir}/wineserver64
 %else
@@ -1138,38 +1145,27 @@ fi
 %ldconfig_post core
 
 %pretrans -p <lua> core
-%if %{with new_wow64}
-%ifarch %{ix86}
-pathA = "%{_libdir}/wine/x86_64-unix"
-pathB = "%{_libdir}/wine/x86_64-windows"
-stA = posix.stat(pathA)
-stB = posix.stat(pathB)
-if stA and stA.type == "link" then
-  os.remove(pathA)
-end
-if stB and stB.type == "link" then
-  os.remove(pathB)
-end
+%ifarch x86_64 aarch64
+%define _oldlibdir /usr/lib64
+%else
+%define _oldlibdir /usr/lib
 %endif
-%ifarch x86_64
-pathA = "%{_libdir}/wine/i386-unix"
-pathB = "%{_libdir}/wine/i386-windows"
-stA = posix.stat(pathA)
-stB = posix.stat(pathB)
-if stA and stA.type == "link" then
-  os.remove(pathA)
-end
-if stB and stB.type == "link" then
-  os.remove(pathB)
-end
+oldPath = "%{_oldlibdir}/wine/%{winepedir}/wine-dxgi.dll"
+opStat = posix.stat(oldPath)
+if opStat and opStat.type == "regular" then
+for _, alt in ipairs({"dxgi", "d3d8", "d3d9", "d3d10core", "d3d10_1", "d3d10", "d3d11", "d3d12", "d3d12core"}) do
+os.execute("%{_sbindir}/alternatives --remove 'wine-" .. alt .. "%{?_isa}' %{_oldlibdir}/wine/%{winepedir}/wine-" .. alt .. ".dll")
+%if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
+os.execute("%{_sbindir}/alternatives --remove 'wine-" .. alt .. "(x86-32)' %{_oldlibdir}/wine/i386-windows/wine-" .. alt .. ".dll")
 %endif
-%endif
+end
+end
 
 %posttrans core
 # handle upgrades for a few package updates
 rm -f %{_libdir}/wine/%{winepedirs}/d3d8.dll
 rm -f %{_bindir}/wine-preloader
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 %{_sbindir}/alternatives --remove wine %{_bindir}/wine64
 %{_sbindir}/alternatives --install %{_bindir}/wine \
   wine %{_bindir}/wine64 20
@@ -1229,7 +1225,7 @@ done
 %postun core
 %{?ldconfig}
 if [ $1 -eq 0 ] ; then
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
   %{_sbindir}/alternatives --remove wine %{_bindir}/wine64
   %{_sbindir}/alternatives --remove wineserver %{_bindir}/wineserver64
 %else
@@ -1307,7 +1303,7 @@ fi
 %{_bindir}/wineserver32
 %endif
 
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 %{_bindir}/wine64
 %{_bindir}/wineserver64
 %endif
@@ -1919,7 +1915,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/vcomp120.dll
 %{_libdir}/wine/%{winepedirs}/vcomp140.dll
 %{_libdir}/wine/%{winepedirs}/vcruntime140.dll
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 %{_libdir}/wine/%{winepedirs}/vcruntime140_1.dll
 %endif
 %{_libdir}/wine/%{winepedirs}/vdmdbg.dll
@@ -2032,7 +2028,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/wmphoto.dll
 %{_libdir}/wine/%{winepedirs}/wnaspi32.dll
 %{_libdir}/wine/%{winepedirs}/wofutil.dll
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 %{_libdir}/wine/%{winepedirs}/wow64.dll
 %{_libdir}/wine/%{winepedirs}/wow64win.dll
 %endif
@@ -2116,7 +2112,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/xpssvcs.dll
 
 %if 0%{?wine_staging}
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 #%%{_libdir}/wine/%%{winepedirs}/nvapi64.dll
 #%%{_libdir}/wine/%%{winepedirs}/nvencodeapi64.dll
 #%%{_libdir}/wine/%%{winesodir}/nvencodeapi64.dll.so
@@ -2402,7 +2398,7 @@ fi
 %{_metainfodir}/%{name}.appdata.xml
 %{_datadir}/icons/hicolor/scalable/apps/*svg
 
-%files ntsync
+%files -n ntsync-autoload
 %{_modulesloaddir}/ntsync.conf
 
 %files systemd
@@ -2473,6 +2469,12 @@ fi
 %endif
 
 %changelog
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec2
+- Rebase on Fedora 11.0-4 spec
+- Move to wine-wow64 libdir
+- Rename wine-ntsync to ntsync-autoload
+- Restore xattr support
+
 * Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec1
 - Update to 11.19
 - Staging at 6544c23 (no v11.19 tag yet)
@@ -2554,6 +2556,9 @@ fi
 * Thu Jul 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.14-ec1
 - Increased wine version to 11.14
 
+* Fri Jul 17 2026 Fedora Release Engineering <releng@fedoraproject.org> - 11.0-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_45_Mass_Rebuild
+
 * Sat Jul 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.13-ec1
 - Increased wine version to 11.13
 
@@ -2598,8 +2603,17 @@ fi
 * Sat Jan 24 2026 Lachlan Marie <lchlnm@pm.me> - 11.1-ec1
 - Increased wine version to 11.1
 
+* Sat Jan 17 2026 Fedora Release Engineering <releng@fedoraproject.org> - 11.0-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_44_Mass_Rebuild
+
 * Wed Jan 14 2026 Lachlan Marie <lchlnm@pm.me> - 11.0-ec1
 - Increased wine version to 11.0
+
+* Wed Jan 14 2026 Michael Cronenworth <mike@cchtml.com> - 11.0-2
+- wine-mono 10.4.1
+
+* Tue Jan 13 2026 Michael Cronenworth <mike@cchtml.com> - 11.0-1
+- version update
 
 * Sat Jan 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.0-rc5^ec1
 - Increased wine version to 11.0-rc5
@@ -2607,14 +2621,35 @@ fi
 * Sun Dec 28 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc4^ec1
 - Increased wine version to 11.0-rc4
 
+* Fri Dec 26 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-5
+- Fix x86_64 alternatives upgrade path
+
+* Tue Dec 23 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-4
+- Account for alternatives in upgrade path
+
 * Sat Dec 13 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc3^ec1
 - Increased wine version to 11.0-rc3
 
 * Sat Dec 13 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc2^ec1
 - Increased wine version to 11.0-rc2
 
+* Tue Dec 09 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-3
+- Bring sanity to the upgrade path, credit Gordon Messmer (RHBZ#2401666)
+
 * Sun Dec 07 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc1^ec1
 - Increased wine version to 11.0-rc1
+
+* Mon Dec 01 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-2
+- remove Conflicts
+
+* Mon Dec 01 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-1
+- version update
+
+* Fri Nov 21 2025 Michael Cronenworth <mike@cchtml.com> - 10.19-2
+- wine-ntsync rename to ntsync-autoload
+
+* Tue Nov 18 2025 Michael Cronenworth <mike@cchtml.com> - 10.19-1
+- version update
 
 * Sat Nov 15 2025 Lachlan Marie <lchlnm@pm.me> - 10.20-ec1
 - Increased wine version to 10.20
