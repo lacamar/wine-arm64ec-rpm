@@ -13,7 +13,7 @@
 
 Name:           wine-dxvk-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec3%{?dist}
+Release:        ec4%{?dist}
 Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 
 Conflicts:      wine-dxvk
@@ -27,7 +27,7 @@ Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/
 
 %{lua:
 local externals = {
-  { name="dxbc-spirv", ref="37a9774", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
+  { name="dxbc-spirv", ref="c7f0697", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
   { name="SPIRV-Headers", ref="04f10f6", owner="KhronosGroup", path="include/spirv", version="1.3.341.0", license="CC0" },
@@ -313,8 +313,9 @@ fi
 %{_libdir}/wine/i386-windows/dxvk-dxgi.dll
 
 %changelog
-* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^7.git.d30be2b-ec3
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^7.git.d30be2b-ec4
  - Update to commit d30be2baea02a67b9502bffda0ec8b0d915bb3d2
+ - Update dxbc-spirv to c7f0697
 
 * Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^6.git.52fe923-ec3
  - Update to commit 52fe923ca1496c8e44789b613fab8611dfcb5c4a

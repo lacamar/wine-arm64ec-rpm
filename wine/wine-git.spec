@@ -834,6 +834,8 @@ This package adds the opencl driver for wine.
 %if 0%{?wine_staging}
 # setup and apply wine-staging patches
 gzip -dc %{SOURCE900} | tar -xf - --strip-components=1
+# merged upstream in 11.19
+rm -f patches/vkd3d-latest/0003-include-Add-d3d12-options-structs.patch
 
 staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
@@ -2569,6 +2571,7 @@ fi
 %changelog
 * Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.5
 - Update to 11.19
+- Drop staging d3d12 options structs (merged upstream)
 
 * Fri Oct 02 2026 Lachlan Marie <lchlnm@pm.me> - 11.18^5.git.13625e5-ec.4
 - Update to commit 13625e51fd62639c8a60d7c2774ae70d93eaf446
