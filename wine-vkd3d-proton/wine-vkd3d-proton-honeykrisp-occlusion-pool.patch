@@ -1,0 +1,13 @@
+--- a/libs/vkd3d/device.c
++++ b/libs/vkd3d/device.c
+@@ -4356,7 +4356,9 @@
+             /* Expect a large number of occlusion queries
+              * to be used within a single command list */
+             pool_info.queryType = VK_QUERY_TYPE_OCCLUSION;
+-            pool_info.queryCount = 4096;
++            /* Honeykrisp has 32768 occlusion queries per device */
++            pool_info.queryCount = device->device_info.vulkan_1_2_properties.driverID ==
++                    VK_DRIVER_ID_MESA_HONEYKRISP ? 256 : 4096;
+             break;
+ 
+         case VKD3D_QUERY_TYPE_INDEX_PIPELINE_STATISTICS:
