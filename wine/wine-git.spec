@@ -135,6 +135,7 @@ Patch620:       2026_09_18-server-scale-dpi-signed.patch
 Patch621:       2026_09_26-ntdll-subpage-guard-decommit.patch
 Patch622:       2026_09_26-ntdll-unaligned-shared-sections.patch
 Patch623:       2026_10_04-dsound-3d-input-tail.patch
+Patch624:       2026_10_04-winewayland-stale-client-surfaces.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -890,6 +891,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 621 -p1
 %patch -P 622 -p1
 %patch -P 623 -p1
+%patch -P 624 -p1
 %endif
 
 %build
@@ -2585,6 +2587,7 @@ fi
 * Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.9
 - Limit MEM_RESET to whole host pages
 - Fix dsound 3D buffer input tail overflow
+- Fix stale Wayland client surfaces on top
 
 * Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.8
 - Require wine-mono on Fedora 43
