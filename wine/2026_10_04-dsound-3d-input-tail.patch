@@ -1,0 +1,27 @@
+--- a/dlls/dsound/buffer.c
++++ b/dlls/dsound/buffer.c
+@@ -1056,6 +1056,9 @@
+ 	dsb->sec_playpos = 0;
+ 	dsb->state = STATE_STOPPED;
+ 
++	/* sizes input_tail; Calc3DBuffer may return before recalculating */
++	DSOUND_RecalcFormat(dsb);
++
+ 	if (dsb->dsbd.dwFlags & DSBCAPS_CTRL3D) {
+ 		dsb->ds3db_ds3db.dwSize = sizeof(DS3DBUFFER);
+ 		dsb->ds3db_ds3db.vPosition.x = 0.0;
+@@ -1078,13 +1081,9 @@
+ 
+ 		dsb->ds3db_need_recalc = FALSE;
+ 		DSOUND_Calc3DBuffer(dsb);
+-	} else {
++	} else
+ 		DSOUND_RecalcVolPan(&(dsb->volpan));
+ 
+-		/* calculate fragment size and write lead */
+-		DSOUND_RecalcFormat(dsb);
+-	}
+-
+ 	dsb->input_tail = malloc(dsb->pwfx->nChannels * dsb->input_delay * sizeof(float));
+ 	if(!dsb->input_tail) {
+ 		IDirectSoundBuffer8_Release(&dsb->IDirectSoundBuffer8_iface);
