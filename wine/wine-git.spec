@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 7
+Release:        ec.%autorelease -b 8
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -318,9 +318,7 @@ Requires:       wine-dxvk-d3d9
 Requires:       wine-dxvk-d3d10
 Requires:       wine-vkd3d-proton
 Requires:       wine-d7vk
-%if 0%{?fedora} >= 44
 Requires:       wine-mono = %winemono
-%endif
 %endif
 
 %description
@@ -341,6 +339,9 @@ Requires(preun):       %{_sbindir}/alternatives
 
 # require -filesystem
 Requires:       wine-filesystem = %{version}-%{release}
+%if %{with new_wow64}
+Provides:       wine-core(wow64-libdir)
+%endif
 
 Conflicts:     wine-core
 Provides:      wine-core%{?_isa} = %{version}-%{release}
@@ -2579,6 +2580,10 @@ fi
 %endif
 
 %changelog
+* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.8
+- Require wine-mono on Fedora 43
+- Provide wine-core(wow64-libdir)
+
 * Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.7
 - Require FEX, dxvk, vkd3d-proton, d7vk, mono, gecko, ntsync
 

@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec3%{dist}
+Release:        ec4%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -322,9 +322,7 @@ Requires:       wine-dxvk-d3d9
 Requires:       wine-dxvk-d3d10
 Requires:       wine-vkd3d-proton
 Requires:       wine-d7vk
-%if 0%{?fedora} >= 44
 Requires:       wine-mono = %winemono
-%endif
 %endif
 
 %description
@@ -345,6 +343,9 @@ Requires(preun):       %{_sbindir}/alternatives
 
 # require -filesystem
 Requires:       wine-filesystem = %{version}-%{release}
+%if %{with new_wow64}
+Provides:       wine-core(wow64-libdir)
+%endif
 
 %ifarch %{ix86}
 # CUPS support uses dlopen - rhbz#1367537
@@ -2481,6 +2482,10 @@ fi
 %endif
 
 %changelog
+* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec4
+- Require wine-mono on Fedora 43
+- Provide wine-core(wow64-libdir)
+
 * Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec3
 - Require FEX, dxvk, vkd3d-proton, d7vk, mono, gecko, ntsync
 

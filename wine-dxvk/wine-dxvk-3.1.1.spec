@@ -10,7 +10,7 @@
 
 Name:           wine-dxvk
 Version:        3.1.1
-Release:        ec2%{dist}
+Release:        ec3%{dist}
 Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 
 License:        zlib AND MIT
@@ -68,7 +68,7 @@ BuildRequires:  mingw64-spirv-headers
 
 Requires(pre):  vulkan-tools
 
-Requires:       wine-core >= 11.19-ec2
+Requires:       wine-core(wow64-libdir)
 Requires:       wine-dxvk-dxgi = %{version}-%{release}
 Requires:       vulkan-loader
 

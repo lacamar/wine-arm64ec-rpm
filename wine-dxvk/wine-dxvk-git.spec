@@ -16,7 +16,7 @@
 
 Name:           wine-dxvk-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec5%{?dist}
+Release:        ec6%{?dist}
 Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 
 Conflicts:      wine-dxvk
@@ -77,7 +77,7 @@ BuildRequires:  mingw64-spirv-headers
 
 Requires(pre):  vulkan-tools
 
-Requires:       wine-core >= 11.19-ec2
+Requires:       wine-core(wow64-libdir)
 Requires:       wine-dxvk-dxgi = %{version}-%{release}
 Requires:       vulkan-loader
 
@@ -316,6 +316,9 @@ fi
 %{_libdir}/wine/i386-windows/dxvk-dxgi.dll
 
 %changelog
+* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^7.git.d30be2b-ec6
+- Require wine-core(wow64-libdir)
+
 * Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^7.git.d30be2b-ec5
  - Move to wine-wow64 libdir
 

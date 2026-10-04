@@ -11,7 +11,7 @@
 
 Name:           wine-vkd3d-proton
 Version:        3.0.1
-Release:        ec4%{dist}
+Release:        ec5%{dist}
 Summary:        Vulkan-based implementation of D3D12 for Wine (ARM64EC)
 
 License:        LGPL-2.1-or-later AND MIT
@@ -55,7 +55,7 @@ BuildRequires:  wine-devel
 
 Requires(pre):  vulkan-tools
 
-Requires:       wine-core >= 11.19-ec2
+Requires:       wine-core(wow64-libdir)
 Requires:       wine-dxvk-dxgi
 Requires:       vulkan-loader
 
@@ -152,6 +152,9 @@ fi
 %{_libdir}/wine/i386-windows/vkd3d-proton-d3d12core.dll
 
 %changelog
+* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec5
+- Require wine-core(wow64-libdir)
+
 * Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec4
 - Shrink occlusion query pools on Honeykrisp
 
