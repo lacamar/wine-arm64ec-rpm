@@ -139,6 +139,7 @@ Patch621:       2026_09_26-ntdll-subpage-guard-decommit.patch
 Patch622:       2026_09_26-ntdll-unaligned-shared-sections.patch
 Patch623:       2026_10_04-dsound-3d-input-tail.patch
 Patch624:       2026_10_04-winewayland-stale-client-surfaces.patch
+Patch625:       2026_10_04-mfreadwrite-pass-dxgi-samples.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -794,6 +795,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 622 -p1
 %patch -P 623 -p1
 %patch -P 624 -p1
+%patch -P 625 -p1
 %endif
 
 %build
@@ -2488,6 +2490,7 @@ fi
 %changelog
 * Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec6
 - Fix windows snapping to wrong output
+- Fix black Unity video on DX11
 
 * Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec5
 - Limit MEM_RESET to whole host pages

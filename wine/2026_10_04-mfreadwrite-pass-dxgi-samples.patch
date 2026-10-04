@@ -1,0 +1,34 @@
+--- a/dlls/mfreadwrite/reader.c
++++ b/dlls/mfreadwrite/reader.c
+@@ -1239,6 +1239,22 @@
+     return response;
+ }
+ 
++static BOOL sample_has_dxgi_buffer(IMFSample *sample)
++{
++    IMFMediaBuffer *buffer;
++    IMFDXGIBuffer *dxgi;
++    BOOL ret = FALSE;
++
++    if (SUCCEEDED(IMFSample_GetBufferByIndex(sample, 0, &buffer)))
++    {
++        if ((ret = SUCCEEDED(IMFMediaBuffer_QueryInterface(buffer, &IID_IMFDXGIBuffer, (void **)&dxgi))))
++            IMFDXGIBuffer_Release(dxgi);
++        IMFMediaBuffer_Release(buffer);
++    }
++
++    return ret;
++}
++
+ static struct stream_response *media_stream_pop_response(struct source_reader *reader, struct media_stream *stream)
+ {
+     struct stream_response *response;
+@@ -1253,7 +1269,7 @@
+         if (!stream && response->stream_index < reader->stream_count)
+             stream = &reader->streams[response->stream_index];
+ 
+-        if (response->sample && stream->allocator)
++        if (response->sample && stream->allocator && !sample_has_dxgi_buffer(response->sample))
+         {
+             /* Return allocation error to the caller, while keeping original response sample in for later. */
+             if (SUCCEEDED(hr = IMFVideoSampleAllocatorEx_AllocateSample(stream->allocator, &sample)))
