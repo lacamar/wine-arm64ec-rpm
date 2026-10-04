@@ -103,15 +103,16 @@ winewayland: keep windows on the output their surface is on; compare rects in ra
                                const struct window_rects *new_rects, struct window_surface *surface);
 --- a/dlls/winewayland.drv/wayland_surface.c
 +++ b/dlls/winewayland.drv/wayland_surface.c
-@@ -182,6 +182,48 @@
+@@ -182,6 +182,49 @@
   *
   * Creates a role-less wayland surface.
   */
-+static void surface_handle_enter(void *data, struct wl_surface *wl_surface,
-+                                 struct wl_output *wl_output)
++static void surface_handle_output(struct wl_surface *wl_surface, struct wl_output *wl_output,
++                                  UINT event)
 +{
 +    HWND hwnd = wl_surface_get_user_data(wl_surface);
 +    struct wayland_output *output = wl_output ? wl_output_get_user_data(wl_output) : NULL;
++    struct wayland_win_data *data;
 +    int index;
 +
 +    if (!hwnd || !output) return;
@@ -120,27 +121,27 @@ winewayland: keep windows on the output their surface is on; compare rects in ra
 +    index = wayland_output_win32_index(output);
 +    pthread_mutex_unlock(&process_wayland.output_mutex);
 +
-+    TRACE("hwnd=%p output=%s index=%d\n", hwnd, output->current.name, index);
++    TRACE("hwnd=%p output=%s index=%d event=%u\n", hwnd, output->current.name, index, event);
 +
-+    if (index >= 0) NtUserPostMessage(hwnd, WM_WAYLAND_OUTPUT_ENTER, OUTPUT_ENTERED, index);
++    /* queued rechecks must see the latest outputs */
++    if (index < 0 || index >= 32 || !(data = wayland_win_data_get(hwnd))) return;
++    if (event == OUTPUT_ENTERED) data->entered_outputs |= 1u << index;
++    else data->entered_outputs &= ~(1u << index);
++    wayland_win_data_release(data);
++
++    NtUserPostMessage(hwnd, WM_WAYLAND_OUTPUT_ENTER, event, index);
++}
++
++static void surface_handle_enter(void *data, struct wl_surface *wl_surface,
++                                 struct wl_output *wl_output)
++{
++    surface_handle_output(wl_surface, wl_output, OUTPUT_ENTERED);
 +}
 +
 +static void surface_handle_leave(void *data, struct wl_surface *wl_surface,
 +                                 struct wl_output *wl_output)
 +{
-+    HWND hwnd = wl_surface_get_user_data(wl_surface);
-+    struct wayland_output *output = wl_output ? wl_output_get_user_data(wl_output) : NULL;
-+    int index;
-+
-+    if (!hwnd || !output) return;
-+
-+    pthread_mutex_lock(&process_wayland.output_mutex);
-+    index = wayland_output_win32_index(output);
-+    pthread_mutex_unlock(&process_wayland.output_mutex);
-+
-+    TRACE("hwnd=%p output=%s index=%d\n", hwnd, output->current.name, index);
-+
-+    if (index >= 0) NtUserPostMessage(hwnd, WM_WAYLAND_OUTPUT_ENTER, OUTPUT_LEFT, index);
++    surface_handle_output(wl_surface, wl_output, OUTPUT_LEFT);
 +}
 +
 +static const struct wl_surface_listener surface_listener =
@@ -152,7 +153,7 @@ winewayland: keep windows on the output their surface is on; compare rects in ra
  struct wayland_surface *wayland_surface_create(HWND hwnd)
  {
      struct wayland_surface *surface;
-@@ -203,6 +245,7 @@
+@@ -203,6 +246,7 @@
          goto err;
      }
      wl_surface_set_user_data(surface->wl_surface, hwnd);
@@ -206,7 +207,7 @@ winewayland: keep windows on the output their surface is on; compare rects in ra
      data->resizeable = swp_flags & WINE_SWP_RESIZABLE;
      data->managed = managed;
  
-@@ -663,6 +672,131 @@
+@@ -663,6 +672,126 @@
      NtUserSetRawWindowPos(hwnd, rect, flags, FALSE);
  }
  
@@ -284,11 +285,6 @@ winewayland: keep windows on the output their surface is on; compare rects in ra
 +    int current_index;
 +
 +    if (!(data = wayland_win_data_get(hwnd))) return;
-+    if (index < 32)
-+    {
-+        if (event == OUTPUT_ENTERED) data->entered_outputs |= 1u << index;
-+        else if (event == OUTPUT_LEFT) data->entered_outputs &= ~(1u << index);
-+    }
 +    entered = data->entered_outputs;
 +    window = data->rects.window;
 +    toplevel = data->wayland_surface && wayland_surface_is_toplevel(data->wayland_surface);
@@ -338,7 +334,7 @@ winewayland: keep windows on the output their surface is on; compare rects in ra
  /**********************************************************************
   *           WAYLAND_WindowMessage
   */
-@@ -679,6 +813,9 @@
+@@ -679,6 +808,9 @@
      case WM_WAYLAND_SET_FOREGROUND:
          NtUserSetForegroundWindowInternal(hwnd);
          return 0;

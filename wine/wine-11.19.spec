@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec5%{dist}
+Release:        ec6%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2486,6 +2486,9 @@ fi
 %endif
 
 %changelog
+* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec6
+- Fix windows snapping to wrong output
+
 * Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec5
 - Limit MEM_RESET to whole host pages
 - Fix dsound 3D buffer input tail overflow
