@@ -49,3 +49,17 @@
          }
          else ret = grow_thread_stack( data, page, &stack_info );
      }
+@@ -5262,8 +5287,12 @@
+     }
+     else if (type & MEM_RESET)
+     {
++        char *host_start = (char *)ROUND_SIZE( 0, base, host_page_mask );
++        char *host_end = ROUND_ADDR( (char *)base + size, host_page_mask );
++
+         if (!(view = find_view( base, size ))) status = STATUS_NOT_MAPPED_VIEW;
+-        else madvise( base, size, MADV_DONTNEED );
++        /* madvise rounds up to host pages, discarding neighbouring data */
++        else if (host_start < host_end) madvise( host_start, host_end - host_start, MADV_DONTNEED );
+     }
+     else  /* commit the pages */
+     {

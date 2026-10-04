@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec4%{dist}
+Release:        ec5%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2482,6 +2482,9 @@ fi
 %endif
 
 %changelog
+* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec5
+- Limit MEM_RESET to whole host pages
+
 * Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec4
 - Require wine-mono on Fedora 43
 - Provide wine-core(wow64-libdir)

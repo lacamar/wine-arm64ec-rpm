@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 8
+Release:        ec.%autorelease -b 9
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2580,6 +2580,9 @@ fi
 %endif
 
 %changelog
+* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.9
+- Limit MEM_RESET to whole host pages
+
 * Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.8
 - Require wine-mono on Fedora 43
 - Provide wine-core(wow64-libdir)
