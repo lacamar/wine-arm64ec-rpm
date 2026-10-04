@@ -82,10 +82,10 @@ Validate code inline where a host page cannot be write-trapped; avoid nested inv
      InvalidateIntervalInternal(AlignedBase, AlignedSize);
    }
 +
-+  // Code sharing a host page with memory that just became writable can no longer be write-trapped, recompile it with
-+  // inline validation.
++  // Wine maps a host page with the union of its pages' protections, so code sharing it with memory that just became
++  // writable is no longer write-trapped. Recompile it to retrap the host page or validate inline.
 +  const auto HostPageSize = FEXCore::Utils::GetHostPageSize();
-+  if (HostPageSize > FEXCore::Utils::FEX_PAGE_SIZE && ProtIsWritable(Prot) && !ProtHasExec(Prot)) {
++  if (HostPageSize > FEXCore::Utils::FEX_PAGE_SIZE && ProtIsWritable(Prot)) {
 +    const uint64_t HostBase = AlignedBase & ~(HostPageSize - 1);
 +    const uint64_t HostEnd = (AlignedBase + AlignedSize + HostPageSize - 1) & ~(HostPageSize - 1);
 +    bool SharesRWX;
