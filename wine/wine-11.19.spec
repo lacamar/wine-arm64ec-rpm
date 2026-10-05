@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec6%{dist}
+Release:        ec7%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -140,6 +140,11 @@ Patch622:       2026_09_26-ntdll-unaligned-shared-sections.patch
 Patch623:       2026_10_04-dsound-3d-input-tail.patch
 Patch624:       2026_10_04-winewayland-stale-client-surfaces.patch
 Patch625:       2026_10_04-mfreadwrite-pass-dxgi-samples.patch
+Patch626:       2026_10_05-ntdll-thread-stack-guard-headroom.patch
+Patch627:       2026_10_05-ntdll-arm64ec-bounds-check-RtlIsEcCode.patch
+Patch628:       2026_10_05-msvcrt-mark-rethrow-in-filter.patch
+Patch629:       2026_10_05-winewayland-fractional-scale-lock-order.patch
+Patch630:       2026_10_05-winewayland-trackpad-smooth-scroll.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -796,6 +801,11 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 623 -p1
 %patch -P 624 -p1
 %patch -P 625 -p1
+%patch -P 626 -p1
+%patch -P 627 -p1
+%patch -P 628 -p1
+%patch -P 629 -p1
+%patch -P 630 -p1
 %endif
 
 %build
@@ -2488,6 +2498,13 @@ fi
 %endif
 
 %changelog
+* Mon Oct 05 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec7
+- Fix winewayland scale-change deadlock
+- Add touchpad smooth scrolling
+- Keep thread stack size on 16K pages
+- Bounds-check RtlIsEcCode
+- Mark rethrow in msvcrt filter
+
 * Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec6
 - Fix windows snapping to wrong output
 - Fix black Unity video on DX11

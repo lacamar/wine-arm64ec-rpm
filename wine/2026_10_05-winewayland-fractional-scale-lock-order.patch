@@ -1,0 +1,22 @@
+--- a/dlls/winewayland.drv/wayland_surface.c
++++ b/dlls/winewayland.drv/wayland_surface.c
+@@ -246,9 +246,6 @@
+ 
+     surface->window.scale = scale;
+ 
+-    /* reattach client surfaces as their rects have changed */
+-    update_client_surfaces(hwnd);
+-
+     /* the subsurface rect has changed */
+     if (surface->role == WAYLAND_SURFACE_ROLE_SUBSURFACE)
+     {
+@@ -258,6 +255,9 @@
+ 
+     wayland_win_data_release(data);
+ 
++    /* reattach client surfaces as their rects have changed, takes the user lock */
++    update_client_surfaces(hwnd);
++
+     NtUserExposeWindowSurface(hwnd, 0, NULL);
+ }
+ 

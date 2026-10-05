@@ -1,0 +1,13 @@
+--- a/dlls/msvcrt/handler4.c
++++ b/dlls/msvcrt/handler4.c
+@@ -380,7 +380,10 @@
+     cxx_catch_ctx *ctx = c;
+ 
+     if (rec->ExceptionCode == CXX_EXCEPTION && !rec->ExceptionInformation[1] && !rec->ExceptionInformation[2])
++    {
++        ctx->rethrow = TRUE;
+         return EXCEPTION_EXECUTE_HANDLER;
++    }
+ 
+     FlsSetValue(fls_index, (void*)(DWORD_PTR)ctx->search_state);
+     if (rec->ExceptionCode != CXX_EXCEPTION)

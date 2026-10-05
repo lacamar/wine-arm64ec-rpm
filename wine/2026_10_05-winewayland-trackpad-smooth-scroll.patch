@@ -1,0 +1,85 @@
+--- a/dlls/winewayland.drv/waylanddrv.h
++++ b/dlls/winewayland.drv/waylanddrv.h
+@@ -131,6 +131,9 @@
+     struct wayland_cursor cursor;
+     double accum_x;
+     double accum_y;
++    uint32_t axis_source;
++    double scroll_accum_v;
++    double scroll_accum_h;
+     pthread_mutex_t mutex;
+ };
+ 
+--- a/dlls/winewayland.drv/wayland_pointer.c
++++ b/dlls/winewayland.drv/wayland_pointer.c
+@@ -270,25 +270,70 @@
+     NtUserSendHardwareInput(hwnd, SEND_HWMSG_RAWINPUT, &input, 0);
+ }
+ 
++/* surface units per wheel detent */
++#define WAYLAND_AXIS_STEP 10.0
++
+ static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer,
+                                 uint32_t time, uint32_t axis, wl_fixed_t value)
+ {
++    struct wayland_pointer *pointer = &process_wayland.pointer;
++
++    /* wheels are handled by axis_value120 */
++    if (pointer->axis_source != WL_POINTER_AXIS_SOURCE_FINGER &&
++        pointer->axis_source != WL_POINTER_AXIS_SOURCE_CONTINUOUS)
++        return;
++
++    if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL)
++        pointer->scroll_accum_v += wl_fixed_to_double(value);
++    else if (axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL)
++        pointer->scroll_accum_h += wl_fixed_to_double(value);
++}
++
++static void send_wheel(HWND hwnd, DWORD flags, double *accum, int sign)
++{
++    const double per_unit = WHEEL_DELTA / WAYLAND_AXIS_STEP;
++    INPUT input = {.type = INPUT_MOUSE};
++    int delta = *accum * per_unit;
++
++    if (!delta) return;
++    input.mi.dwFlags = flags;
++    input.mi.mouseData = sign * delta;
++    NtUserSendHardwareInput(hwnd, SEND_HWMSG_RAWINPUT, &input, 0);
++    *accum -= delta / per_unit;
+ }
+ 
+ static void pointer_handle_frame(void *data, struct wl_pointer *wl_pointer)
+ {
+     static const INPUT input = { .type = INPUT_MOUSE, .mi.dwFlags = MOUSEEVENTF_MOVE_NOCOALESCE };
++    struct wayland_pointer *pointer = &process_wayland.pointer;
++    HWND hwnd;
++
++    if (pointer->scroll_accum_v || pointer->scroll_accum_h)
++    {
++        if ((hwnd = wayland_pointer_get_focused_hwnd()))
++        {
++            send_wheel(hwnd, MOUSEEVENTF_WHEEL, &pointer->scroll_accum_v, -1);
++            send_wheel(hwnd, MOUSEEVENTF_HWHEEL, &pointer->scroll_accum_h, 1);
++        }
++        else pointer->scroll_accum_v = pointer->scroll_accum_h = 0;
++    }
++
+     NtUserSendHardwareInput(NULL, SEND_HWMSG_RAWINPUT, &input, 0); /* flush win32u accumulated motion */
+ }
+ 
+ static void pointer_handle_axis_source(void *data, struct wl_pointer *wl_pointer,
+                                        uint32_t axis_source)
+ {
++    process_wayland.pointer.axis_source = axis_source;
+ }
+ 
+ static void pointer_handle_axis_stop(void *data, struct wl_pointer *wl_pointer,
+                                      uint32_t time, uint32_t axis)
+ {
++    struct wayland_pointer *pointer = &process_wayland.pointer;
++
++    if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) pointer->scroll_accum_v = 0;
++    else if (axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL) pointer->scroll_accum_h = 0;
+ }
+ 
+ static void pointer_handle_axis_value120(void *data, struct wl_pointer *wl_pointer,

@@ -1,0 +1,35 @@
+--- a/dlls/ntdll/signal_arm64ec.c
++++ b/dlls/ntdll/signal_arm64ec.c
+@@ -1402,6 +1402,22 @@
+                    "brk #1" )
+ 
+ 
++static ULONG_PTR ec_map_limit(void)
++{
++    static ULONG_PTR limit;
++
++    if (!limit)
++    {
++        SYSTEM_BASIC_INFORMATION info;
++
++        if (!NtQuerySystemInformation( SystemBasicInformation, &info, sizeof(info), NULL ))
++            limit = (ULONG_PTR)info.HighestUserAddress;
++        else
++            limit = (ULONG_PTR)1 << 47;
++    }
++    return limit;
++}
++
+ /**************************************************************************
+  *              RtlIsEcCode (NTDLL.@)
+  */
+@@ -1409,6 +1425,9 @@
+ {
+     const UINT64 *map = (const UINT64 *)NtCurrentTeb()->Peb->EcCodeBitMap;
+     ULONG_PTR page = ptr / page_size;
++
++    /* called during exception dispatch, a fault here recurses */
++    if (ptr >= ec_map_limit()) return FALSE;
+     return (map[page / 64] >> (page & 63)) & 1;
+ }
+ 

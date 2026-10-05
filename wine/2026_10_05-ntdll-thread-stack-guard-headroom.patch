@@ -1,0 +1,11 @@
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -4543,6 +4543,8 @@
+ 
+     size = max( reserve_size, commit_size );
+     if (size < 1024 * 1024) size = 1024 * 1024;  /* Xlib needs a large stack */
++    /* usable size must not depend on the host page size */
++    if (guard_page) size += 2 * host_page_size;
+     size = ROUND_SIZE( 0, size, granularity_mask );
+ 
+     server_enter_uninterrupted_section( &virtual_mutex, &sigset );
