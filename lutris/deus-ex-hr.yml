@@ -1,0 +1,49 @@
+name: 'Deus Ex: Human Revolution'
+game_slug: deus-ex-hr
+version: wine-arm64ec
+slug: deus-ex-hr-wine-arm64ec
+runner: wine
+notes: 'wine-arm64ec rating: Platinum. Steam DRM: run with Steam in the prefix, or Steamless + Goldberg (GBE). GBE needs steam_interfaces.txt and steam_appid.txt.'
+script:
+  files:
+  - gameexe: N/A:Select Deus Ex - Human Revolution/dxhr.exe
+  game:
+    exe: $gameexe
+    prefix: $GAMEDIR
+    arch: win64
+  installer:
+  - execute:
+      command: |
+        set -e
+        old=$(while read p v; do
+          h=$(rpm -q --qf '%{version}-%{release}' "$p" 2>/dev/null) &&
+            [ "$(rpm --eval "%{lua:print(rpm.vercmp('$h','$v'))}")" -ge 0 ] || echo "$p"
+        done <<'EOF'
+        lutris 0.5.22-6
+        mangohud 0.8.3~rc1-7
+        mesa-vulkan-drivers 26.3.0~git20261003.888a19e2-2
+        wine-git 11.19^0.git.455e350-ec.10
+        fex-emu-wine-git 2609.1^5.git.79a7afe-8
+        wine-dxvk 3.1.1-ec3
+        wine-vkd3d-proton 3.0.1-ec5
+        EOF
+        )
+        [ -z "$old" ] && exit 0
+        pkexec sh -c "dnf -y copr enable lacamar/arm64-misc &&
+          dnf -y copr enable lacamar/wine-arm64ec &&
+          dnf -y --refresh --allow-vendor-change --allowerasing install $(echo $old) &&
+          dnf -y --allow-vendor-change upgrade 'mesa*' $(echo $old)"
+  - task:
+      name: create_prefix
+      prefix: $GAMEDIR
+      arch: win64
+  system:
+    env:
+      DISPLAY: ''
+      FEX_X87REDUCEDPRECISION: '1'
+  wine:
+    version: system
+    dxvk: true
+    dxvk_version: system
+    vkd3d: true
+    vkd3d_version: system
