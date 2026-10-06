@@ -1,0 +1,1357 @@
+--- a/dlls/winewayland.drv/Makefile.in
++++ b/dlls/winewayland.drv/Makefile.in
+@@ -16,6 +16,7 @@
+ 	fractional-scale-v1.xml \
+ 	opengl.c \
+ 	pointer-constraints-unstable-v1.xml \
++	pointer-gestures-unstable-v1.xml \
+ 	pointer-warp-v1.xml \
+ 	relative-pointer-unstable-v1.xml \
+ 	text-input-unstable-v3.xml \
+@@ -33,5 +34,8 @@
+ 	window_surface.c \
+ 	wlr-data-control-unstable-v1.xml \
+ 	xdg-output-unstable-v1.xml \
++	xdg-session-management-v1.xml \
+ 	xdg-shell.xml \
+-	xdg-toplevel-icon-v1.xml
++	xdg-system-bell-v1.xml \
++	xdg-toplevel-icon-v1.xml \
++	xdg-toplevel-tag-v1.xml
+--- a/dlls/winewayland.drv/wayland.c
++++ b/dlls/winewayland.drv/wayland.c
+@@ -172,6 +172,21 @@
+         process_wayland.zwp_pointer_constraints_v1 =
+             wl_registry_bind(registry, id, &zwp_pointer_constraints_v1_interface, 1);
+     }
++    else if (strcmp(interface, "zwp_pointer_gestures_v1") == 0)
++    {
++        process_wayland.zwp_pointer_gestures_v1 =
++            wl_registry_bind(registry, id, &zwp_pointer_gestures_v1_interface, 1);
++    }
++    else if (strcmp(interface, "xdg_system_bell_v1") == 0)
++    {
++        process_wayland.xdg_system_bell_v1 =
++            wl_registry_bind(registry, id, &xdg_system_bell_v1_interface, 1);
++    }
++    else if (strcmp(interface, "xdg_toplevel_tag_manager_v1") == 0)
++    {
++        process_wayland.xdg_toplevel_tag_manager_v1 =
++            wl_registry_bind(registry, id, &xdg_toplevel_tag_manager_v1_interface, 1);
++    }
+     else if (strcmp(interface, "zwp_relative_pointer_manager_v1") == 0)
+     {
+         process_wayland.zwp_relative_pointer_manager_v1 =
+@@ -183,16 +198,33 @@
+             wl_registry_bind(registry, id, &zwp_text_input_manager_v3_interface, 1);
+         if (process_wayland.seat.wl_seat) wayland_text_input_init();
+     }
+-    else if (strcmp(interface, "zwlr_data_control_manager_v1") == 0)
+-    {
+-        process_wayland.zwlr_data_control_manager_v1 =
+-            wl_registry_bind(registry, id, &zwlr_data_control_manager_v1_interface, 1);
++    else if ((strcmp(interface, "zwlr_data_control_manager_v1") == 0 ||
++              strcmp(interface, "ext_data_control_manager_v1") == 0) &&
++             !process_wayland.zwlr_data_control_manager_v1)
++    {
++        /* ext-data-control-v1 is wire-compatible with wlr-data-control v2 */
++        static struct wl_interface ext_data_control_manager_v1_interface;
++        const struct wl_interface *iface = &zwlr_data_control_manager_v1_interface;
++
++        if (interface[0] == 'e')
++        {
++            ext_data_control_manager_v1_interface = *iface;
++            ext_data_control_manager_v1_interface.name = "ext_data_control_manager_v1";
++            ext_data_control_manager_v1_interface.version = 1;
++            iface = &ext_data_control_manager_v1_interface;
++        }
++        process_wayland.zwlr_data_control_manager_v1 = wl_registry_bind(registry, id, iface, 1);
+     }
+     else if (strcmp(interface, "wl_data_device_manager") == 0)
+     {
+         process_wayland.wl_data_device_manager =
+             wl_registry_bind(registry, id, &wl_data_device_manager_interface, 2);
+     }
++    else if (strcmp(interface, "xdg_session_manager_v1") == 0)
++    {
++        process_wayland.xdg_session_manager_v1 =
++            wl_registry_bind(registry, id, &xdg_session_manager_v1_interface, 1);
++    }
+     else if (strcmp(interface, "xdg_toplevel_icon_manager_v1") == 0)
+     {
+         process_wayland.xdg_toplevel_icon_manager_v1 =
+@@ -376,9 +408,11 @@
+         if (!process_wayland.wl_data_device_manager)
+             ERR("Wayland compositor doesn't support optional wl_data_device_manager (clipboard won't work)\n");
+         else
+-            ERR("Wayland compositor doesn't support optional zwlr_data_control_manager_v1 (clipboard functionality will be limited)\n");
++            ERR("Wayland compositor doesn't support optional ext_data_control_manager_v1 (clipboard functionality will be limited)\n");
+     }
+ 
++    if (!process_wayland.xdg_session_manager_v1)
++        ERR("Wayland compositor doesn't support optional xdg_session_manager_v1 (window placement won't be restored)\n");
+     if (!process_wayland.xdg_toplevel_icon_manager_v1)
+         ERR("Wayland compositor doesn't support xdg_toplevel_icon_manager_v1 (window icons will not be supported)\n");
+ 
+@@ -392,3 +426,181 @@
+ 
+     return TRUE;
+ }
++
++/**********************************************************************
++ *          Wayland session
++ */
++
++static pthread_mutex_t session_mutex = PTHREAD_MUTEX_INITIALIZER;
++static struct xdg_session_v1 *xdg_session;
++static struct wl_list session_toplevels = {&session_toplevels, &session_toplevels};
++static BOOL session_replaced;
++
++static HKEY open_sessions_key(BOOL create)
++{
++    HKEY hkey;
++
++    if (create && (hkey = open_hkcu_key("Software\\Wine\\Wayland Driver", TRUE))) NtClose(hkey);
++    return open_hkcu_key("Software\\Wine\\Wayland Driver\\Sessions", create);
++}
++
++static BOOL load_session_id(char *id, ULONG size)
++{
++    UNICODE_STRING *name = &NtCurrentTeb()->Peb->ProcessParameters->ImagePathName;
++    char buffer[offsetof(KEY_VALUE_PARTIAL_INFORMATION, Data[256 * sizeof(WCHAR)])];
++    KEY_VALUE_PARTIAL_INFORMATION *info = (KEY_VALUE_PARTIAL_INFORMATION *)buffer;
++    BOOL ret = FALSE;
++    ULONG len;
++    HKEY hkey;
++
++    if (!(hkey = open_sessions_key(FALSE))) return FALSE;
++    if (!NtQueryValueKey(hkey, name, KeyValuePartialInformation, buffer, sizeof(buffer), &len) &&
++        info->Type == REG_SZ && info->DataLength > sizeof(WCHAR) &&
++        !RtlUnicodeToUTF8N(id, size - 1, &len, (WCHAR *)info->Data, info->DataLength - sizeof(WCHAR)))
++    {
++        id[len] = 0;
++        ret = TRUE;
++    }
++    NtClose(hkey);
++    return ret;
++}
++
++static void session_handle_created(void *data, struct xdg_session_v1 *session, const char *id)
++{
++    UNICODE_STRING *name = &NtCurrentTeb()->Peb->ProcessParameters->ImagePathName;
++    WCHAR idW[256];
++    ULONG len;
++    HKEY hkey;
++
++    TRACE("id=%s\n", debugstr_a(id));
++
++    if (RtlUTF8ToUnicodeN(idW, sizeof(idW) - sizeof(WCHAR), &len, id, strlen(id))) return;
++    idW[len / sizeof(WCHAR)] = 0;
++    if (!(hkey = open_sessions_key(TRUE))) return;
++    NtSetValueKey(hkey, name, 0, REG_SZ, idW, len + sizeof(WCHAR));
++    NtClose(hkey);
++}
++
++static void session_handle_restored(void *data, struct xdg_session_v1 *session)
++{
++    TRACE("\n");
++}
++
++static void session_handle_replaced(void *data, struct xdg_session_v1 *session)
++{
++    TRACE("\n");
++
++    pthread_mutex_lock(&session_mutex);
++    if (xdg_session == session)
++    {
++        xdg_session_v1_destroy(xdg_session);
++        xdg_session = NULL;
++        session_replaced = TRUE;
++    }
++    pthread_mutex_unlock(&session_mutex);
++}
++
++static const struct xdg_session_v1_listener session_listener =
++{
++    session_handle_created,
++    session_handle_restored,
++    session_handle_replaced,
++};
++
++static void toplevel_session_handle_restored(void *private, struct xdg_toplevel_session_v1 *toplevel_session)
++{
++    struct wayland_surface *surface;
++    struct wayland_win_data *data;
++    HWND hwnd = private;
++
++    TRACE("hwnd=%p\n", hwnd);
++
++    if (!(data = wayland_win_data_get(hwnd))) return;
++    if ((surface = data->wayland_surface) && wayland_surface_is_toplevel(surface) &&
++        surface->xdg_toplevel_session == toplevel_session)
++        surface->session_restored = TRUE;
++    wayland_win_data_release(data);
++}
++
++static const struct xdg_toplevel_session_v1_listener toplevel_session_listener =
++{
++    toplevel_session_handle_restored,
++};
++
++static BOOL session_name_in_use(const char *name)
++{
++    struct wayland_surface *surface;
++
++    wl_list_for_each(surface, &session_toplevels, session_link)
++        if (!strcmp(surface->session_name, name)) return TRUE;
++    return FALSE;
++}
++
++void wayland_session_add_toplevel(struct wayland_surface *surface)
++{
++    WCHAR classW[256];
++    UNICODE_STRING class = {0, sizeof(classW), classW};
++    char name[1024], id[256];
++    ULONG len;
++    int count, n;
++
++    if (!(count = NtUserGetClassName(surface->hwnd, FALSE, &class))) return;
++    if (RtlUnicodeToUTF8N(name, sizeof(name) - 16, &len, classW, count * sizeof(WCHAR))) return;
++    name[len] = 0;
++
++    if (process_wayland.xdg_toplevel_tag_manager_v1)
++        xdg_toplevel_tag_manager_v1_set_toplevel_tag(process_wayland.xdg_toplevel_tag_manager_v1,
++                                                     surface->xdg_toplevel, name);
++    if (!process_wayland.xdg_session_manager_v1) return;
++
++    pthread_mutex_lock(&session_mutex);
++
++    if (!xdg_session && !session_replaced)
++    {
++        xdg_session = xdg_session_manager_v1_get_session(process_wayland.xdg_session_manager_v1,
++                                                         XDG_SESSION_MANAGER_V1_REASON_LAUNCH,
++                                                         load_session_id(id, sizeof(id)) ? id : NULL);
++        xdg_session_v1_add_listener(xdg_session, &session_listener, NULL);
++    }
++
++    if (xdg_session)
++    {
++        for (n = 0;; n++)
++        {
++            if (n) snprintf(name + len, sizeof(name) - len, "#%d", n);
++            else name[len] = 0;
++            if (!session_name_in_use(name)) break;
++        }
++
++        TRACE("hwnd=%p name=%s\n", surface->hwnd, debugstr_a(name));
++        surface->session_name = strdup(name);
++        surface->xdg_toplevel_session =
++            xdg_session_v1_restore_toplevel(xdg_session, surface->xdg_toplevel, name);
++        xdg_toplevel_session_v1_add_listener(surface->xdg_toplevel_session,
++                                             &toplevel_session_listener, surface->hwnd);
++        wl_list_insert(&session_toplevels, &surface->session_link);
++    }
++
++    pthread_mutex_unlock(&session_mutex);
++}
++
++void wayland_session_remove_toplevel(struct wayland_surface *surface)
++{
++    if (!surface->xdg_toplevel_session) return;
++
++    pthread_mutex_lock(&session_mutex);
++    xdg_toplevel_session_v1_destroy(surface->xdg_toplevel_session);
++    surface->xdg_toplevel_session = NULL;
++    wl_list_remove(&surface->session_link);
++    free(surface->session_name);
++    surface->session_name = NULL;
++    surface->session_restored = FALSE;
++    pthread_mutex_unlock(&session_mutex);
++}
++
++void WAYLAND_Beep(void)
++{
++    if (!process_wayland.xdg_system_bell_v1) return;
++    xdg_system_bell_v1_ring(process_wayland.xdg_system_bell_v1, NULL);
++    wl_display_flush(process_wayland.wl_display);
++}
+--- a/dlls/winewayland.drv/wayland_data_device.c
++++ b/dlls/winewayland.drv/wayland_data_device.c
+@@ -585,11 +585,21 @@
+ {
+ }
+ 
++static void data_control_device_primary_selection(
++    void *data,
++    struct zwlr_data_control_device_v1 *zwlr_data_control_device_v1,
++    struct zwlr_data_control_offer_v1 *zwlr_data_control_offer_v1)
++{
++    if (zwlr_data_control_offer_v1)
++        wayland_data_offer_destroy(zwlr_data_control_offer_v1_get_user_data(zwlr_data_control_offer_v1));
++}
++
+ static const struct zwlr_data_control_device_v1_listener data_control_device_listener =
+ {
+     data_control_device_data_offer,
+     data_control_device_selection,
+     data_control_device_finished,
++    data_control_device_primary_selection,
+ };
+ 
+ /**********************************************************************
+--- a/dlls/winewayland.drv/waylanddrv.h
++++ b/dlls/winewayland.drv/waylanddrv.h
+@@ -38,10 +38,14 @@
+ #include "xdg-shell-client-protocol.h"
+ #include "wlr-data-control-unstable-v1-client-protocol.h"
+ #include "xdg-toplevel-icon-v1-client-protocol.h"
++#include "xdg-session-management-v1-client-protocol.h"
+ #include "pointer-warp-v1-client-protocol.h"
+ #include "alpha-modifier-v1-client-protocol.h"
+ #include "fractional-scale-v1-client-protocol.h"
+ #include "color-management-v1-client-protocol.h"
++#include "pointer-gestures-unstable-v1-client-protocol.h"
++#include "xdg-system-bell-v1-client-protocol.h"
++#include "xdg-toplevel-tag-v1-client-protocol.h"
+ 
+ #include "windef.h"
+ #include "winbase.h"
+@@ -60,6 +64,8 @@
+  */
+ 
+ extern char *process_name;
++
++HKEY open_hkcu_key(const char *name, BOOL create);
+ extern int host_decorations;
+ extern char primary_output_name[64];
+ extern struct wayland process_wayland;
+@@ -122,6 +128,7 @@
+     struct zwp_locked_pointer_v1 *zwp_locked_pointer_v1;
+     struct zwp_relative_pointer_v1 *zwp_relative_pointer_v1;
+     struct wp_cursor_shape_device_v1 *wp_cursor_shape_device_v1;
++    struct zwp_pointer_gesture_pinch_v1 *zwp_pointer_gesture_pinch_v1;
+     HWND focused_hwnd;
+     HWND constraint_hwnd;
+     BOOL relative_mode;
+@@ -134,6 +141,9 @@
+     uint32_t axis_source;
+     double scroll_accum_v;
+     double scroll_accum_h;
++    double pinch_scale;
++    double pinch_accum;
++    BOOL pinch_ctrl;
+     pthread_mutex_t mutex;
+ };
+ 
+@@ -196,6 +206,10 @@
+     struct zwlr_data_control_manager_v1 *zwlr_data_control_manager_v1;
+     struct wl_data_device_manager *wl_data_device_manager;
+     struct xdg_toplevel_icon_manager_v1 *xdg_toplevel_icon_manager_v1;
++    struct xdg_session_manager_v1 *xdg_session_manager_v1;
++    struct zwp_pointer_gestures_v1 *zwp_pointer_gestures_v1;
++    struct xdg_system_bell_v1 *xdg_system_bell_v1;
++    struct xdg_toplevel_tag_manager_v1 *xdg_toplevel_tag_manager_v1;
+     BOOL supports_decorations;
+     struct wp_cursor_shape_manager_v1 *wp_cursor_shape_manager_v1;
+     struct wp_pointer_warp_v1 *wp_pointer_warp_v1;
+@@ -308,6 +322,10 @@
+             struct xdg_surface *xdg_surface;
+             struct xdg_toplevel *xdg_toplevel;
+             struct xdg_toplevel_icon_v1 *xdg_toplevel_icon;
++            struct xdg_toplevel_session_v1 *xdg_toplevel_session;
++            char *session_name;
++            struct wl_list session_link;
++            BOOL session_restored;
+         };
+         struct
+         {
+@@ -339,6 +357,13 @@
+ void wayland_output_use_xdg_extension(struct wayland_output *output);
+ 
+ /**********************************************************************
++ *          Wayland session
++ */
++
++void wayland_session_add_toplevel(struct wayland_surface *surface);
++void wayland_session_remove_toplevel(struct wayland_surface *surface);
++
++/**********************************************************************
+  *          Wayland surface
+  */
+ 
+@@ -477,6 +502,7 @@
+  *          USER driver functions
+  */
+ 
++void WAYLAND_Beep(void);
+ LRESULT WAYLAND_ClipboardWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+ BOOL WAYLAND_ClipCursor(const RECT *clip, BOOL reset);
+ LRESULT WAYLAND_DesktopWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
+--- a/dlls/winewayland.drv/waylanddrv_main.c
++++ b/dlls/winewayland.drv/waylanddrv_main.c
+@@ -37,6 +37,7 @@
+ 
+ static const struct user_driver_funcs waylanddrv_funcs =
+ {
++    .pBeep = WAYLAND_Beep,
+     .pClipboardWindowProc = WAYLAND_ClipboardWindowProc,
+     .pClipCursor = WAYLAND_ClipCursor,
+     .pDesktopWindowProc = WAYLAND_DesktopWindowProc,
+@@ -91,17 +92,18 @@
+     }
+ }
+ 
+-static HKEY reg_open_key(HKEY root, const WCHAR *name, ULONG name_len)
++static HKEY reg_open_key(HKEY root, const WCHAR *name, ULONG name_len, BOOL create)
+ {
+     UNICODE_STRING nameW = { name_len, name_len, (WCHAR *)name };
+     OBJECT_ATTRIBUTES attr;
+     HANDLE ret;
+ 
+     InitializeObjectAttributes(&attr, &nameW, 0, root, NULL);
++    if (create) return NtCreateKey(&ret, KEY_ALL_ACCESS, &attr, 0, NULL, 0, NULL) ? 0 : ret;
+     return NtOpenKeyEx(&ret, KEY_READ, &attr, 0) ? 0 : ret;
+ }
+ 
+-static HKEY open_hkcu_key(const char *name)
++HKEY open_hkcu_key(const char *name, BOOL create)
+ {
+     DWORD_PTR sid_data[(sizeof(TOKEN_USER) + SECURITY_MAX_SID_SIZE) / sizeof(DWORD_PTR)];
+     char buffer[256];
+@@ -121,7 +123,7 @@
+     len += snprintf(buffer + len, sizeof(buffer) - len, "\\%s", name);
+ 
+     for (i = 0; i <= len; i++) bufferW[i] = (unsigned char)buffer[i];
+-    return reg_open_key(NULL, bufferW, len * sizeof(WCHAR));
++    return reg_open_key(NULL, bufferW, len * sizeof(WCHAR), create);
+ }
+ 
+ static void wayland_init_primary_output(void);
+@@ -136,7 +138,7 @@
+     HKEY hkey;
+     ULONG size;
+ 
+-    if (!(hkey = open_hkcu_key("Software\\Wine\\X11 Driver"))) return;
++    if (!(hkey = open_hkcu_key("Software\\Wine\\X11 Driver", FALSE))) return;
+     if (!NtQueryValueKey(hkey, &nameW, KeyValuePartialInformation, buffer, sizeof(buffer), &size) &&
+         info->Type == REG_SZ && info->DataLength >= sizeof(WCHAR))
+     {
+@@ -157,7 +159,7 @@
+     ULONG size;
+     HKEY hkey;
+ 
+-    if (!(hkey = open_hkcu_key("Software\\Wine\\Wayland Driver"))) return;
++    if (!(hkey = open_hkcu_key("Software\\Wine\\Wayland Driver", FALSE))) return;
+     if (!NtQueryValueKey(hkey, &nameW, KeyValuePartialInformation, buffer, sizeof(buffer), &size) &&
+         info->Type == REG_SZ)
+     {
+--- a/dlls/winewayland.drv/wayland_pointer.c
++++ b/dlls/winewayland.drv/wayland_pointer.c
+@@ -451,6 +451,70 @@
+     relative_pointer_v1_relative_motion
+ };
+ 
++static void send_pinch_ctrl(HWND hwnd, BOOL up)
++{
++    INPUT input = {.type = INPUT_KEYBOARD};
++
++    input.ki.wScan = 0x1d;
++    input.ki.dwFlags = KEYEVENTF_SCANCODE | (up ? KEYEVENTF_KEYUP : 0);
++    NtUserSendHardwareInput(hwnd, 0, &input, 0);
++}
++
++static void pinch_begin(void *data, struct zwp_pointer_gesture_pinch_v1 *pinch,
++                        uint32_t serial, uint32_t time, struct wl_surface *surface,
++                        uint32_t fingers)
++{
++    struct wayland_pointer *pointer = &process_wayland.pointer;
++
++    pointer->pinch_scale = 1.0;
++    pointer->pinch_accum = 0.0;
++    pointer->pinch_ctrl = FALSE;
++}
++
++/* pinch zoom as Ctrl+wheel, as on Windows precision touchpads */
++static void pinch_update(void *data, struct zwp_pointer_gesture_pinch_v1 *pinch,
++                         uint32_t time, wl_fixed_t dx, wl_fixed_t dy,
++                         wl_fixed_t scale, wl_fixed_t rotation)
++{
++    struct wayland_pointer *pointer = &process_wayland.pointer;
++    double s = wl_fixed_to_double(scale);
++    INPUT input = {.type = INPUT_MOUSE};
++    HWND hwnd;
++    int delta;
++
++    if (s <= 0 || !(hwnd = wayland_pointer_get_focused_hwnd())) return;
++    pointer->pinch_accum += log(s / pointer->pinch_scale) * 4.33 * WHEEL_DELTA;
++    pointer->pinch_scale = s;
++    if (!(delta = pointer->pinch_accum)) return;
++
++    if (!pointer->pinch_ctrl && !(NtUserGetAsyncKeyState(VK_CONTROL) & 0x8000))
++    {
++        send_pinch_ctrl(hwnd, FALSE);
++        pointer->pinch_ctrl = TRUE;
++    }
++    input.mi.dwFlags = MOUSEEVENTF_WHEEL;
++    input.mi.mouseData = delta;
++    NtUserSendHardwareInput(hwnd, SEND_HWMSG_RAWINPUT, &input, 0);
++    pointer->pinch_accum -= delta;
++}
++
++static void pinch_end(void *data, struct zwp_pointer_gesture_pinch_v1 *pinch,
++                      uint32_t serial, uint32_t time, int32_t cancelled)
++{
++    struct wayland_pointer *pointer = &process_wayland.pointer;
++    HWND hwnd = wayland_pointer_get_focused_hwnd();
++
++    if (pointer->pinch_ctrl) send_pinch_ctrl(hwnd, TRUE);
++    pointer->pinch_ctrl = FALSE;
++}
++
++static const struct zwp_pointer_gesture_pinch_v1_listener pinch_listener =
++{
++    pinch_begin,
++    pinch_update,
++    pinch_end
++};
++
+ void wayland_pointer_init(struct wl_pointer *wl_pointer)
+ {
+     struct wayland_pointer *pointer = &process_wayland.pointer;
+@@ -473,6 +537,15 @@
+         zwp_relative_pointer_v1_add_listener(pointer->zwp_relative_pointer_v1,
+                                              &relative_pointer_v1_listener, NULL);
+     }
++
++    if (process_wayland.zwp_pointer_gestures_v1)
++    {
++        pointer->zwp_pointer_gesture_pinch_v1 =
++            zwp_pointer_gestures_v1_get_pinch_gesture(process_wayland.zwp_pointer_gestures_v1,
++                                                      pointer->wl_pointer);
++        zwp_pointer_gesture_pinch_v1_add_listener(pointer->zwp_pointer_gesture_pinch_v1,
++                                                  &pinch_listener, NULL);
++    }
+ }
+ 
+ void wayland_pointer_deinit(void)
+@@ -500,6 +573,11 @@
+         wp_cursor_shape_device_v1_destroy(pointer->wp_cursor_shape_device_v1);
+         pointer->wp_cursor_shape_device_v1 = NULL;
+     }
++    if (pointer->zwp_pointer_gesture_pinch_v1)
++    {
++        zwp_pointer_gesture_pinch_v1_destroy(pointer->zwp_pointer_gesture_pinch_v1);
++        pointer->zwp_pointer_gesture_pinch_v1 = NULL;
++    }
+     wl_pointer_release(pointer->wl_pointer);
+     pointer->wl_pointer = NULL;
+     pointer->focused_hwnd = NULL;
+--- a/dlls/winewayland.drv/wayland_surface.c
++++ b/dlls/winewayland.drv/wayland_surface.c
+@@ -490,6 +490,8 @@
+ 
+     wayland_surface_init_fractional_scale(surface, 1.0);
+ 
++    wayland_session_add_toplevel(surface);
++
+     wl_surface_commit(surface->wl_surface);
+     wl_display_flush(process_wayland.wl_display);
+ 
+@@ -582,6 +584,8 @@
+             xdg_toplevel_destroy(surface->xdg_toplevel);
+             surface->xdg_toplevel = NULL;
+         }
++        /* destroying the toplevel first lets the compositor save its state */
++        wayland_session_remove_toplevel(surface);
+ 
+         if (surface->xdg_surface)
+         {
+@@ -866,6 +870,7 @@
+      * config, use that, in order to draw windows that don't go through the
+      * message loop (e.g., some splash screens). */
+     else if (!surface->current.serial && surface->requested.serial &&
++             !(surface->session_restored && window->resizeable) &&
+              wayland_surface_config_is_compatible(&surface->requested, rect,
+                                                   window->state))
+     {
+--- a/dlls/winewayland.drv/window.c
++++ b/dlls/winewayland.drv/window.c
+@@ -548,9 +548,10 @@
+     state = surface->processing.state;
+     /* Ignore size hints if we don't have a state that requires strict
+      * size adherence, in order to avoid spurious resizes. */
+-    if (state &&
+-        !(!data->resizeable &&
+-          !(state & ~(WAYLAND_SURFACE_CONFIG_STATE_TILED | WAYLAND_SURFACE_CONFIG_STATE_RESIZING))))
++    if ((state &&
++         !(!data->resizeable &&
++           !(state & ~(WAYLAND_SURFACE_CONFIG_STATE_TILED | WAYLAND_SURFACE_CONFIG_STATE_RESIZING)))) ||
++        (surface->session_restored && !surface->current.serial && data->resizeable))
+     {
+         width = surface->processing.rect.right - surface->processing.rect.left;
+         height = surface->processing.rect.bottom - surface->processing.rect.top;
+--- /dev/null
++++ b/dlls/winewayland.drv/pointer-gestures-unstable-v1.xml
+@@ -0,0 +1,277 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<protocol name="pointer_gestures_unstable_v1">
++  <copyright>
++    Copyright © 2015, 2021 Red Hat Inc.
++
++    Permission to use, copy, modify, distribute, and sell this
++    software and its documentation for any purpose is hereby granted
++    without fee, provided that the above copyright notice appear in
++    all copies and that both that copyright notice and this permission
++    notice appear in supporting documentation, and that the name of
++    the copyright holders not be used in advertising or publicity
++    pertaining to distribution of the software without specific,
++    written prior permission.  The copyright holders make no
++    representations about the suitability of this software for any
++    purpose.  It is provided "as is" without express or implied
++    warranty.
++
++    THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
++    SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
++    FITNESS, IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY
++    SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
++    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
++    AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
++    ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
++    THIS SOFTWARE.
++  </copyright>
++
++  <interface name="zwp_pointer_gestures_v1" version="3">
++    <description summary="touchpad gestures">
++      A global interface to provide semantic touchpad gestures for a given
++      pointer.
++
++      Three gestures are currently supported: swipe, pinch, and hold.
++      Pinch and swipe gestures follow a three-stage cycle: begin, update,
++      end. Hold gestures follow a two-stage cycle: begin and end. All
++      gestures are identified by a unique id.
++
++      Warning! The protocol described in this file is experimental and
++      backward incompatible changes may be made. Backward compatible changes
++      may be added together with the corresponding interface version bump.
++      Backward incompatible changes are done by bumping the version number in
++      the protocol and interface names and resetting the interface version.
++      Once the protocol is to be declared stable, the 'z' prefix and the
++      version number in the protocol and interface names are removed and the
++      interface version number is reset.
++    </description>
++
++    <request name="get_swipe_gesture">
++      <description summary="get swipe gesture">
++	Create a swipe gesture object. See the
++	wl_pointer_gesture_swipe interface for details.
++      </description>
++      <arg name="id" type="new_id" interface="zwp_pointer_gesture_swipe_v1"/>
++      <arg name="pointer" type="object" interface="wl_pointer"/>
++    </request>
++
++    <request name="get_pinch_gesture">
++      <description summary="get pinch gesture">
++	Create a pinch gesture object. See the
++	wl_pointer_gesture_pinch interface for details.
++      </description>
++      <arg name="id" type="new_id" interface="zwp_pointer_gesture_pinch_v1"/>
++      <arg name="pointer" type="object" interface="wl_pointer"/>
++    </request>
++
++    <!-- Version 2 additions -->
++
++    <request name="release" type="destructor" since="2">
++      <description summary="destroy the pointer gesture object">
++	Destroy the pointer gesture object. Swipe, pinch and hold objects
++	created via this gesture object remain valid.
++      </description>
++    </request>
++
++    <!-- Version 3 additions -->
++
++    <request name="get_hold_gesture" since="3">
++      <description summary="get hold gesture">
++	Create a hold gesture object. See the
++	wl_pointer_gesture_hold interface for details.
++      </description>
++      <arg name="id" type="new_id" interface="zwp_pointer_gesture_hold_v1"/>
++      <arg name="pointer" type="object" interface="wl_pointer"/>
++    </request>
++
++  </interface>
++
++  <interface name="zwp_pointer_gesture_swipe_v1" version="3">
++    <description summary="a swipe gesture object">
++      A swipe gesture object notifies a client about a multi-finger swipe
++      gesture detected on an indirect input device such as a touchpad.
++      The gesture is usually initiated by multiple fingers moving in the
++      same direction but once initiated the direction may change.
++      The precise conditions of when such a gesture is detected are
++      implementation-dependent.
++
++      A gesture consists of three stages: begin, update (optional) and end.
++      There cannot be multiple simultaneous hold, pinch or swipe gestures on a
++      same pointer/seat, how compositors prevent these situations is
++      implementation-dependent.
++
++      A gesture may be cancelled by the compositor or the hardware.
++      Clients should not consider performing permanent or irreversible
++      actions until the end of a gesture has been received.
++    </description>
++
++    <request name="destroy" type="destructor">
++      <description summary="destroy the pointer swipe gesture object"/>
++    </request>
++
++    <event name="begin">
++      <description summary="multi-finger swipe begin">
++	This event is sent when a multi-finger swipe gesture is detected
++	on the device.
++      </description>
++      <arg name="serial" type="uint"/>
++      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
++      <arg name="surface" type="object" interface="wl_surface"/>
++      <arg name="fingers" type="uint" summary="number of fingers"/>
++    </event>
++
++    <event name="update">
++      <description summary="multi-finger swipe motion">
++	This event is sent when a multi-finger swipe gesture changes the
++	position of the logical center.
++
++	The dx and dy coordinates are relative coordinates of the logical
++	center of the gesture compared to the previous event.
++      </description>
++      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
++      <arg name="dx" type="fixed" summary="delta x coordinate in surface coordinate space"/>
++      <arg name="dy" type="fixed" summary="delta y coordinate in surface coordinate space"/>
++    </event>
++
++    <event name="end">
++      <description summary="multi-finger swipe end">
++	This event is sent when a multi-finger swipe gesture ceases to
++	be valid. This may happen when one or more fingers are lifted or
++	the gesture is cancelled.
++
++	When a gesture is cancelled, the client should undo state changes
++	caused by this gesture. What causes a gesture to be cancelled is
++	implementation-dependent.
++      </description>
++      <arg name="serial" type="uint"/>
++      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
++      <arg name="cancelled" type="int" summary="1 if the gesture was cancelled, 0 otherwise"/>
++    </event>
++  </interface>
++
++  <interface name="zwp_pointer_gesture_pinch_v1" version="3">
++    <description summary="a pinch gesture object">
++      A pinch gesture object notifies a client about a multi-finger pinch
++      gesture detected on an indirect input device such as a touchpad.
++      The gesture is usually initiated by multiple fingers moving towards
++      each other or away from each other, or by two or more fingers rotating
++      around a logical center of gravity. The precise conditions of when
++      such a gesture is detected are implementation-dependent.
++
++      A gesture consists of three stages: begin, update (optional) and end.
++      There cannot be multiple simultaneous hold, pinch or swipe gestures on a
++      same pointer/seat, how compositors prevent these situations is
++      implementation-dependent.
++
++      A gesture may be cancelled by the compositor or the hardware.
++      Clients should not consider performing permanent or irreversible
++      actions until the end of a gesture has been received.
++    </description>
++
++    <request name="destroy" type="destructor">
++      <description summary="destroy the pinch gesture object"/>
++    </request>
++
++    <event name="begin">
++      <description summary="multi-finger pinch begin">
++	This event is sent when a multi-finger pinch gesture is detected
++	on the device.
++      </description>
++      <arg name="serial" type="uint"/>
++      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
++      <arg name="surface" type="object" interface="wl_surface"/>
++      <arg name="fingers" type="uint" summary="number of fingers"/>
++    </event>
++
++    <event name="update">
++      <description summary="multi-finger pinch motion">
++	This event is sent when a multi-finger pinch gesture changes the
++	position of the logical center, the rotation or the relative scale.
++
++	The dx and dy coordinates are relative coordinates in the
++	surface coordinate space of the logical center of the gesture.
++
++	The scale factor is an absolute scale compared to the
++	pointer_gesture_pinch.begin event, e.g. a scale of 2 means the fingers
++	are now twice as far apart as on pointer_gesture_pinch.begin.
++
++	The rotation is the relative angle in degrees clockwise compared to the previous
++	pointer_gesture_pinch.begin or pointer_gesture_pinch.update event.
++      </description>
++      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
++      <arg name="dx" type="fixed" summary="delta x coordinate in surface coordinate space"/>
++      <arg name="dy" type="fixed" summary="delta y coordinate in surface coordinate space"/>
++      <arg name="scale" type="fixed" summary="scale relative to the initial finger position"/>
++      <arg name="rotation" type="fixed" summary="angle in degrees cw relative to the previous event"/>
++    </event>
++
++    <event name="end">
++      <description summary="multi-finger pinch end">
++	This event is sent when a multi-finger pinch gesture ceases to
++	be valid. This may happen when one or more fingers are lifted or
++	the gesture is cancelled.
++
++	When a gesture is cancelled, the client should undo state changes
++	caused by this gesture. What causes a gesture to be cancelled is
++	implementation-dependent.
++      </description>
++      <arg name="serial" type="uint"/>
++      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
++      <arg name="cancelled" type="int" summary="1 if the gesture was cancelled, 0 otherwise"/>
++    </event>
++
++  </interface>
++
++  <interface name="zwp_pointer_gesture_hold_v1" version="3">
++    <description summary="a hold gesture object">
++      A hold gesture object notifies a client about a single- or
++      multi-finger hold gesture detected on an indirect input device such as
++      a touchpad. The gesture is usually initiated by one or more fingers
++      being held down without significant movement. The precise conditions
++      of when such a gesture is detected are implementation-dependent.
++
++      In particular, this gesture may be used to cancel kinetic scrolling.
++
++      A hold gesture consists of two stages: begin and end. Unlike pinch and
++      swipe there is no update stage.
++      There cannot be multiple simultaneous hold, pinch or swipe gestures on a
++      same pointer/seat, how compositors prevent these situations is
++      implementation-dependent.
++
++      A gesture may be cancelled by the compositor or the hardware.
++      Clients should not consider performing permanent or irreversible
++      actions until the end of a gesture has been received.
++    </description>
++
++    <request name="destroy" type="destructor" since="3">
++      <description summary="destroy the hold gesture object"/>
++    </request>
++
++    <event name="begin" since="3">
++      <description summary="multi-finger hold begin">
++	This event is sent when a hold gesture is detected on the device.
++      </description>
++      <arg name="serial" type="uint"/>
++      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
++      <arg name="surface" type="object" interface="wl_surface"/>
++      <arg name="fingers" type="uint" summary="number of fingers"/>
++    </event>
++
++    <event name="end" since="3">
++      <description summary="multi-finger hold end">
++	This event is sent when a hold gesture ceases to
++	be valid. This may happen when the holding fingers are lifted or
++	the gesture is cancelled, for example if the fingers move past an
++	implementation-defined threshold, the finger count changes or the hold
++	gesture changes into a different type of gesture.
++
++	When a gesture is cancelled, the client may need to undo state changes
++	caused by this gesture. What causes a gesture to be cancelled is
++	implementation-dependent.
++      </description>
++      <arg name="serial" type="uint"/>
++      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
++      <arg name="cancelled" type="int" summary="1 if the gesture was cancelled, 0 otherwise"/>
++    </event>
++
++  </interface>
++</protocol>
+--- /dev/null
++++ b/dlls/winewayland.drv/xdg-system-bell-v1.xml
+@@ -0,0 +1,58 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<protocol name="xdg_system_bell_v1">
++  <copyright>
++    Copyright © 2016, 2023 Red Hat
++
++    Permission is hereby granted, free of charge, to any person obtaining a
++    copy of this software and associated documentation files (the "Software"),
++    to deal in the Software without restriction, including without limitation
++    the rights to use, copy, modify, merge, publish, distribute, sublicense,
++    and/or sell copies of the Software, and to permit persons to whom the
++    Software is furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice (including the next
++    paragraph) shall be included in all copies or substantial portions of the
++    Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++  </copyright>
++
++  <interface name="xdg_system_bell_v1" version="1">
++    <description summary="system bell">
++      This global interface enables clients to ring the system bell.
++
++      Warning! The protocol described in this file is currently in the testing
++      phase. Backward compatible changes may be added together with the
++      corresponding interface version bump. Backward incompatible changes can
++      only be done by creating a new major version of the extension.
++    </description>
++
++    <request name="destroy" type="destructor">
++      <description summary="destroy the system bell object">
++	Notify that the object will no longer be used.
++      </description>
++    </request>
++
++    <request name="ring">
++      <description summary="ring the system bell">
++	This requests rings the system bell on behalf of a client. How ringing
++	the bell is implemented is up to the compositor. It may be an audible
++	sound, a visual feedback of some kind, or any other thing including
++	nothing.
++
++        The passed surface should correspond to a toplevel like surface role,
++        or be null, meaning the client doesn't have a particular toplevel it
++        wants to associate the bell ringing with. See the xdg-shell protocol
++        extension for a toplevel like surface role.
++      </description>
++      <arg name="surface" type="object" interface="wl_surface"
++	   allow-null="true" summary="associated surface"/>
++    </request>
++  </interface>
++</protocol>
+--- /dev/null
++++ b/dlls/winewayland.drv/xdg-toplevel-tag-v1.xml
+@@ -0,0 +1,85 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<protocol name="xdg_toplevel_tag_v1">
++  <copyright>
++    Copyright © 2024 Xaver Hugl
++
++    Permission is hereby granted, free of charge, to any person obtaining a
++    copy of this software and associated documentation files (the "Software"),
++    to deal in the Software without restriction, including without limitation
++    the rights to use, copy, modify, merge, publish, distribute, sublicense,
++    and/or sell copies of the Software, and to permit persons to whom the
++    Software is furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice (including the next
++    paragraph) shall be included in all copies or substantial portions of the
++    Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
++    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++  </copyright>
++
++  <interface name="xdg_toplevel_tag_manager_v1" version="1">
++    <description summary="protocol for setting toplevel tags">
++      In order to make some window properties like position, size,
++      "always on top" or user defined rules for window behavior persistent, the
++      compositor needs some way to identify windows even after the application
++      has been restarted.
++      This protocol allows clients to make this possible by setting a tag for
++      toplevels.
++
++      Warning! The protocol described in this file is currently in the testing
++      phase. Backward compatible changes may be added together with the
++      corresponding interface version bump. Backward incompatible changes can
++      only be done by creating a new major version of the extension.
++    </description>
++
++    <request name="destroy" type="destructor">
++      <description summary="destroy toplevel tag object">
++        Destroy this toplevel tag manager object. This request has no other
++        effects.
++      </description>
++    </request>
++
++    <request name="set_toplevel_tag">
++      <description summary="set tag">
++        Set a tag for a toplevel. The tag may be shown to the user in UI, so
++        it's preferable for it to be human readable, but it must be suitable
++        for configuration files and should not be translated.
++        Suitable tags would for example be "main window", "settings",
++        "e-mail composer" or similar.
++
++        The tag does not need to be unique across applications, and the client
++        may set the same tag for multiple windows, for example if the user has
++        opened the same UI twice. How the potentially resulting conflicts are
++        handled is compositor policy.
++
++        The client should set the tag as part of the initial commit on the
++        associated toplevel, but it may set it at any time afterwards as well,
++        for example if the purpose of the toplevel changes.
++      </description>
++      <arg name="toplevel" type="object" interface="xdg_toplevel"/>
++      <arg name="tag" type="string" summary="untranslated tag"/>
++    </request>
++
++    <request name="set_toplevel_description">
++      <description summary="set description">
++        Set a description for a toplevel. This description may be shown to the
++        user in UI or read by a screen reader for accessibility purposes, and
++        should be translated.
++        It is recommended to make the description the translation of the tag.
++
++        The client should set the description as part of the initial commit on
++        the associated toplevel, but it may set it at any time afterwards as
++        well, for example if the purpose of the toplevel changes.
++      </description>
++      <arg name="toplevel" type="object" interface="xdg_toplevel"/>
++      <arg name="description" type="string" summary="translated description"/>
++    </request>
++  </interface>
++
++</protocol>
+--- /dev/null
++++ b/dlls/winewayland.drv/xdg-session-management-v1.xml
+@@ -0,0 +1,333 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<protocol name="xdg_session_management_v1">
++  <copyright>
++    Copyright 2018 Mike Blumenkrantz
++    Copyright 2018 Samsung Electronics Co., Ltd
++    Copyright 2018 Red Hat Inc.
++
++    Permission is hereby granted, free of charge, to any person obtaining a
++    copy of this software and associated documentation files (the "Software"),
++    to deal in the Software without restriction, including without limitation
++    the rights to use, copy, modify, merge, publish, distribute, sublicense,
++    and/or sell copies of the Software, and to permit persons to whom the
++    Software is furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice (including the next
++    paragraph) shall be included in all copies or substantial portions of the
++    Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++  </copyright>
++
++  <description summary="Protocol for managing application sessions">
++    This description provides a high-level overview of the interplay between
++    the interfaces defined this protocol. For details, see the protocol
++    specification.
++
++    The xdg_session_manager protocol declares interfaces necessary to
++    allow clients to restore toplevel state from previous executions. The
++    xdg_session_manager_v1.get_session request can be used to obtain a
++    xdg_session_v1 resource representing the state of a set of toplevels.
++
++    Clients may obtain the session string to use in future calls through
++    the xdg_session_v1.created event. Compositors will use this string
++    as an identifiable token for future runs, possibly storing data about
++    the related toplevels in persistent storage. Clients that wish to
++    track sessions in multiple environments may use the $XDG_CURRENT_DESKTOP
++    environment variable.
++
++    Toplevels are managed through the xdg_session_v1.add_toplevel and
++    xdg_session_v1.remove_toplevel pair of requests. Clients will explicitly
++    request a toplevel to be restored according to prior state through the
++    xdg_session_v1.restore_toplevel request before the toplevel is mapped.
++
++    Compositors may store session information up to any arbitrary level, and
++    apply any limits and policies to the amount of data stored and its lifetime.
++    Clients must account for missing sessions and partial session restoration.
++
++    Warning! The protocol described in this file is currently in the testing
++    phase. Backward compatible changes may be added together with the
++    corresponding interface version bump. Backward incompatible changes can
++    only be done by creating a new major version of the extension.
++  </description>
++
++  <interface name="xdg_session_manager_v1" version="1">
++    <description summary="manage sessions for applications">
++      The xdg_session_manager_v1 interface defines base requests for creating and
++      managing a session for an application. Sessions persist across application
++      and compositor restarts unless explicitly destroyed. A session is created
++      for the purpose of maintaining an application's xdg_toplevel surfaces
++      across compositor or application restarts. The compositor should remember
++      as many states as possible for surfaces in a given session, but there is
++      no requirement for which states must be remembered.
++
++      Policies such as cache eviction are declared an implementation detail of
++      the compositor. Clients should account for no longer existing sessions.
++    </description>
++
++    <enum name="error">
++      <entry name="in_use" summary="a requested session is already in use"
++             value="1"/>
++      <entry name="invalid_session_id" summary="invalid session identifier"
++             value="2"/>
++      <entry name="invalid_reason" summary="invalid reason" value="3"/>
++    </enum>
++
++    <enum name="reason">
++      <description summary="reason for getting a session">
++        The reason may determine in what way a session restores the window
++        management state of associated toplevels.
++
++        For example newly launched applications might be launched on the active
++        workspace with restored size and position, while a recovered
++        application might restore additional state such as active workspace and
++        stacking order.
++      </description>
++      <entry name="launch" value="1">
++        <description summary="an app is newly launched">
++          A new app instance is launched, for example from an app launcher.
++        </description>
++      </entry>
++      <entry name="recover" value="2">
++        <description summary="an app recovered">
++          An app instance is recovering from for example a compositor or app crash.
++        </description>
++      </entry>
++      <entry name="session_restore" value="3">
++        <description summary="an app restored">
++          An app instance is restored, for example part of a restored session, or
++          restored from having been temporarily terminated due to resource
++          constraints.
++        </description>
++      </entry>
++    </enum>
++
++    <request name="destroy" type="destructor">
++      <description summary="Destroy this object">
++        Destroy the manager object. The existing session objects will be
++        unaffected.
++      </description>
++    </request>
++
++    <request name="get_session">
++      <description summary="create or restore a session">
++        Create a session object corresponding to either an existing session
++        identified by the given session identifier string or a new session.
++        While the session object exists, the session is considered to be "in
++        use".
++
++        If an identifier string represents a session that is currently actively
++        in use by the the same client, an 'in_use' error is raised. If some
++        other client is currently using the same session, the new session will
++        replace managing the associated state.
++
++        If the reason is not a valid enum entry, the 'invalid_reason' protocol
++        error is raised.
++
++        NULL is passed to initiate a new session. If a session_id is passed
++        which does not represent a valid session, the compositor treats it as if
++        NULL had been passed.
++
++        The session id string must be UTF-8 encoded. It is also limited by the
++        maximum length of wayland messages (around 4KB). The 'invalid_session_id'
++        protocol error will be raised if an invalid string is provided.
++
++        A client is allowed to have any number of in use sessions at the same
++        time.
++      </description>
++      <arg name="id" type="new_id" interface="xdg_session_v1"/>
++      <arg name="reason" type="uint" enum="reason"
++           summary="reason for session"/>
++      <arg name="session_id" type="string"
++           summary="the session to restore"
++           allow-null="true"/>
++    </request>
++  </interface>
++
++  <interface name="xdg_session_v1" version="1">
++    <description summary="A session for an application">
++      A xdg_session_v1 object represents a session for an application. While the
++      object exists, all surfaces which have been added to the session will
++      have states stored by the compositor which can be reapplied at a later
++      time. Two sessions cannot exist for the same identifier string.
++
++      States for surfaces added to a session are automatically updated by the
++      compositor when they are changed.
++    </description>
++
++    <enum name="error">
++      <entry name="name_in_use"
++             summary="toplevel name is already in use"
++             value="1"/>
++      <entry name="already_mapped"
++             summary="toplevel was already mapped when restored"
++             value="2"/>
++      <entry name="invalid_name"
++             summary="provided toplevel name is invalid"
++             value="3"/>
++      <entry name="already_added"
++             summary="toplevel already added"
++             value="4"/>
++    </enum>
++
++    <request name="destroy" type="destructor">
++      <description summary="Destroy the session">
++        Destroy a session object, preserving the current state but not continuing
++        to make further updates if state changes occur. This makes the associated
++        xdg_toplevel_session_v1 objects inert.
++      </description>
++    </request>
++
++    <request name="remove" type="destructor">
++      <description summary="Remove the session">
++        Remove the session, making it no longer available for restoration. A
++        compositor should in response to this request remove the data related to
++        this session from its storage.
++      </description>
++    </request>
++
++    <request name="add_toplevel">
++      <description summary="add a new surface to the session">
++        Attempt to add a given surface to the session. The passed name is used
++        to identify what window is being restored, and may be used to store
++        window specific state within the session.
++
++        The name given to the toplevel must not correspond to any previously
++        existing toplevel names in the session. If the name matches an already
++        known toplevel name in the session, a 'name_in_use' protocol error will
++        be raised.
++
++        The toplevel object must not be added more than once to any session
++        created by the client, otherwise the 'already_added' protocol error
++        will be raised.
++
++        This request will return a xdg_toplevel_session_v1 for later
++        manipulation. As this resource is created from an empty initial state,
++        compositors must not emit a xdg_toplevel_session_v1.restored event for
++        resources created through this request.
++
++        The name string must be UTF-8 encoded. It is also limited by the maximum
++        length of wayland messages (around 4KB). The 'invalid_name' protocol
++        error will be raised if an invalid string is provided.
++      </description>
++      <arg name="id" type="new_id" interface="xdg_toplevel_session_v1"/>
++      <arg name="toplevel" type="object" interface="xdg_toplevel"/>
++      <arg name="name" type="string" summary="name identifying the toplevel"/>
++    </request>
++
++    <request name="restore_toplevel">
++      <description summary="restore a surface state">
++        Inform the compositor that the toplevel associated with the passed name
++        should have its window management state restored.
++
++        If the toplevel name was previously granted to another xdg_toplevel,
++        the 'name_in_use' protocol error will be raised.
++
++        The toplevel object must not be added more than once to any session
++        created by the client, otherwise the 'already_added' protocol error
++        will be raised.
++
++        This request must be called prior to the first commit on the associated
++        wl_surface after creating the toplevel, otherwise an 'already_mapped'
++        error is raised.
++
++        As part of the initial configure sequence, if the toplevel was
++        successfully restored, a xdg_toplevel_session_v1.restored event is
++        emitted. If the toplevel name was not known in the session, this request
++        will be equivalent to the xdg_toplevel_session_v1.add_toplevel request,
++        and no such event will be emitted. See the xdg_toplevel_session_v1.restored
++        event for further details.
++
++        The name string must be UTF-8 encoded. It is also limited by the maximum
++        length of wayland messages (around 4KB). The 'invalid_name' protocol
++        error will be raised if an invalid string is provided.
++      </description>
++      <arg name="id" type="new_id" interface="xdg_toplevel_session_v1"/>
++      <arg name="toplevel" type="object" interface="xdg_toplevel"/>
++      <arg name="name" type="string" summary="name identifying the toplevel"/>
++    </request>
++
++    <request name="remove_toplevel">
++      <description summary="remove a surface from the session">
++        Remove a specified surface from the session and render any related
++        xdg_toplevel_session_v1 object inert. The compositor should remove any
++        data related to the toplevel in the corresponding session from its internal
++        storage.
++
++        The window is specified by its name in the session. The name string
++        must be encoded in UTF-8, and it is limited in size by the maximum
++        length of wayland messages (around 4KB).
++      </description>
++      <arg name="name" type="string" summary="name identifying the toplevel"/>
++    </request>
++
++    <event name="created">
++      <description summary="newly-created session id">
++        Emitted at most once some time after getting a new session object. It
++        means that no previous state was restored, and a new session was created.
++        The passed id can be persistently stored and used to restore previous
++        sessions.
++      </description>
++      <arg name="session_id" type="string"/>
++    </event>
++
++    <event name="restored">
++      <description summary="the session has been restored">
++        Emitted at most once some time after getting a new session object. It
++        means that previous state was at least partially restored. The same id
++        can again be used to restore previous sessions.
++      </description>
++    </event>
++
++    <event name="replaced">
++      <description summary="the session has been replaced">
++        Emitted at most once, if the session was taken over by some other
++        client. When this happens, the session and all its toplevel session
++        objects become inert, and should be destroyed.
++      </description>
++    </event>
++  </interface>
++
++  <interface name="xdg_toplevel_session_v1" version="1">
++    <description summary="A session for an application">
++      A xdg_toplevel_session_v1 resource acts as a handle for the given
++      toplevel in the session. It allows for receiving events after a
++      toplevel state was restored, and has the requests to manage them.
++    </description>
++
++    <request name="destroy" type="destructor">
++      <description summary="Destroy the object">
++        Destroy the object. This has no effect over window management of the
++        associated toplevel.
++      </description>
++    </request>
++
++    <request name="rename">
++      <description summary="change the name of toplevel session">
++        Renames the toplevel session. The new name can be used in subsequent requests
++        to identify this session object. The state associated with this toplevel
++        session will be preserved.
++
++        If the xdg_session_v1 already contains a toplevel with the specified name,
++        the 'name_in_use' protocol error will be raised.
++      </description>
++      <arg name="name" type="string" summary="new name to identify the toplevel"/>
++    </request>
++
++    <event name="restored">
++      <description summary="a toplevel's session has been restored">
++        The "restored" event is emitted prior to the first
++        xdg_toplevel.configure for the toplevel. It will only be emitted after
++        xdg_session_v1.restore_toplevel, and the initial empty surface state has
++        been applied, and it indicates that the surface's session is being
++        restored with this configure event.
++      </description>
++    </event>
++  </interface>
++</protocol>

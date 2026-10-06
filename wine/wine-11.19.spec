@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec7%{dist}
+Release:        ec8%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -145,6 +145,7 @@ Patch627:       2026_10_05-ntdll-arm64ec-bounds-check-RtlIsEcCode.patch
 Patch628:       2026_10_05-msvcrt-mark-rethrow-in-filter.patch
 Patch629:       2026_10_05-winewayland-fractional-scale-lock-order.patch
 Patch630:       2026_10_05-winewayland-trackpad-smooth-scroll.patch
+Patch631:       2026_10_06-winewayland-protocols.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -806,6 +807,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 628 -p1
 %patch -P 629 -p1
 %patch -P 630 -p1
+%patch -P 631 -p1
 %endif
 
 %build
@@ -2498,6 +2500,12 @@ fi
 %endif
 
 %changelog
+* Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec8
+- Add xdg-session-management (window placement restore)
+- Add ext-data-control clipboard
+- Add xdg-system-bell, xdg-toplevel-tag
+- Map touchpad pinch to Ctrl+wheel
+
 * Mon Oct 05 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec7
 - Fix winewayland scale-change deadlock
 - Add touchpad smooth scrolling
