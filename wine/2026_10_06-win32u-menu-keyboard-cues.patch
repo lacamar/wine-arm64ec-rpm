@@ -1,0 +1,73 @@
+--- a/dlls/user32/text.c
++++ b/dlls/user32/text.c
+@@ -980,6 +980,7 @@
+ 
+         old_count = count;
+ 	strPtr = TEXT_NextLineW(hdc, strPtr, &count, line, &len, width, flags, &size, last_line, retstr, tabwidth, &prefix_offset, &ellip);
++        if (flags & DT_HIDEPREFIX) prefix_offset = -1;
+         if (dtp)
+             dtp->uiLengthDrawn += old_count - count;
+ 
+--- a/dlls/win32u/menu.c
++++ b/dlls/win32u/menu.c
+@@ -156,6 +156,7 @@
+ 
+ /* Flag set by NtUserEndMenu() to force an exit from menu tracking */
+ static BOOL exit_menu = FALSE;
++static BOOL menu_cues;
+ 
+ static SIZE menucharsize;
+ static UINT od_item_height; /* default owner drawn item height */
+@@ -2389,6 +2390,15 @@
+     NtGdiDeleteObjectApp( mem_hdc );
+ }
+ 
++static BOOL show_menu_cues(void)
++{
++    BOOL cues = FALSE;
++
++    if (menu_cues) return TRUE;
++    NtUserSystemParametersInfo( SPI_GETKEYBOARDCUES, 0, &cues, 0 );
++    return cues;
++}
++
+ /* Draw a single menu item */
+ static void draw_menu_item( HWND hwnd, struct menu *menu, HWND owner, HDC hdc,
+                             struct menu_item *item, BOOL menu_bar, UINT odaction )
+@@ -2484,6 +2494,7 @@
+         if (item->fState & MF_CHECKED) dis.itemState |= ODS_CHECKED;
+         if (item->fState & MF_GRAYED)  dis.itemState |= ODS_GRAYED|ODS_DISABLED;
+         if (item->fState & MF_HILITE)  dis.itemState |= ODS_SELECTED;
++        if (!show_menu_cues()) dis.itemState |= ODS_NOACCEL;
+         dis.itemAction = odaction; /* ODA_DRAWENTIRE | ODA_SELECT | ODA_FOCUS; */
+         dis.hwndItem   = (HWND)menu->handle;
+         dis.hDC        = hdc;
+@@ -2667,6 +2678,7 @@
+             DT_CENTER | DT_VCENTER | DT_SINGLELINE :
+             DT_LEFT | DT_VCENTER | DT_SINGLELINE;
+ 
++        if (!show_menu_cues()) format |= DT_HIDEPREFIX;
+         if (!(menu->dwStyle & MNS_CHECKORBMP))
+             rect.left += menu->textOffset;
+ 
+@@ -4420,6 +4432,11 @@
+ 
+     send_message( hwnd, WM_EXITMENULOOP, is_popup, 0 );
+     NtUserShowCaret( 0 );
++    if (menu_cues)
++    {
++        menu_cues = FALSE;
++        NtUserRedrawWindow( hwnd, NULL, 0, RDW_FRAME | RDW_INVALIDATE );
++    }
+     top_popup = 0;
+     top_popup_hmenu = NULL;
+     return TRUE;
+@@ -4469,6 +4486,8 @@
+ 
+     if (!is_menu( menu )) return;
+ 
++    menu_cues = TRUE;
++    NtUserRedrawWindow( hwnd, NULL, 0, RDW_FRAME | RDW_INVALIDATE );
+     init_tracking( hwnd, menu, FALSE, flags );
+ 
+     /* fetch the window menu again, it may have changed */

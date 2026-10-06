@@ -1,0 +1,66 @@
+--- a/dlls/winewayland.drv/waylanddrv.h
++++ b/dlls/winewayland.drv/waylanddrv.h
+@@ -372,7 +372,7 @@
+ 
+ struct wayland_surface *wayland_surface_create(HWND hwnd);
+ void wayland_surface_destroy(struct wayland_surface *surface);
+-void wayland_surface_make_toplevel(struct wayland_surface *surface);
++void wayland_surface_make_toplevel(struct wayland_surface *surface, struct wayland_surface *parent);
+ void wayland_surface_make_subsurface(struct wayland_surface *surface,
+                                      struct wayland_surface *parent);
+ void wayland_surface_clear_role(struct wayland_surface *surface);
+--- a/dlls/winewayland.drv/wayland_surface.c
++++ b/dlls/winewayland.drv/wayland_surface.c
+@@ -458,7 +458,7 @@
+  *
+  * Gives the toplevel role to a plain wayland surface.
+  */
+-void wayland_surface_make_toplevel(struct wayland_surface *surface)
++void wayland_surface_make_toplevel(struct wayland_surface *surface, struct wayland_surface *parent)
+ {
+     WCHAR text[1024];
+ 
+@@ -488,7 +488,11 @@
+ 
+     wayland_surface_assign_icon(surface);
+ 
+-    wayland_surface_init_fractional_scale(surface, 1.0);
++    /* before the initial commit, so the compositor does not tile it */
++    if (parent) xdg_toplevel_set_parent(surface->xdg_toplevel, parent->xdg_toplevel);
++
++    /* the preferred scale only arrives after mapping */
++    wayland_surface_init_fractional_scale(surface, parent ? parent->window.scale : 1.0);
+ 
+     wayland_session_add_toplevel(surface);
+ 
+--- a/dlls/winewayland.drv/window.c
++++ b/dlls/winewayland.drv/window.c
+@@ -177,6 +177,19 @@
+     NtUserSetThreadDpiAwarenessContext(context);
+ }
+ 
++static struct wayland_surface *get_owner_toplevel(HWND hwnd)
++{
++    struct wayland_surface *surface = NULL;
++    struct wayland_win_data *data;
++    HWND owner;
++
++    if (!(owner = NtUserGetWindowRelative(hwnd, GW_OWNER)) || !(data = wayland_win_data_get(owner))) return NULL;
++    if (data->wayland_surface && data->wayland_surface->role == WAYLAND_SURFACE_ROLE_TOPLEVEL)
++        surface = data->wayland_surface;
++    wayland_win_data_release(data);
++    return surface;
++}
++
+ static BOOL wayland_win_data_create_wayland_surface(struct wayland_win_data *data, struct wayland_surface *owner_surface)
+ {
+     struct wayland_surface *surface;
+@@ -224,7 +237,7 @@
+         wayland_surface_clear_role(surface);
+         break;
+     case WAYLAND_SURFACE_ROLE_TOPLEVEL:
+-        wayland_surface_make_toplevel(surface);
++        wayland_surface_make_toplevel(surface, get_owner_toplevel(data->hwnd));
+         break;
+     case WAYLAND_SURFACE_ROLE_SUBSURFACE:
+         wayland_surface_make_subsurface(surface, owner_surface);

@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec8%{dist}
+Release:        ec9%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -146,6 +146,8 @@ Patch628:       2026_10_05-msvcrt-mark-rethrow-in-filter.patch
 Patch629:       2026_10_05-winewayland-fractional-scale-lock-order.patch
 Patch630:       2026_10_05-winewayland-trackpad-smooth-scroll.patch
 Patch631:       2026_10_06-winewayland-protocols.patch
+Patch632:       2026_10_06-win32u-menu-keyboard-cues.patch
+Patch633:       2026_10_06-winewayland-xdg-parent.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -808,6 +810,8 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 629 -p1
 %patch -P 630 -p1
 %patch -P 631 -p1
+%patch -P 632 -p1
+%patch -P 633 -p1
 %endif
 
 %build
@@ -2500,6 +2504,10 @@ fi
 %endif
 
 %changelog
+* Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec9
+- Hide menu underlines until keyboard use
+- Set xdg parent for owned windows
+
 * Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec8
 - Add xdg-session-management (window placement restore)
 - Add ext-data-control clipboard
