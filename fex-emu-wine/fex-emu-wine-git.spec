@@ -20,7 +20,7 @@
 
 Name:       fex-emu-wine-git
 Version:    %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:    8%{?dist}
+Release:    9%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -80,6 +80,7 @@ Patch102:       fex-emu-wine-git-callback-code-buffer.patch
 Patch103:       fex-emu-wine-smc-untrappable-host-page.patch
 Patch104:       fex-emu-wine-precise-faults.patch
 Patch105:       fex-emu-wine-git-suspend-backedge.patch
+Patch106:       fex-emu-wine-git-dispatcher-rethrow.patch
 
 
 BuildRequires:  cmake
@@ -137,6 +138,7 @@ FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
 %patch -P 103 -p1
 %patch -P 104 -p1
 %patch -P 105 -p1
+%patch -P 106 -p1
 
 # Unpack bundled libraries
 %{lua: print_setup_externals()}
@@ -233,6 +235,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^5.git.79a7afe-9
+- Use live guest regs for dispatcher faults
+
 * Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^5.git.79a7afe-8
 - Retrap SMC host pages after RWX neighbour commits
 

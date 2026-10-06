@@ -1,0 +1,22 @@
+--- a/dlls/kernelbase/process.c
++++ b/dlls/kernelbase/process.c
+@@ -1340,7 +1340,19 @@
+  */
+ void init_startup_info( RTL_USER_PROCESS_PARAMETERS *params )
+ {
++    static const WCHAR cef_args[] = L" --in-process-gpu --disable-gpu";
++    const WCHAR *name = wcsrchr( params->ImagePathName.Buffer, '\\' );
+     ANSI_STRING ansi;
++    WCHAR *cmdline;
++
++    /* CEF GPU process can't present into other-process HWNDs */
++    if (name && !wcsicmp( name + 1, L"Lightroom.exe" ) &&
++        (cmdline = RtlAllocateHeap( GetProcessHeap(), 0, params->CommandLine.Length + sizeof(cef_args) )))
++    {
++        memcpy( cmdline, params->CommandLine.Buffer, params->CommandLine.Length );
++        memcpy( (char *)cmdline + params->CommandLine.Length, cef_args, sizeof(cef_args) );
++        RtlInitUnicodeString( &params->CommandLine, cmdline );
++    }
+ 
+     command_lineW = params->CommandLine.Buffer;
+     if (!RtlUnicodeStringToAnsiString( &ansi, &params->CommandLine, TRUE )) command_lineA = ansi.Buffer;

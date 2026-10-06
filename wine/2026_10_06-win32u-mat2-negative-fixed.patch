@@ -1,0 +1,11 @@
+--- a/dlls/win32u/freetype.c
++++ b/dlls/win32u/freetype.c
+@@ -275,7 +275,7 @@
+ */
+ static inline FT_Fixed FT_FixedFromFIXED(FIXED f)
+ {
+-    return (FT_Fixed)((int)f.value << 16 | (unsigned int)f.fract);
++    return (FT_Fixed)f.value * 65536 + f.fract;
+ }
+ 
+ static BOOL is_hinting_enabled(void)

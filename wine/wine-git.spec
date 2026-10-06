@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 14
+Release:        ec.%autorelease -b 15
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -147,6 +147,9 @@ Patch632:       2026_10_06-win32u-menu-keyboard-cues.patch
 Patch633:       2026_10_06-winewayland-xdg-parent.patch
 Patch634:       2026_10_06-win32u-winewayland-dead-keys.patch
 Patch635:       2026_10_06-secur32-ntoskrnl-eager-rpcrt4.patch
+Patch636:       2026_10_06-win32u-mat2-negative-fixed.patch
+Patch637:       2026_10_06-kernelbase-lightroom-cef-in-process-gpu.patch
+Patch638:       2026_10_06-win32u-popup-owner-hint.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -914,6 +917,9 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 633 -p1
 %patch -P 634 -p1
 %patch -P 635 -p1
+%patch -P 636 -p1
+%patch -P 637 -p1
+%patch -P 638 -p1
 %endif
 
 %build
@@ -2606,6 +2612,11 @@ fi
 %endif
 
 %changelog
+* Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.15
+- Fix negative MAT2 glyph scaling
+- Run Lightroom CEF GPU in-process
+- Stack ownerless popups over dialogs
+
 * Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.14
 - Support dead keys on Wayland
 - Fix CEF helper crash (arm64ec varargs delay-load)
