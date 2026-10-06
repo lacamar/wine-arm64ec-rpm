@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 13
+Release:        ec.%autorelease -b 14
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -145,6 +145,8 @@ Patch630:       2026_10_05-winewayland-trackpad-smooth-scroll.patch
 Patch631:       2026_10_06-winewayland-protocols.patch
 Patch632:       2026_10_06-win32u-menu-keyboard-cues.patch
 Patch633:       2026_10_06-winewayland-xdg-parent.patch
+Patch634:       2026_10_06-win32u-winewayland-dead-keys.patch
+Patch635:       2026_10_06-secur32-ntoskrnl-eager-rpcrt4.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -910,6 +912,8 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 631 -p1
 %patch -P 632 -p1
 %patch -P 633 -p1
+%patch -P 634 -p1
+%patch -P 635 -p1
 %endif
 
 %build
@@ -2602,6 +2606,10 @@ fi
 %endif
 
 %changelog
+* Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.14
+- Support dead keys on Wayland
+- Fix CEF helper crash (arm64ec varargs delay-load)
+
 * Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.13
 - Hide menu underlines until keyboard use
 - Set xdg parent for owned windows

@@ -1,0 +1,25 @@
+--- a/dlls/secur32/Makefile.in
++++ b/dlls/secur32/Makefile.in
+@@ -1,8 +1,8 @@
+ MODULE    = secur32.dll
+ IMPORTLIB = secur32
+ UNIXLIB   = secur32.so
+-IMPORTS   = advapi32
+-DELAYIMPORTS = crypt32 ncrypt rpcrt4
++IMPORTS   = advapi32 rpcrt4
++DELAYIMPORTS = crypt32 ncrypt
+ UNIX_CFLAGS  = $(GNUTLS_CFLAGS)
+ 
+ SOURCES = \
+--- a/dlls/ntoskrnl.exe/Makefile.in
++++ b/dlls/ntoskrnl.exe/Makefile.in
+@@ -1,7 +1,7 @@
+ MODULE    = ntoskrnl.exe
+ IMPORTLIB = ntoskrnl
+-IMPORTS   = advapi32 hal msvcrt
+-DELAYIMPORTS = rpcrt4 setupapi
++IMPORTS   = advapi32 hal msvcrt rpcrt4
++DELAYIMPORTS = setupapi
+ 
+ VER_PRODUCTVERSION = 6,1,7601,21863
+ 

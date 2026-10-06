@@ -1,0 +1,271 @@
+--- a/dlls/win32u/ntuser_private.h
++++ b/dlls/win32u/ntuser_private.h
+@@ -122,6 +122,7 @@
+     HIMC                          default_imc;            /* default input context */
+     HKL                           kbd_layout;             /* Current keyboard layout */
+     UINT                          kbd_layout_id;          /* Current keyboard layout ID */
++    WCHAR                         kbd_dead_char;          /* Pending dead key character */
+     struct raw_mouse              raw_mouse;              /* accumulated hardware raw mouse frames */
+     INPUT                         mouse_motion;           /* accumulated hardware mouse motion */
+     HWND                          mouse_hwnd;             /* hardware mouse motion target window */
+--- a/dlls/win32u/input.c
++++ b/dlls/win32u/input.c
+@@ -459,7 +459,7 @@
+     {
+         for (entry = table->pVkToWchars; entry->VirtualKey; entry = NEXT_ENTRY(table, entry))
+         {
+-            if (entry->VirtualKey & ~0xff) continue;
++            if (entry->VirtualKey == 0xff || entry->wch[0] == WCH_DEAD) continue;
+             vk2char[entry->VirtualKey] = entry->wch[0];
+         }
+     }
+@@ -503,6 +503,7 @@
+     {
+         for (entry = table->pVkToWchars; entry->VirtualKey; entry = NEXT_ENTRY(table, entry))
+         {
++            if (entry->VirtualKey == 0xff) continue;
+             for (mod = 0; mod < table->nModifications; ++mod)
+             {
+                 if (entry->wch[mod] == WCH_NONE || entry->wch[mod] != wch) continue;
+@@ -516,7 +517,17 @@
+     return wch >= 0x0080 ? -1 : 0;
+ }
+ 
+-static WCHAR kbd_tables_vkey_to_wchar( const KBDTABLES *tables, UINT vkey, const BYTE *state )
++static WCHAR kbd_tables_compose( const KBDTABLES *tables, WCHAR dead, WCHAR wch )
++{
++    const DEADKEY *entry;
++
++    if (!tables->pDeadKey) return 0;
++    for (entry = tables->pDeadKey; entry->dwBoth; entry++)
++        if (entry->dwBoth == MAKELONG(wch, dead)) return entry->wchComposed;
++    return 0;
++}
++
++static WCHAR kbd_tables_vkey_to_wchar( const KBDTABLES *tables, UINT vkey, const BYTE *state, BOOL *dead )
+ {
+     UINT mod, caps_mod, alt, ctrl, caps;
+     const VK_TO_WCHAR_TABLE *table;
+@@ -549,8 +560,10 @@
+              * with the mapping when Caps Lock is off.
+              */
+             if ((entry->Attributes & SGCAPS) && !caps) entry = NEXT_ENTRY(table, entry);
+-            if ((entry->Attributes & CAPLOK) && table->nModifications > caps_mod) return entry->wch[caps_mod];
+-            return entry->wch[mod];
++            if ((entry->Attributes & CAPLOK) && table->nModifications > caps_mod) mod = caps_mod;
++            if (entry->wch[mod] != WCH_DEAD) return entry->wch[mod];
++            *dead = TRUE;
++            return ((const VK_TO_WCHARS1 *)NEXT_ENTRY(table, entry))->wch[mod];
+         }
+     }
+ 
+@@ -1411,7 +1424,9 @@
+ INT WINAPI NtUserToUnicodeEx( UINT virt, UINT scan, const BYTE *state,
+                               WCHAR *str, int size, UINT flags, HKL layout )
+ {
++    WCHAR *pending = &get_user_thread_info()->kbd_dead_char, wch, composed;
+     const KBDTABLES *kbd_tables;
++    BOOL dead = FALSE;
+     INT len;
+ 
+     TRACE_(keyboard)( "virt %#x, scan %#x, state %p, str %p, size %d, flags %#x, layout %p.\n",
+@@ -1421,12 +1436,25 @@
+     if ((len = user_driver->pToUnicodeEx( virt, scan, state, str, size, flags, layout )) >= -1) return len;
+ 
+     if (!(kbd_tables = user_driver->pKbdLayerDescriptor( layout ))) kbd_tables = &kbdus_tables;
+-    if (scan & 0x8000) str[0] = 0; /* key up */
+-    else str[0] = kbd_tables_vkey_to_wchar( kbd_tables, virt, state );
++    if (scan & 0x8000) wch = 0; /* key up */
++    else wch = kbd_tables_vkey_to_wchar( kbd_tables, virt, state, &dead );
++    str[0] = len = 0;
+     if (size > 1) str[1] = 0;
+ 
+-    if (str[0] != WCH_NONE) len = 1;
+-    else str[0] = len = 0;
++    if (wch == WCH_NONE) len = 0;
++    else if (dead && !*pending)
++    {
++        str[0] = wch;
++        len = -1;
++    }
++    else if (!wch || !*pending) str[len++] = wch;
++    else if ((composed = kbd_tables_compose( kbd_tables, *pending, wch ))) str[len++] = composed;
++    else
++    {
++        str[len++] = *pending;
++        if (size > 1) str[len++] = wch;
++    }
++    if (wch && wch != WCH_NONE && !(flags & 4)) *pending = len == -1 ? wch : 0;
+ 
+     if (kbd_tables != &kbdus_tables) user_driver->pReleaseKbdTables( kbd_tables );
+ 
+--- a/dlls/winewayland.drv/wayland_keyboard.c
++++ b/dlls/winewayland.drv/wayland_keyboard.c
+@@ -30,6 +30,7 @@
+ #undef SW_MAX /* Also defined in winuser.rh */
+ #include <sys/mman.h>
+ #include <unistd.h>
++#include <xkbcommon/xkbcommon-compose.h>
+ 
+ #include "waylanddrv.h"
+ #include "wine/debug.h"
+@@ -94,7 +95,8 @@
+     VSC_VK vsc2vk_e1[0x100];
+ 
+     VK_TO_WCHAR_TABLE vk_to_wchar_table[2];
+-    VK_TO_WCHARS8 vk_to_wchars8[0x100 * 2 /* SGCAPS */];
++    VK_TO_WCHARS8 vk_to_wchars8[0x100 * 3 /* SGCAPS, dead keys */];
++    DEADKEY *dead_keys;
+     VK_TO_BIT vk2bit[4];
+     union
+     {
+@@ -124,8 +126,9 @@
+ 
+ static void xkb_layout_release(struct layout *layout)
+ {
+-    if (!InterlockedDecrement(&layout->ref))
+-        free(layout);
++    if (InterlockedDecrement(&layout->ref)) return;
++    free(layout->dead_keys);
++    free(layout);
+ }
+ 
+ #define EXTRA_SCAN2VK \
+@@ -392,6 +395,72 @@
+     else return (HKL)(UINT_PTR)MAKELONG(locale, 0xf000 | layout->layout_id);
+ }
+ 
++static WCHAR compose_wchar(struct xkb_compose_state *compose, xkb_keysym_t dead, xkb_keysym_t sym)
++{
++    char buf[8];
++    WCHAR wch[2];
++    int len;
++
++    xkb_compose_state_reset(compose);
++    xkb_compose_state_feed(compose, dead);
++    xkb_compose_state_feed(compose, sym);
++    if (xkb_compose_state_get_status(compose) != XKB_COMPOSE_COMPOSED) return 0;
++    if ((len = xkb_compose_state_get_utf8(compose, buf, sizeof(buf))) <= 0) return 0;
++    if (ntdll_umbstowcs(buf, len, wch, ARRAY_SIZE(wch)) != 1) return 0;
++    return wch[0];
++}
++
++static struct xkb_compose_state *create_compose_state(void)
++{
++    const char *locale = getenv("LC_ALL");
++    struct xkb_compose_table *table;
++    struct xkb_compose_state *compose;
++
++    if (!locale || !*locale) locale = getenv("LC_CTYPE");
++    if (!locale || !*locale) locale = getenv("LANG");
++    if (!locale || !*locale) locale = "C";
++    if (!(table = xkb_compose_table_new_from_locale(process_wayland.keyboard.xkb_context, locale, 0))) return NULL;
++    compose = xkb_compose_state_new(table, 0);
++    xkb_compose_table_unref(table);
++    return compose;
++}
++
++static void add_dead_keys(struct layout *layout, struct xkb_compose_state *compose,
++                          const xkb_keysym_t *dead_syms, const WCHAR *dead_chars, unsigned int dead_count)
++{
++    VK_TO_WCHARS8 *entry;
++    WCHAR bases[0x200];
++    unsigned int i, j, mod, base_count = 0;
++    DEADKEY *dead;
++
++    for (entry = layout->vk_to_wchars8; entry->VirtualKey; entry++)
++    {
++        if (entry->VirtualKey == 0xff) continue;
++        for (mod = 0; mod < 8; mod++)
++        {
++            WCHAR wch = entry->wch[mod];
++            if (wch == WCH_NONE || wch == WCH_DEAD || wch < 0x20) continue;
++            for (j = 0; j < base_count; j++) if (bases[j] == wch) break;
++            if (j == base_count && base_count < ARRAY_SIZE(bases)) bases[base_count++] = wch;
++        }
++    }
++
++    if (!(dead = layout->dead_keys = calloc(dead_count * (base_count + 1) + 1, sizeof(*dead)))) return;
++    for (i = 0; i < dead_count; i++)
++    {
++        dead->dwBoth = MAKELONG(' ', dead_chars[i]);
++        dead++->wchComposed = dead_chars[i];
++        for (j = 0; j < base_count; j++)
++        {
++            WCHAR wch = compose_wchar(compose, dead_syms[i], xkb_utf32_to_keysym(bases[j]));
++            if (!wch || bases[j] == ' ') continue;
++            dead->dwBoth = MAKELONG(bases[j], dead_chars[i]);
++            dead++->wchComposed = wch;
++        }
++    }
++    layout->tables.pDeadKey = layout->dead_keys;
++}
++
+ static void add_xkb_layout(const char *xkb_layout, struct xkb_keymap *xkb_keymap,
+                             xkb_layout_index_t xkb_group, LANGID lang)
+ {
+@@ -403,6 +472,10 @@
+     VSC_LPWSTR *names_entry, *names_ext_entry;
+     VSC_VK *vsc2vk_e0_entry, *vsc2vk_e1_entry;
+     VK_TO_WCHARS8 *vk2wchars_entry;
++    struct xkb_compose_state *compose = create_compose_state();
++    xkb_keysym_t dead_syms[32];
++    WCHAR dead_chars[32];
++    unsigned int dead_count = 0;
+     struct layout *layout;
+     const USHORT *scan2vk;
+     WCHAR *names_str;
+@@ -539,8 +612,8 @@
+     for (keyc = min_keycode; keyc <= max_keycode; keyc++)
+     {
+         WORD scan = key2scan(keyc - 8), vkey = scan2vk[scan];
+-        VK_TO_WCHARS8 vkey2wch = {.VirtualKey = vkey}, caps_vkey2wch = vkey2wch;
+-        BOOL found = FALSE, caps_found = FALSE;
++        VK_TO_WCHARS8 vkey2wch = {.VirtualKey = vkey}, caps_vkey2wch = vkey2wch, dead_vkey2wch = {.VirtualKey = 0xff};
++        BOOL found = FALSE, caps_found = FALSE, dead_found = FALSE;
+         uint32_t caps_ret, shift_ret;
+         unsigned int mod;
+ 
+@@ -573,6 +646,29 @@
+             else if (!(ret = xkb_state_key_get_utf32(xkb_state, keyc))) vkey2wch.wch[mod] = WCH_NONE;
+             else vkey2wch.wch[mod] = ret;
+ 
++            dead_vkey2wch.wch[mod] = WCH_NONE;
++            if (vkey2wch.wch[mod] == WCH_NONE && !(mod_mask & control_mask) && compose)
++            {
++                xkb_keysym_t sym = xkb_state_key_get_one_sym(xkb_state, keyc);
++                unsigned int i;
++                WCHAR wch;
++
++                for (i = 0; i < dead_count; i++) if (dead_syms[i] == sym) break;
++                if (i < dead_count) wch = dead_chars[i];
++                else if (sym < XKB_KEY_dead_grave || sym > XKB_KEY_dead_greek || i == ARRAY_SIZE(dead_syms)) wch = 0;
++                else if ((wch = compose_wchar(compose, sym, sym)) || (wch = compose_wchar(compose, sym, XKB_KEY_space)))
++                {
++                    dead_syms[dead_count] = sym;
++                    dead_chars[dead_count++] = wch;
++                }
++                if (wch)
++                {
++                    vkey2wch.wch[mod] = WCH_DEAD;
++                    dead_vkey2wch.wch[mod] = wch;
++                    dead_found = TRUE;
++                }
++            }
++
+             if (vkey2wch.wch[mod] != WCH_NONE) found = TRUE;
+ 
+             xkb_state_update_mask(xkb_state, 0, 0, mod_mask | capslock_mask, 0, 0, xkb_group);
+@@ -604,9 +700,12 @@
+ 
+         TRACE("vkey %#06x -> %s\n", vkey2wch.VirtualKey, debugstr_wn(vkey2wch.wch, 8));
+         *vk2wchars_entry++ = vkey2wch;
++        if (dead_found) *vk2wchars_entry++ = dead_vkey2wch;
+     }
+ 
+     xkb_state_unref(xkb_state);
++    if (dead_count) add_dead_keys(layout, compose, dead_syms, dead_chars, dead_count);
++    if (compose) xkb_compose_state_unref(compose);
+ 
+     TRACE("Created layout entry=%p index=%04x lang=%04x id=%04x\n", layout, layout->index, layout->lang, layout->layout_id);
+     list_add_tail(&xkb_layouts, &layout->entry);
