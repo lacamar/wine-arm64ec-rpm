@@ -1,0 +1,426 @@
+winewayland: negotiate xdg-decoration mode per toplevel.
+
+--- a/dlls/winewayland.drv/Makefile.in
++++ b/dlls/winewayland.drv/Makefile.in
+@@ -33,6 +33,7 @@
+ 	window.c \
+ 	window_surface.c \
+ 	wlr-data-control-unstable-v1.xml \
++	xdg-decoration-unstable-v1.xml \
+ 	xdg-output-unstable-v1.xml \
+ 	xdg-session-management-v1.xml \
+ 	xdg-shell.xml \
+--- a/dlls/winewayland.drv/wayland.c
++++ b/dlls/winewayland.drv/wayland.c
+@@ -103,7 +103,8 @@
+     }
+     else if (strcmp(interface, "zxdg_decoration_manager_v1") == 0)
+     {
+-        process_wayland.supports_decorations = TRUE;
++        process_wayland.zxdg_decoration_manager_v1 =
++            wl_registry_bind(registry, id, &zxdg_decoration_manager_v1_interface, 1);
+     }
+     else if (strcmp(interface, "zxdg_output_manager_v1") == 0)
+     {
+--- a/dlls/winewayland.drv/waylanddrv.h
++++ b/dlls/winewayland.drv/waylanddrv.h
+@@ -46,6 +46,7 @@
+ #include "pointer-gestures-unstable-v1-client-protocol.h"
+ #include "xdg-system-bell-v1-client-protocol.h"
+ #include "xdg-toplevel-tag-v1-client-protocol.h"
++#include "xdg-decoration-unstable-v1-client-protocol.h"
+ 
+ #include "windef.h"
+ #include "winbase.h"
+@@ -80,6 +81,7 @@
+     WM_WAYLAND_CONFIGURE,
+     WM_WAYLAND_SET_FOREGROUND,
+     WM_WAYLAND_OUTPUT_ENTER,
++    WM_WAYLAND_DECORATIONS,
+ };
+ 
+ enum wayland_output_event
+@@ -210,7 +212,7 @@
+     struct zwp_pointer_gestures_v1 *zwp_pointer_gestures_v1;
+     struct xdg_system_bell_v1 *xdg_system_bell_v1;
+     struct xdg_toplevel_tag_manager_v1 *xdg_toplevel_tag_manager_v1;
+-    BOOL supports_decorations;
++    struct zxdg_decoration_manager_v1 *zxdg_decoration_manager_v1;
+     struct wp_cursor_shape_manager_v1 *wp_cursor_shape_manager_v1;
+     struct wp_pointer_warp_v1 *wp_pointer_warp_v1;
+     struct wp_alpha_modifier_v1 *wp_alpha_modifier_v1;
+@@ -322,6 +324,8 @@
+             struct xdg_surface *xdg_surface;
+             struct xdg_toplevel *xdg_toplevel;
+             struct xdg_toplevel_icon_v1 *xdg_toplevel_icon;
++            struct zxdg_toplevel_decoration_v1 *zxdg_toplevel_decoration_v1;
++            UINT decoration_mode;
+             struct xdg_toplevel_session_v1 *xdg_toplevel_session;
+             char *session_name;
+             struct wl_list session_link;
+@@ -337,6 +341,7 @@
+ 
+     struct wayland_surface_config pending, requested, processing, current;
+     BOOL resizing;
++    BOOL client_decorations;
+     struct wayland_window_config window;
+     int content_width, content_height;
+     HCURSOR hcursor;
+@@ -372,7 +377,8 @@
+ 
+ struct wayland_surface *wayland_surface_create(HWND hwnd);
+ void wayland_surface_destroy(struct wayland_surface *surface);
+-void wayland_surface_make_toplevel(struct wayland_surface *surface, struct wayland_surface *parent);
++void wayland_surface_make_toplevel(struct wayland_surface *surface, struct wayland_surface *parent,
++                                   BOOL server_side);
+ void wayland_surface_make_subsurface(struct wayland_surface *surface,
+                                      struct wayland_surface *parent);
+ void wayland_surface_clear_role(struct wayland_surface *surface);
+--- a/dlls/winewayland.drv/wayland_surface.c
++++ b/dlls/winewayland.drv/wayland_surface.c
+@@ -453,19 +453,72 @@
+         surface->hwnd);
+ }
+ 
++static void zxdg_toplevel_decoration_v1_handle_configure(void *private,
++        struct zxdg_toplevel_decoration_v1 *decoration, uint32_t mode)
++{
++    struct wayland_surface *surface;
++    struct wayland_win_data *data;
++    HWND hwnd = private;
++    BOOL client, changed = FALSE;
++
++    TRACE("hwnd=%p mode=%u\n", hwnd, mode);
++
++    if (!(data = wayland_win_data_get(hwnd))) return;
++    if ((surface = data->wayland_surface) && wayland_surface_is_toplevel(surface) &&
++        surface->zxdg_toplevel_decoration_v1 == decoration)
++    {
++        client = surface->decoration_mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE &&
++                 mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE;
++        changed = client != surface->client_decorations;
++        surface->client_decorations = client;
++    }
++    wayland_win_data_release(data);
++
++    if (changed) NtUserPostMessage(hwnd, WM_WAYLAND_DECORATIONS, 0, 0);
++}
++
++static const struct zxdg_toplevel_decoration_v1_listener zxdg_toplevel_decoration_v1_listener =
++{
++    zxdg_toplevel_decoration_v1_handle_configure,
++};
++
++static void wayland_surface_set_decorations(struct wayland_surface *surface, BOOL server_side)
++{
++    UINT mode = server_side ? ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE
++                            : ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE;
++
++    if (!process_wayland.zxdg_decoration_manager_v1 || !surface->xdg_toplevel) return;
++    if (surface->decoration_mode == mode) return;
++
++    if (!surface->zxdg_toplevel_decoration_v1)
++    {
++        surface->zxdg_toplevel_decoration_v1 = zxdg_decoration_manager_v1_get_toplevel_decoration(
++                process_wayland.zxdg_decoration_manager_v1, surface->xdg_toplevel);
++        zxdg_toplevel_decoration_v1_add_listener(surface->zxdg_toplevel_decoration_v1,
++                &zxdg_toplevel_decoration_v1_listener, surface->hwnd);
++    }
++    zxdg_toplevel_decoration_v1_set_mode(surface->zxdg_toplevel_decoration_v1, mode);
++    surface->decoration_mode = mode;
++}
++
+ /**********************************************************************
+  *          wayland_surface_make_toplevel
+  *
+  * Gives the toplevel role to a plain wayland surface.
+  */
+-void wayland_surface_make_toplevel(struct wayland_surface *surface, struct wayland_surface *parent)
++void wayland_surface_make_toplevel(struct wayland_surface *surface, struct wayland_surface *parent,
++                                   BOOL server_side)
+ {
+     WCHAR text[1024];
+ 
+     TRACE("surface=%p\n", surface);
+ 
+     assert(!surface->role || surface->role == WAYLAND_SURFACE_ROLE_TOPLEVEL);
+-    if (surface->xdg_surface && surface->xdg_toplevel) return;
++    if (surface->xdg_surface && surface->xdg_toplevel)
++    {
++        wayland_surface_set_decorations(surface, server_side);
++        return;
++    }
+ 
+     wayland_surface_clear_role(surface);
+     surface->role = WAYLAND_SURFACE_ROLE_TOPLEVEL;
+@@ -487,6 +540,7 @@
+     wayland_surface_set_title(surface, text);
+ 
+     wayland_surface_assign_icon(surface);
++    wayland_surface_set_decorations(surface, server_side);
+ 
+     /* before the initial commit, so the compositor does not tile it */
+     if (parent) xdg_toplevel_set_parent(surface->xdg_toplevel, parent->xdg_toplevel);
+@@ -583,6 +637,13 @@
+             surface->xdg_toplevel_icon = NULL;
+         }
+ 
++        if (surface->zxdg_toplevel_decoration_v1)
++        {
++            zxdg_toplevel_decoration_v1_destroy(surface->zxdg_toplevel_decoration_v1);
++            surface->zxdg_toplevel_decoration_v1 = NULL;
++        }
++        surface->decoration_mode = 0;
++
+         if (surface->xdg_toplevel)
+         {
+             xdg_toplevel_destroy(surface->xdg_toplevel);
+--- a/dlls/winewayland.drv/window.c
++++ b/dlls/winewayland.drv/window.c
+@@ -190,17 +190,24 @@
+     return surface;
+ }
+ 
++static BOOL wants_host_decorations(DWORD style, DWORD exstyle)
++{
++    if (host_decorations < 0) host_decorations = !!process_wayland.zxdg_decoration_manager_v1;
++    return host_decorations && (style & WS_CAPTION) == WS_CAPTION && !(exstyle & WS_EX_TOOLWINDOW);
++}
++
+ static BOOL wayland_win_data_create_wayland_surface(struct wayland_win_data *data, struct wayland_surface *owner_surface)
+ {
+     struct wayland_surface *surface;
+     enum wayland_surface_role role;
+     BOOL visible;
++    DWORD style = NtUserGetWindowLongW(data->hwnd, GWL_STYLE);
+     DWORD exstyle = NtUserGetWindowLongW(data->hwnd, GWL_EXSTYLE);
+     struct wl_region *input_region;
+ 
+     TRACE("hwnd=%p\n", data->hwnd);
+ 
+-    visible = ((NtUserGetWindowLongW(data->hwnd, GWL_STYLE) & WS_VISIBLE) == WS_VISIBLE) &&
++    visible = ((style & WS_VISIBLE) == WS_VISIBLE) &&
+                (!(exstyle & WS_EX_LAYERED) || data->layered_attribs_set);
+ 
+     if (!visible) role = WAYLAND_SURFACE_ROLE_NONE;
+@@ -237,7 +244,7 @@
+         wayland_surface_clear_role(surface);
+         break;
+     case WAYLAND_SURFACE_ROLE_TOPLEVEL:
+-        wayland_surface_make_toplevel(surface, get_owner_toplevel(data->hwnd));
++        wayland_surface_make_toplevel(surface, get_owner_toplevel(data->hwnd), wants_host_decorations(style, exstyle));
+         break;
+     case WAYLAND_SURFACE_ROLE_SUBSURFACE:
+         wayland_surface_make_subsurface(surface, owner_surface);
+@@ -423,11 +430,19 @@
+ 
+ BOOL WAYLAND_GetWindowStyleMasks(HWND hwnd, UINT style, UINT ex_style, UINT *style_mask, UINT *ex_style_mask)
+ {
++    struct wayland_win_data *data;
++    BOOL client = FALSE;
++
+     *style_mask = *ex_style_mask = 0;
+-    if (host_decorations < 0) host_decorations = process_wayland.supports_decorations;
++    if (host_decorations < 0) host_decorations = !!process_wayland.zxdg_decoration_manager_v1;
+     if (!host_decorations) return FALSE;
+     if (ex_style & WS_EX_TOOLWINDOW) return TRUE;
+-    if ((style & WS_CAPTION) == WS_CAPTION)
++    if ((data = wayland_win_data_get(hwnd)))
++    {
++        client = data->wayland_surface && data->wayland_surface->client_decorations;
++        wayland_win_data_release(data);
++    }
++    if (!client && (style & WS_CAPTION) == WS_CAPTION)
+     {
+         *style_mask = WS_CAPTION | WS_THICKFRAME;
+         *ex_style_mask = WS_EX_DLGMODALFRAME;
+@@ -825,6 +840,10 @@
+     case WM_WAYLAND_OUTPUT_ENTER:
+         wayland_window_follow_output(hwnd, wp, lp);
+         return 0;
++    case WM_WAYLAND_DECORATIONS:
++        NtUserSetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
++                           SWP_NOACTIVATE | SWP_FRAMECHANGED);
++        return 0;
+     default:
+         FIXME("got window msg %x hwnd %p wp %lx lp %lx\n", msg, hwnd, (long)wp, lp);
+         return 0;
+--- /dev/null
++++ b/dlls/winewayland.drv/xdg-decoration-unstable-v1.xml
+@@ -0,0 +1,176 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<protocol name="xdg_decoration_unstable_v1">
++  <copyright>
++    Copyright © 2018 Simon Ser
++
++    Permission is hereby granted, free of charge, to any person obtaining a
++    copy of this software and associated documentation files (the "Software"),
++    to deal in the Software without restriction, including without limitation
++    the rights to use, copy, modify, merge, publish, distribute, sublicense,
++    and/or sell copies of the Software, and to permit persons to whom the
++    Software is furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice (including the next
++    paragraph) shall be included in all copies or substantial portions of the
++    Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++  </copyright>
++
++  <interface name="zxdg_decoration_manager_v1" version="2">
++    <description summary="window decoration manager">
++      This interface allows a compositor to announce support for server-side
++      decorations.
++
++      A window decoration is a set of window controls as deemed appropriate by
++      the party managing them, such as user interface components used to move,
++      resize and change a window's state.
++
++      A client can use this protocol to request being decorated by a supporting
++      compositor.
++
++      If compositor and client do not negotiate the use of a server-side
++      decoration using this protocol, clients continue to self-decorate as they
++      see fit.
++
++      Warning! The protocol described in this file is experimental and
++      backward incompatible changes may be made. Backward compatible changes
++      may be added together with the corresponding interface version bump.
++      Backward incompatible changes are done by bumping the version number in
++      the protocol and interface names and resetting the interface version.
++      Once the protocol is to be declared stable, the 'z' prefix and the
++      version number in the protocol and interface names are removed and the
++      interface version number is reset.
++    </description>
++
++    <request name="destroy" type="destructor">
++      <description summary="destroy the decoration manager object">
++        Destroy the decoration manager. This doesn't destroy objects created
++        with the manager.
++      </description>
++    </request>
++
++    <request name="get_toplevel_decoration">
++      <description summary="create a new toplevel decoration object">
++        Create a new decoration object associated with the given toplevel.
++
++        For objects of version 1, creating an xdg_toplevel_decoration from an
++        xdg_toplevel which has a buffer attached or committed is a client
++        error, and any attempts by a client to attach or manipulate a buffer
++        prior to the first xdg_toplevel_decoration.configure event must also be
++        treated as errors.
++
++        For objects of version 2 or newer, creating an xdg_toplevel_decoration
++        from an xdg_toplevel which has a buffer attached or committed is
++        allowed. The initial decoration mode of the surface if a buffer is
++        already attached depends on whether a xdg_toplevel_decoration object
++        has been associated with the surface or not prior to this request.
++
++        If an xdg_toplevel_decoration was associated with the surface, then
++        destroyed without a surface commit, the previous decoration mode is
++        retained.
++
++        If no xdg_toplevel_decoration was associated with the surface prior to
++        this request, or if a surface commit has been performed after a previous
++        xdg_toplevel_decoration object associated with the surface was
++        destroyed, the decoration mode is assumed to be client-side.
++      </description>
++      <arg name="id" type="new_id" interface="zxdg_toplevel_decoration_v1"/>
++      <arg name="toplevel" type="object" interface="xdg_toplevel"/>
++    </request>
++  </interface>
++
++  <interface name="zxdg_toplevel_decoration_v1" version="2">
++    <description summary="decoration object for a toplevel surface">
++      The decoration object allows the compositor to toggle server-side window
++      decorations for a toplevel surface. The client can request to switch to
++      another mode.
++
++      The xdg_toplevel_decoration object must be destroyed before its
++      xdg_toplevel.
++    </description>
++
++    <enum name="error">
++      <entry name="unconfigured_buffer" value="0"
++        summary="xdg_toplevel has a buffer attached before configure"/>
++      <entry name="already_constructed" value="1"
++        summary="xdg_toplevel already has a decoration object"/>
++      <entry name="orphaned" value="2"
++        summary="xdg_toplevel destroyed before the decoration object"/>
++      <entry name="invalid_mode" value="3" summary="invalid mode"/>
++    </enum>
++
++    <request name="destroy" type="destructor">
++      <description summary="destroy the decoration object">
++        Switch back to a mode without any server-side decorations at the next
++        commit, unless a new xdg_toplevel_decoration is created for the surface
++        first.
++      </description>
++    </request>
++
++    <enum name="mode">
++      <description summary="window decoration modes">
++        These values describe window decoration modes.
++      </description>
++      <entry name="client_side" value="1"
++        summary="no server-side window decoration"/>
++      <entry name="server_side" value="2"
++        summary="server-side window decoration"/>
++    </enum>
++
++    <request name="set_mode">
++      <description summary="set the decoration mode">
++        Set the toplevel surface decoration mode. This informs the compositor
++        that the client prefers the provided decoration mode.
++
++        After requesting a decoration mode, the compositor will respond by
++        emitting an xdg_surface.configure event. The client should then update
++        its content, drawing it without decorations if the received mode is
++        server-side decorations. The client must also acknowledge the configure
++        when committing the new content (see xdg_surface.ack_configure).
++
++        The compositor can decide not to use the client's mode and enforce a
++        different mode instead.
++
++        Clients whose decoration mode depend on the xdg_toplevel state may send
++        a set_mode request in response to an xdg_surface.configure event and wait
++        for the next xdg_surface.configure event to prevent unwanted state.
++        Such clients are responsible for preventing configure loops and must
++        make sure not to send multiple successive set_mode requests with the
++        same decoration mode.
++
++        If an invalid mode is supplied by the client, the invalid_mode protocol
++        error is raised by the compositor.
++      </description>
++      <arg name="mode" type="uint" enum="mode" summary="the decoration mode"/>
++    </request>
++
++    <request name="unset_mode">
++      <description summary="unset the decoration mode">
++        Unset the toplevel surface decoration mode. This informs the compositor
++        that the client doesn't prefer a particular decoration mode.
++
++        This request has the same semantics as set_mode.
++      </description>
++    </request>
++
++    <event name="configure">
++      <description summary="notify a decoration mode change">
++        The configure event configures the effective decoration mode. The
++        configured state should not be applied immediately. Clients must send an
++        ack_configure in response to this event. See xdg_surface.configure and
++        xdg_surface.ack_configure for details.
++
++        A configure event can be sent at any time. The specified mode must be
++        obeyed by the client.
++      </description>
++      <arg name="mode" type="uint" enum="mode" summary="the decoration mode"/>
++    </event>
++  </interface>
++</protocol>
