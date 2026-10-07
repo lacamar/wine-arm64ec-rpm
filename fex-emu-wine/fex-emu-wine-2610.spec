@@ -1,0 +1,256 @@
+# _libdir was restructured in F42 wine package to support a directory/symlink replacement
+%global _libdir %{_libdir}/wine-wow64
+
+%global srcname FEX
+%global forgeurl https://github.com/FEX-Emu/FEX
+%undefine _hardened_build
+%undefine _auto_set_build_flags
+
+%global fex_ldflags -Wl,--gc-sections -static
+%global fex_cflags -O3 -g -pipe -Wall -Wextra
+
+%global __provides_exclude_from ^%{_libdir}/wine/.*$
+
+Name:       fex-emu-wine
+Version:    2610
+Release:    1%{?dist}
+Summary:    FEX DLLs for enabling Wine's ARM64EC support
+
+# FEX itself is MIT, see below for the bundled libraries
+%global fex_license MIT AND Apache-2.0 AND BSD-3-Clause AND GPL-2.0-only
+License:    %{fex_license}
+URL:        https://fex-emu.com
+%if %{defined commit}
+Source0:    %{forgeurl}/commit/%{commit}/%{srcname}-%{commit}.tar.gz
+%else
+Source0:    %{forgeurl}/archive/%{srcname}-%{version}/%{srcname}-%{srcname}-%{version}.tar.gz
+%endif
+
+Source100:  https://github.com/bylaws/llvm-mingw/releases/download/20250920/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64.tar.xz
+
+%{lua:
+local externals = {
+  { name="cpp-optparse", ref="9f94388", owner="Sonicadvance1", path="../Source/Common/cpp-optparse", license="MIT" },
+  { name="Catch2", ref="b3fb4b9", owner="catchorg", version="3.11.0", license="BSL-1.0" },
+  { name="Vulkan-Headers", ref="ee2ec5f", owner="KhronosGroup", package="vulkan-headers", version="1.4.362", license="Apache-2.0" },
+  { name="drm-headers", ref="3e49836", owner="FEX-Emu", package="kernel", version="6.13", license="GPL-2.0-only" },
+  { name="fmt", ref="c07e2aa", owner="fmtlib", path="fmt", version="12.1.0" },
+  { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
+  { name="range-v3", ref="ca1388f", owner="ericniebler", license="MIT" },
+  { name="rpmalloc", ref="09142d7", owner="FEX-Emu", license="0BSD" },
+  { name="tracy", ref="650c98e", owner="wolfpld", license="BSD-2-Clause" },
+  { name="unordered_dense", ref="3234af2", owner="martinus", version="4.8.1", license="MIT" },
+  { name="vixl", ref="585d860", owner="FEX-Emu", license="BSD-3-Clause" },
+  { name="xxhash", ref="e626a72", owner="Cyan4973", path="xxhash", version="0.8.3",  license="BSD-2-Clause" },
+  { name="zydis", ref="9bfadd6", owner="zyantific", version="4.1.1",  license="MIT" },
+}
+
+for i, s in ipairs(externals) do
+  si = 100 + i
+  print(string.format("Source%d: https://github.com/%s/%s/archive/%s/%s-%s.tar.gz", si, s.owner, s.name, s.ref, s.name, s.ref).."\n")
+  if s.bcond and not rpm.isdefined(string.format("with_%s", s.bcond)) then goto continue1 end
+  print(string.format("Provides: bundled(%s) = %s", (s.package or s.name), (s.version or "0")).."\n")
+  ::continue1::
+end
+
+function print_setup_externals()
+  for i, s in ipairs(externals) do
+    si = 100 + i
+    if s.bcond and not rpm.isdefined(string.format("with_%s", s.bcond)) then goto continue2 end
+    print(string.format("mkdir -p External/%s", (s.path or s.name)).."\n")
+    print(string.format("tar -xzf %s --strip-components=1 -C External/%s", rpm.expand("%{SOURCE"..si.."}"), (s.path or s.name)).."\n")
+    ::continue2::
+  end
+end
+}
+
+# LinuxEmulation: Implement custom longjump that is fortification safe
+Patch:          %{forgeurl}/commit/a37def2c22e528477f64296747228400ddc40222.patch
+# Async: Add run_one interface to enable more fine-grained event loop control
+Patch:          %{forgeurl}/commit/8eaf45414c05c9e7ef6f74a323d95fe7e0d883c1.patch
+# FEXServer: Don't time out while clients are still connected
+Patch:          %{forgeurl}/commit/c326e2d669fd5e9356f6107e188413a449cc1fd7.patch
+Patch100:       fex-emu-wine-git-host-page-size.patch
+Patch101:       fex-emu-wine-git-smc-untrap-host-page.patch
+Patch102:       fex-emu-wine-git-callback-code-buffer.patch
+Patch103:       fex-emu-wine-smc-untrappable-host-page.patch
+Patch104:       fex-emu-wine-precise-faults.patch
+Patch105:       fex-emu-wine-git-suspend-backedge.patch
+Patch106:       fex-emu-wine-git-dispatcher-rethrow.patch
+
+
+BuildRequires:  cmake
+BuildRequires:  clang
+BuildRequires:  git-core
+BuildRequires:  lld
+BuildRequires:  llvm
+BuildRequires:  llvm-devel
+BuildRequires:  ninja-build
+BuildRequires:  python3
+%ifarch %{arm64}
+BuildRequires:  python3-setuptools
+%endif
+BuildRequires:  sed
+BuildRequires:  systemd-rpm-macros
+%if %{with check}
+BuildRequires:  nasm
+BuildRequires:  python3-clang
+%endif
+
+BuildRequires:  catch2-devel
+BuildRequires:  fmt-devel
+BuildRequires:  libepoxy-devel
+BuildRequires:  SDL2-devel
+BuildRequires:  xxhash-devel
+%ifarch %{x86_64}
+BuildRequires:  xbyak-devel
+%endif
+BuildRequires:  alsa-lib-devel
+BuildRequires:  clang-devel
+BuildRequires:  libdrm-devel
+BuildRequires:  libglvnd-devel
+BuildRequires:  libX11-devel
+BuildRequires:  libXrandr-devel
+BuildRequires:  openssl-devel
+BuildRequires:  wayland-devel
+BuildRequires:  zlib-devel
+
+Requires:       systemd-udev
+
+
+%description
+FEX-Emu DLLs that allow for ARM64EC support on aarch64 hosts running wine.
+
+
+%prep
+%setup -q -n %{srcname}-%{srcname}-%{version}
+
+%patch -P 100 -p1
+%patch -P 101 -p1
+%patch -P 102 -p1
+%patch -P 103 -p1
+%patch -P 104 -p1
+%patch -P 105 -p1
+%patch -P 106 -p1
+
+# Unpack bundled libraries
+%{lua: print_setup_externals()}
+
+
+
+tar -xJf %{SOURCE100} -C %{_builddir}
+
+
+%build
+export CFLAGS="%{fex_cflags}"
+export CXXFLAGS="$CFLAGS"
+export LDFLAGS="%{fex_ldflags}"
+export PATH="%{_builddir}/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64/bin:$PATH"
+
+mkdir build-arm64ec && pushd build-arm64ec
+
+cmake -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CFLAGS" \
+  -GNinja \
+  -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+  -DCMAKE_INSTALL_LIBDIR=%{_libdir}/wine/aarch64-windows \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=../Data/CMake/toolchain_mingw.cmake \
+  -DENABLE_LTO=False \
+  -DTUNE_CPU=none \
+  -DMINGW_TRIPLE=arm64ec-w64-mingw32 \
+  -DBUILD_TESTING=False \
+  -DENABLE_JEMALLOC_GLIBC_ALLOC=False \
+  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+  ..
+sed -i 's/arm64ec-w64-mingw32-dlltool/llvm-dlltool -m arm64ec/g' build.ninja
+ninja
+popd
+
+mkdir build-wow64 && pushd build-wow64
+cmake -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CFLAGS" \
+  -GNinja \
+  -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+  -DCMAKE_INSTALL_LIBDIR=%{_libdir}/wine/aarch64-windows \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=../Data/CMake/toolchain_mingw.cmake \
+  -DENABLE_LTO=False \
+  -DTUNE_CPU=none \
+  -DMINGW_TRIPLE=aarch64-w64-mingw32 \
+  -DBUILD_TESTING=False \
+  -DENABLE_JEMALLOC_GLIBC_ALLOC=OFF \
+  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+  ..
+sed -i 's/aarch64-w64-mingw32-dlltool/llvm-dlltool -m arm64/g' build.ninja
+ninja
+popd
+
+mkdir build-unixlib && pushd build-unixlib
+LDFLAGS="-Wl,--gc-sections" \
+cmake -GNinja \
+  -DCMAKE_C_COMPILER=/usr/bin/clang \
+  -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+  -DCMAKE_INSTALL_LIBDIR=%{_libdir}/wine/aarch64-unix \
+  ../Source/Windows/UnixLib
+ninja
+popd
+
+%install
+rm -rf %{buildroot}
+
+pushd build-arm64ec
+DESTDIR=%{buildroot} ninja install
+popd
+
+pushd build-wow64
+DESTDIR=%{buildroot} ninja install
+popd
+
+pushd build-unixlib
+DESTDIR=%{buildroot} ninja install
+popd
+
+rm -rf %{buildroot}/usr/include
+rm -rf %{buildroot}/usr/share
+
+%files
+%define debug_package %{nil}
+%license LICENSE
+%doc Readme.md docs
+
+%{_libdir}/wine/aarch64-windows/libarm64ecfex.dll
+%{_libdir}/wine/aarch64-windows/libwow64fex.dll
+%{_libdir}/wine/aarch64-unix/libarm64ecfex.so
+%{_libdir}/wine/aarch64-unix/libwow64fex.so
+%{_bindir}/FEXOfflineCompiler32.exe
+%{_bindir}/FEXOfflineCompiler64.exe
+
+
+%changelog
+* Wed Oct 07 2026 Lachlan Marie <lchlnm@pm.me> - 2610-1
+- Update to 2610
+
+* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 2609-8
+- Retrap SMC host pages after RWX neighbour commits
+
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 2609-7
+- Move to wine-wow64 libdir
+
+* Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 2609-6
+- fix divide-by-zero check reusing the divisor across a block split (corrupted divisions)
+
+* Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 2609-5
+- fix stale code in RWX pages sharing a host page with writable data
+- fix ARM64EC deadlock in full SMC validation
+- report the faulting instruction for absolute and relocated memory operands
+- raise divide-by-zero exceptions
+- keep RSP unchanged when a POP to memory faults
+
+* Tue Sep 22 2026 Lachlan Marie <lchlnm@pm.me> - 2609-4
+- fix WOW64 crash when the code buffer is replaced inside a user callback
+
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 2609-3
+- fix suspending JIT threads
+
+%autochangelog
