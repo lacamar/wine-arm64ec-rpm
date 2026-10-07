@@ -2,11 +2,11 @@
 %global _libdir %{_libdir}/wine-wow64
 
 %global srcname FEX
-%global tag 2609.1
+%global tag 2610
 
-%global bumpver 5
+%global bumpver 0
 
-%global commit 79a7afe7e1424ef1e2b4e8ab66aaeb6dda76a059
+%global commit 14c92681f4d62cf84d901460e0358de09c8847a7
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -20,7 +20,7 @@
 
 Name:       fex-emu-wine-git
 Version:    %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:    9%{?dist}
+Release:    1%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -235,6 +235,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Wed Oct 07 2026 Lachlan Marie <lchlnm@pm.me> - 2610^0.git.14c9268-1
+- Update to 14c9268 (2610)
+
 * Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 2609.1^5.git.79a7afe-9
 - Use live guest regs for dispatcher faults
 
