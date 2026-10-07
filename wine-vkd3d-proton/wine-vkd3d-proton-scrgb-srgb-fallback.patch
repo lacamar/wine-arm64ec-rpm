@@ -1,0 +1,50 @@
+--- a/libs/vkd3d/swapchain.c
++++ b/libs/vkd3d/swapchain.c
+@@ -1246,6 +1246,8 @@
+ static VkColorSpaceKHR convert_color_space(DXGI_COLOR_SPACE_TYPE dxgi_color_space);
+ static bool dxgi_vk_swap_chain_update_formats_locked(struct dxgi_vk_swap_chain *chain, bool force_requery);
+ 
++static bool dxgi_vk_swap_chain_find_scrgb_fallback(struct dxgi_vk_swap_chain *chain, VkSurfaceFormatKHR *format);
++
+ static bool dxgi_vk_swap_chain_supports_color_space(struct dxgi_vk_swap_chain *chain, DXGI_COLOR_SPACE_TYPE ColorSpace)
+ {
+     VkColorSpaceKHR vk_color_space;
+@@ -1260,6 +1262,10 @@
+         if (chain->properties.formats[i].colorSpace == vk_color_space)
+             ret = true;
+     pthread_mutex_unlock(&chain->properties.lock);
++
++    /* scRGB without EXTENDED_SRGB_LINEAR: present SDR through an sRGB-encoding format. */
++    if (!ret && ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709)
++        ret = dxgi_vk_swap_chain_find_scrgb_fallback(chain, NULL);
+     return ret;
+ }
+ 
+@@ -1784,6 +1790,16 @@
+     return ret;
+ }
+ 
++static bool dxgi_vk_swap_chain_find_scrgb_fallback(struct dxgi_vk_swap_chain *chain, VkSurfaceFormatKHR *format)
++{
++    VkSurfaceFormatKHR tmp;
++
++    if (!format)
++        format = &tmp;
++    return dxgi_vk_swap_chain_find_surface_format(chain, VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, format) ||
++            dxgi_vk_swap_chain_find_surface_format(chain, VK_FORMAT_R8G8B8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, format);
++}
++
+ static bool dxgi_vk_swap_chain_select_format(struct dxgi_vk_swap_chain *chain, VkSurfaceFormatKHR *format)
+ {
+     VkFormat vk_format = vkd3d_get_format(chain->queue->device, chain->request.dxgi_format, false)->vk_format;
+@@ -1799,6 +1815,10 @@
+     {
+         return dxgi_vk_swap_chain_find_surface_format(chain, VK_FORMAT_UNDEFINED, vk_color_space, format);
+     }
++    else if (vk_color_space == VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT)
++    {
++        return dxgi_vk_swap_chain_find_scrgb_fallback(chain, format);
++    }
+     else
+     {
+         /* Refuse to present unsupported HDR since it will look completely bogus. */

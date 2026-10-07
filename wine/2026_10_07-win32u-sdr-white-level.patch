@@ -1,0 +1,23 @@
+--- a/dlls/win32u/sysparams.c
++++ b/dlls/win32u/sysparams.c
+@@ -8009,12 +8009,19 @@
+         unlock_display_devices();
+         return ret;
+     }
++    case DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL:
++    {
++        DISPLAYCONFIG_SDR_WHITE_LEVEL *white = (DISPLAYCONFIG_SDR_WHITE_LEVEL *)packet;
++
++        if (packet->size < sizeof(*white)) return STATUS_INVALID_PARAMETER;
++        white->SDRWhiteLevel = 1000;
++        return STATUS_SUCCESS;
++    }
+     case DISPLAYCONFIG_DEVICE_INFO_SET_TARGET_PERSISTENCE:
+     case DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_BASE_TYPE:
+     case DISPLAYCONFIG_DEVICE_INFO_GET_SUPPORT_VIRTUAL_RESOLUTION:
+     case DISPLAYCONFIG_DEVICE_INFO_SET_SUPPORT_VIRTUAL_RESOLUTION:
+     case DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE:
+-    case DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL:
+     default:
+         FIXME( "Unimplemented packet type %u.\n", packet->type );
+         return STATUS_INVALID_PARAMETER;
