@@ -1,0 +1,46 @@
+Subject: win32u: Keep layered surfaces layered across resizes.
+
+--- a/dlls/win32u/window.c
++++ b/dlls/win32u/window.c
+@@ -2182,7 +2182,8 @@
+     return TRUE;
+ }
+ 
+-static BOOL get_default_window_surface( HWND hwnd, const RECT *surface_rect, struct window_surface **surface )
++static BOOL get_default_window_surface( HWND hwnd, const RECT *surface_rect, struct window_surface **surface,
++                                        BOOL *was_layered )
+ {
+     struct window_surface *previous;
+     WND *win;
+@@ -2191,7 +2192,8 @@
+ 
+     if (!(win = get_win_ptr( hwnd )) || win == WND_DESKTOP || win == WND_OTHER_PROCESS) return FALSE;
+ 
+-    if ((previous = win->surface) && EqualRect( &previous->rect, surface_rect ))
++    *was_layered = (previous = win->surface) && previous->alpha_mask;
++    if (previous && EqualRect( &previous->rect, surface_rect ))
+     {
+         window_surface_add_ref( (*surface = previous) );
+         TRACE( "trying to reuse previous surface %p\n", previous );
+@@ -2214,7 +2216,7 @@
+ static struct window_surface *get_window_surface( HWND hwnd, UINT swp_flags, BOOL create_layered,
+                                                   struct window_rects *rects, RECT *surface_rect )
+ {
+-    BOOL shaped, needs_surface, create_opaque, is_layered, is_child;
++    BOOL shaped, needs_surface, create_opaque, is_layered, was_layered, is_child;
+     HWND parent = NtUserGetAncestor( hwnd, GA_PARENT );
+     struct window_surface *new_surface;
+     struct window_rects monitor_rects;
+@@ -2245,10 +2247,11 @@
+ 
+     if (!is_child) rects->visible = get_visible_rect( hwnd, shaped, style, ex_style, rects );
+     if (!get_surface_rect( &rects->visible, surface_rect )) needs_surface = FALSE;
+-    if (!get_default_window_surface( hwnd, surface_rect, &new_surface )) return NULL;
++    if (!get_default_window_surface( hwnd, surface_rect, &new_surface, &was_layered )) return NULL;
+ 
+     is_layered = new_surface && new_surface->alpha_mask;
+     create_opaque = !(get_window_long( hwnd, GWL_EXSTYLE ) & WS_EX_LAYERED);
++    if (!create_opaque && was_layered) create_layered = TRUE;
+ 
+     if ((create_opaque && is_layered) || (create_layered && !is_layered))
+     {

@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec14%{dist}
+Release:        ec15%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -160,6 +160,7 @@ Patch642:       2026_10_07-mshtml-docopen-navcomplete.patch
 Patch643:       2026_10_07-comctl32-datetime-field-width.patch
 Patch644:       2026_10_07-winewayland-owned-fullscreen-popups.patch
 Patch645:       2026_10_07-win32u-sdr-white-level.patch
+Patch646:       2026_10_07-win32u-keep-layered-surface.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -836,6 +837,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 643 -p1
 %patch -P 644 -p1
 %patch -P 645 -p1
+%patch -P 646 -p1
 %endif
 
 %build
@@ -2528,6 +2530,9 @@ fi
 %endif
 
 %changelog
+* Wed Oct 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec15
+- Keep layered windows layered on resize
+
 * Wed Oct 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec14
 - Report SDR white level
 
