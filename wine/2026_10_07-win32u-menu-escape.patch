@@ -1,0 +1,10 @@
+--- a/dlls/win32u/menu.c
++++ b/dlls/win32u/menu.c
+@@ -3852,6 +3852,7 @@
+ 
+             hide_sub_popups( pmt->hOwnerWnd, prev_menu, TRUE, flags );
+             pmt->hCurrentMenu = prev_menu;
++            if (prev_menu == pmt->hTopMenu) pmt->trackFlags &= ~TF_RCVD_BTN_UP;
+             ret = FALSE;
+         }
+     }

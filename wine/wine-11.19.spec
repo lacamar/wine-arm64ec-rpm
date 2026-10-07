@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec12%{dist}
+Release:        ec13%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -154,6 +154,11 @@ Patch636:       2026_10_06-win32u-mat2-negative-fixed.patch
 Patch637:       2026_10_06-kernelbase-lightroom-cef-in-process-gpu.patch
 Patch638:       2026_10_06-win32u-popup-owner-hint.patch
 Patch639:       2026_10_06-winewayland-xdg-decoration.patch
+Patch640:       2026_10_06-win32u-scrollbar-orientation.patch
+Patch641:       2026_10_07-win32u-menu-escape.patch
+Patch642:       2026_10_07-mshtml-docopen-navcomplete.patch
+Patch643:       2026_10_07-comctl32-datetime-field-width.patch
+Patch644:       2026_10_07-winewayland-owned-fullscreen-popups.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -824,6 +829,11 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 637 -p1
 %patch -P 638 -p1
 %patch -P 639 -p1
+%patch -P 640 -p1
+%patch -P 641 -p1
+%patch -P 642 -p1
+%patch -P 643 -p1
+%patch -P 644 -p1
 %endif
 
 %build
@@ -2516,6 +2526,14 @@ fi
 %endif
 
 %changelog
+* Wed Oct 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec13
+- Fix scrollbar orientation
+- Close menus on Escape
+- Fix mshtml document.open navigation
+- Fix date picker field widths
+- Fullscreen owned popups on their monitor
+- Parent dialogs to nearest toplevel
+
 * Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec12
 - Request server-side decorations properly
 

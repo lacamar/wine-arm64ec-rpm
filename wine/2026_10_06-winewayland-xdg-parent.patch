@@ -35,7 +35,7 @@
  
 --- a/dlls/winewayland.drv/window.c
 +++ b/dlls/winewayland.drv/window.c
-@@ -177,6 +177,19 @@
+@@ -177,6 +177,23 @@
      NtUserSetThreadDpiAwarenessContext(context);
  }
  
@@ -43,19 +43,23 @@
 +{
 +    struct wayland_surface *surface = NULL;
 +    struct wayland_win_data *data;
-+    HWND owner;
++    HWND owner = hwnd;
 +
-+    if (!(owner = NtUserGetWindowRelative(hwnd, GW_OWNER)) || !(data = wayland_win_data_get(owner))) return NULL;
-+    if (data->wayland_surface && data->wayland_surface->role == WAYLAND_SURFACE_ROLE_TOPLEVEL)
-+        surface = data->wayland_surface;
-+    wayland_win_data_release(data);
++    /* owned popups are subsurfaces, use their nearest toplevel owner */
++    while (!surface && (owner = NtUserGetWindowRelative(owner, GW_OWNER)))
++    {
++        if (!(data = wayland_win_data_get(owner))) continue;
++        if (data->wayland_surface && data->wayland_surface->role == WAYLAND_SURFACE_ROLE_TOPLEVEL)
++            surface = data->wayland_surface;
++        wayland_win_data_release(data);
++    }
 +    return surface;
 +}
 +
  static BOOL wayland_win_data_create_wayland_surface(struct wayland_win_data *data, struct wayland_surface *owner_surface)
  {
      struct wayland_surface *surface;
-@@ -224,7 +237,7 @@
+@@ -224,7 +241,7 @@
          wayland_surface_clear_role(surface);
          break;
      case WAYLAND_SURFACE_ROLE_TOPLEVEL:

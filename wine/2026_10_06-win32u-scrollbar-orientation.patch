@@ -1,0 +1,54 @@
+From: Lachlan Marie <lchlnm@pm.me>
+Subject: win32u: latch scrollbar control orientation at creation.
+
+--- a/dlls/win32u/ntuser_private.h
++++ b/dlls/win32u/ntuser_private.h
+@@ -155,6 +155,7 @@
+     INT   page;     /* Page size of scroll bar (Win32) */
+     UINT  flags;    /* EnableScrollBar flags */
+     BOOL  painted;  /* Whether the scroll bar is painted by DefWinProc() */
++    BOOL  vertical; /* SB_CTL orientation, fixed at creation */
+ };
+ 
+ /* also defined in server/class.c */
+--- a/dlls/win32u/scroll.c
++++ b/dlls/win32u/scroll.c
+@@ -39,6 +39,12 @@
+     return (struct scroll_info *)NtUserSetPrivateData( hwnd, 0, sizeof(struct scroll_info *), (LONG_PTR)state );
+ }
+ 
++static BOOL is_vertical_control( HWND hwnd )
++{
++    struct scroll_info *info = get_control_state( hwnd );
++    return info ? info->vertical : (get_window_long( hwnd, GWL_STYLE ) & SBS_VERT) != 0;
++}
++
+ /* Minimum size of the rectangle between the arrows */
+ #define SCROLL_MIN_RECT  4
+ 
+@@ -219,7 +225,7 @@
+ 
+     case SB_CTL:
+         get_client_rect( hwnd, rect, get_thread_dpi() );
+-        vertical = (win->dwStyle & SBS_VERT) != 0;
++        vertical = is_vertical_control( hwnd );
+         break;
+ 
+     default:
+@@ -1135,6 +1141,7 @@
+     TRACE( "hwnd=%p create=%p\n", hwnd, create );
+ 
+     if (!(info = calloc( 1, sizeof(*info) ))) return;
++    info->vertical = (create->style & SBS_VERT) != 0;
+     NtUserSetWindowFNID( hwnd, MAKE_FNID(NTUSER_WNDPROC_SCROLLBAR) );
+     set_control_state( hwnd, info );
+ 
+@@ -1198,7 +1205,7 @@
+     }
+ 
+     send_message( get_parent(hwnd),
+-                  (get_window_long( hwnd, GWL_STYLE ) & SBS_VERT) ? WM_VSCROLL : WM_HSCROLL,
++                  is_vertical_control( hwnd ) ? WM_VSCROLL : WM_HSCROLL,
+                   wparam, (LPARAM)hwnd);
+ }
+ 

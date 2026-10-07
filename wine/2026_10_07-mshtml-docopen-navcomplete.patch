@@ -1,0 +1,33 @@
+Subject: mshtml: Don't fire NavigateComplete2 for document.open.
+
+--- a/dlls/mshtml/binding.h
++++ b/dlls/mshtml/binding.h
+@@ -136,6 +136,7 @@
+ #define BINDING_REFRESH      0x0008
+ #define BINDING_SUBMIT       0x0010
+ #define BINDING_NOFRAG       0x0020
++#define BINDING_DOCOPEN      0x0040
+ 
+ HRESULT set_http_header(struct list*,const WCHAR*,int,const WCHAR*,int);
+ HRESULT create_redirect_nschannel(const WCHAR*,nsChannel*,nsChannel**);
+--- a/dlls/mshtml/htmldoc.c
++++ b/dlls/mshtml/htmldoc.c
+@@ -1479,6 +1479,7 @@
+     release_event_target(&This->node.event_target);
+     doc_init_events(This);
+ 
++    This->window->base.outer_window->load_flags |= BINDING_DOCOPEN;
+     *pomWindowResult = (IDispatch*)&This->window->base.outer_window->base.IHTMLWindow2_iface;
+     IHTMLWindow2_AddRef(&This->window->base.outer_window->base.IHTMLWindow2_iface);
+     return S_OK;
+--- a/dlls/mshtml/mutation.c
++++ b/dlls/mshtml/mutation.c
+@@ -283,7 +283,7 @@
+     call_property_onchanged(&doc->cp_container, 1005);
+     call_explorer_69(doc);
+ 
+-    if(doc->webbrowser && !(doc->window->load_flags & BINDING_REFRESH))
++    if(doc->webbrowser && !(doc->window->load_flags & (BINDING_REFRESH|BINDING_DOCOPEN)))
+         IDocObjectService_FireNavigateComplete2(doc->doc_object_service, &doc->window->base.IHTMLWindow2_iface, 0);
+ 
+     /* FIXME: IE7 calls EnableModelless(TRUE), EnableModelless(FALSE) and sets interactive state here */

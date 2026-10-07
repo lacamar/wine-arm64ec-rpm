@@ -1,0 +1,125 @@
+Subject: winewayland: Make fullscreen owned layered popups toplevels on their monitor.
+
+--- a/dlls/winewayland.drv/waylanddrv.h
++++ b/dlls/winewayland.drv/waylanddrv.h
+@@ -278,6 +278,7 @@
+     BOOL managed;
+     BOOL minimized;
+     BOOL resizeable;
++    int fullscreen_output;
+ };
+ 
+ struct wayland_client_surface
+--- a/dlls/winewayland.drv/window.c
++++ b/dlls/winewayland.drv/window.c
+@@ -37,6 +37,8 @@
+ WINE_DEFAULT_DEBUG_CHANNEL(waylanddrv);
+ 
+ static BOOL get_output_rect(int index, RECT *rect);
++static BOOL get_current_output_rect(const RECT *window, RECT *best);
++static int get_output_index(const RECT *rect);
+ static BOOL rect_on_output(const RECT *rect, const RECT *output);
+ 
+ 
+@@ -141,6 +143,7 @@
+                                         struct wayland_window_config *conf)
+ {
+     enum wayland_surface_config_state window_state = 0;
++    RECT output;
+     DWORD style;
+ 
+     conf->rect = data->rects.visible;
+@@ -163,6 +166,13 @@
+         window_state |= WAYLAND_SURFACE_CONFIG_STATE_MAXIMIZED;
+     }
+ 
++    /* owned popups fullscreen on the monitor the app chose */
++    conf->fullscreen_output = -1;
++    if ((window_state & WAYLAND_SURFACE_CONFIG_STATE_FULLSCREEN) &&
++        NtUserGetWindowRelative(data->hwnd, GW_OWNER) &&
++        get_current_output_rect(&data->rects.window, &output))
++        conf->fullscreen_output = get_output_index(&output);
++
+     conf->resizeable = data->resizeable;
+     conf->state = window_state;
+     conf->visible = (style & WS_VISIBLE) == WS_VISIBLE;
+@@ -266,6 +276,19 @@
+     return TRUE;
+ }
+ 
++static struct wl_output *get_wl_output(int index)
++{
++    struct wayland_output *output;
++    struct wl_output *ret = NULL;
++
++    if (index < 0) return NULL;
++    pthread_mutex_lock(&process_wayland.output_mutex);
++    wl_list_for_each(output, &process_wayland.output_list, link)
++        if (wayland_output_win32_index(output) == index) ret = output->wl_output;
++    pthread_mutex_unlock(&process_wayland.output_mutex);
++    return ret;
++}
++
+ static void wayland_surface_update_state_toplevel(struct wayland_surface *surface)
+ {
+     BOOL processing_config = surface->processing.serial &&
+@@ -306,7 +329,7 @@
+         if ((surface->window.state & WAYLAND_SURFACE_CONFIG_STATE_FULLSCREEN) &&
+            !(surface->current.state & WAYLAND_SURFACE_CONFIG_STATE_FULLSCREEN))
+         {
+-            xdg_toplevel_set_fullscreen(surface->xdg_toplevel, NULL);
++            xdg_toplevel_set_fullscreen(surface->xdg_toplevel, get_wl_output(surface->window.fullscreen_output));
+         }
+         if (surface->window.minimized)
+         {
+@@ -398,7 +421,18 @@
+  *
+  * Check if a given window should be managed
+  */
+-static BOOL is_window_managed(HWND hwnd, UINT swp_flags, BOOL fullscreen)
++static BOOL covers_output(const RECT *rect)
++{
++    RECT output;
++
++    if (!get_current_output_rect(rect, &output)) return FALSE;
++    /* Lightroom's slideshow window is 2px short of the monitor */
++    output.bottom -= (output.bottom - output.top) / 100;
++    return rect->left <= output.left && rect->right >= output.right &&
++           rect->top <= output.top && rect->bottom >= output.bottom;
++}
++
++static BOOL is_window_managed(HWND hwnd, UINT swp_flags, BOOL *fullscreen, const RECT *rect)
+ {
+     DWORD style, ex_style;
+ 
+@@ -409,7 +443,11 @@
+     if ((ex_style & WS_EX_LAYERED) && !(ex_style & WS_EX_APPWINDOW) &&
+         (style & WS_CAPTION) != WS_CAPTION && !(style & WS_THICKFRAME) &&
+         NtUserGetWindowRelative(hwnd, GW_OWNER))
+-        return FALSE;
++    {
++        if ((ex_style & WS_EX_NOACTIVATE) || !covers_output(rect)) return FALSE;
++        *fullscreen = TRUE;
++        return TRUE;
++    }
+     /* activated windows are managed */
+     if (!(swp_flags & (SWP_NOACTIVATE|SWP_HIDEWINDOW))) return TRUE;
+     if (hwnd == get_active_window()) return TRUE;
+@@ -422,7 +460,7 @@
+         /* popup with sysmenu == caption are managed */
+         if (style & WS_SYSMENU) return TRUE;
+         /* full-screen popup windows are managed */
+-        if (fullscreen) return TRUE;
++        if (*fullscreen) return TRUE;
+     }
+     /* application windows are managed */
+     if (ex_style & WS_EX_APPWINDOW) return TRUE;
+@@ -500,7 +538,7 @@
+     /* Get the managed state with win_data unlocked, as is_window_managed
+      * may need to query win_data information about other HWNDs and thus
+      * acquire the lock itself internally. */
+-    if (!(managed = is_window_managed(hwnd, swp_flags, fullscreen)) && surface) owner = owner_hint;
++    if (!(managed = is_window_managed(hwnd, swp_flags, &fullscreen, &new_rects->window)) && surface) owner = owner_hint;
+ 
+     if (!(data = wayland_win_data_get(hwnd))) return;
+     owner_data = owner && owner != hwnd ? wayland_win_data_get(owner) : NULL;

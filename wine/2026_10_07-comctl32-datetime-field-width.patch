@@ -1,0 +1,13 @@
+Subject: comctl32: Size datetime fields by their actual text.
+
+--- a/dlls/comctl32/datetime.c
++++ b/dlls/comctl32/datetime.c
+@@ -759,7 +759,7 @@
+             GetTextExtentPoint32W (hdc, txt, lstrlenW(txt), &size);
+             field = &infoPtr->fieldRect[i];
+             field->left   = prevright;
+-            field->right  = prevright + DATETIME_GetFieldWidth (infoPtr, hdc, i);
++            field->right  = prevright + size.cx;
+             field->top    = rcDraw->top;
+             field->bottom = rcDraw->bottom;
+             prevright = field->right;
