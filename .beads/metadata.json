@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "wine_arm64ec_rpm",
+  "project_id": "3f3d0765-034d-4ee8-b2ff-057aa3b30122"
+}
