@@ -1,0 +1,10 @@
+--- a/programs/explorer/desktop.c
++++ b/programs/explorer/desktop.c
+@@ -1288,6 +1288,7 @@
+         SetWindowPos( hwnd, 0, GetSystemMetrics(SM_XVIRTUALSCREEN), GetSystemMetrics(SM_YVIRTUALSCREEN),
+                       GetSystemMetrics(SM_CXVIRTUALSCREEN), GetSystemMetrics(SM_CYVIRTUALSCREEN),
+                       SWP_SHOWWINDOW );
++        NtUserSetForegroundWindowInternal( hwnd );
+         thread = CreateThread( NULL, 0, clipboard_thread, NULL, 0, &id );
+         if (thread) CloseHandle( thread );
+         SystemParametersInfoW( SPI_SETDESKWALLPAPER, 0, NULL, FALSE );

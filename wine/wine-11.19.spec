@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec15%{dist}
+Release:        ec16%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -161,6 +161,7 @@ Patch643:       2026_10_07-comctl32-datetime-field-width.patch
 Patch644:       2026_10_07-winewayland-owned-fullscreen-popups.patch
 Patch645:       2026_10_07-win32u-sdr-white-level.patch
 Patch646:       2026_10_07-win32u-keep-layered-surface.patch
+Patch647:       2026_10_08-explorer-desktop-foreground.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -838,6 +839,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 644 -p1
 %patch -P 645 -p1
 %patch -P 646 -p1
+%patch -P 647 -p1
 %endif
 
 %build
@@ -2530,6 +2532,9 @@ fi
 %endif
 
 %changelog
+* Thu Oct 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec16
+- Start with desktop as foreground window (Wwise audio)
+
 * Wed Oct 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec15
 - Keep layered windows layered on resize
 
