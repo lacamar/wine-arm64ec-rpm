@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 20 -b 19
+Release:        ec.%autorelease -b 20
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
