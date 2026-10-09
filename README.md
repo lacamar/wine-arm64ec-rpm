@@ -40,3 +40,5 @@ sudo pacman -Sy wine wine-dxvk wine-vkd3d-proton
 ```
 
 To build locally, run `arch/build.sh fex-emu-wine wine-mono wine-gecko wine wine-dxvk wine-vkd3d-proton wine-d7vk` (expects the repo at `/src`).
+
+Maintainers: `arch/publish.sh` rebuilds stale packages and updates the release.
