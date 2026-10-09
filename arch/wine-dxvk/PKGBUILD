@@ -1,0 +1,83 @@
+pkgbase=wine-dxvk
+pkgname=(wine-dxvk wine-dxvk-dxgi wine-dxvk-d3d10 wine-dxvk-d3d9 wine-dxvk-d3d8)
+pkgver=3.1.1
+pkgrel=3
+pkgdesc="Vulkan-based D3D8-11 for Wine (ARM64EC)"
+arch=(aarch64)
+url=https://github.com/doitsujin/dxvk
+license=(Zlib MIT)
+depends=(wine vulkan-icd-loader)
+makedepends=(glslang meson wine)
+options=(!buildflags !lto !strip !debug)
+_mingw=llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64
+_ext=(
+  'doitsujin/dxbc-spirv 37a9774 subprojects/dxbc-spirv'
+  'KhronosGroup/SPIRV-Headers c8ad050 subprojects/dxbc-spirv/submodules/spirv_headers'
+  'doitsujin/libdisplay-info 275e645 subprojects/libdisplay-info'
+  'KhronosGroup/SPIRV-Headers 04f10f6 include/spirv'
+  'KhronosGroup/Vulkan-Headers 8864cdc include/vulkan'
+  'misyltoad/mingw-directx-headers 9df86f2 include/native/directx'
+)
+_dlls=(dxgi d3d8 d3d9 d3d10core d3d11)
+_archs=(arm64ec i686)
+_mesonargs=(-Dbuild_id=true)
+_cflags="-DNDEBUG -fPIC -O2 -pthread -fno-strict-aliasing -fno-stack-protector -fno-lto"
+_cxxflags="$_cflags -fpermissive"
+_ldflags="-fPIC -Wl,--sort-common -Wl,--gc-sections -Wl,-O1 -fno-lto"
+source=(https://github.com/doitsujin/dxvk/archive/v$pkgver/dxvk-$pkgver.tar.gz
+        https://github.com/bylaws/llvm-mingw/releases/download/20250920/$_mingw.tar.xz)
+for _e in "${_ext[@]}"; do
+  read -r _o _r _p <<<"$_e"
+  source+=("${_o#*/}-$_r.tar.gz::https://github.com/$_o/archive/$_r.tar.gz")
+done
+
+prepare() {
+  cd ${pkgbase#wine-}-$pkgver
+  local e o r d p a c
+  for p in "$startdir/../../$pkgbase"/*.patch; do [ -e "$p" ] && patch -p1 -i "$p"; done
+  for e in "${_ext[@]}"; do
+    read -r o r d <<<"$e"
+    mkdir -p $d
+    cp -a "$srcdir"/${o#*/}-$r*/. $d/
+  done
+  for a in "${_archs[@]}"; do
+    c=aarch64; [ $a = i686 ] && c=x86
+    printf "[binaries]\nar='$a-w64-mingw32-ar'\nc='$a-w64-mingw32-gcc'\ncpp='$a-w64-mingw32-g++'\nld='$a-w64-mingw32-ld'\nwindres='$a-w64-mingw32-windres'\nwidl='$a-w64-mingw32-widl'\nstrip='$a-w64-mingw32-strip'\n[host_machine]\nsystem='windows'\ncpu_family='$c'\ncpu='${a/arm64ec/aarch64}'\nendian='little'\n" > ../cross-$a.txt
+  done
+}
+
+build() {
+  cd ${pkgbase#wine-}-$pkgver
+  export PATH="$srcdir/$_mingw/bin:$PATH"
+  export CFLAGS="$_cflags" CXXFLAGS="$_cxxflags" LDFLAGS="$_ldflags"
+  local a
+  for a in "${_archs[@]}"; do
+    meson setup --cross-file ../cross-$a.txt --buildtype=release "${_mesonargs[@]}" build-$a
+    meson compile -C build-$a
+  done
+}
+
+_install() {
+  local n d
+  for n; do
+    for d in arm64ec:aarch64 i686:i386; do
+      install -Dm644 $(find "$srcdir"/${pkgbase#wine-}-$pkgver/build-${d%:*} -name $n.dll) \
+        "$pkgdir"/usr/lib/wine/${d#*:}-windows/${pkgbase#wine-}-$n.dll
+      winebuild --builtin "$pkgdir"/usr/lib/wine/${d#*:}-windows/${pkgbase#wine-}-$n.dll
+    done
+  done
+}
+
+package_wine-dxvk() { depends+=(wine-dxvk-dxgi); _install d3d11; }
+package_wine-dxvk-dxgi() { pkgdesc="DXVK DXGI for Wine (ARM64EC)"; _install dxgi; }
+package_wine-dxvk-d3d10() { pkgdesc="DXVK D3D10 for Wine (ARM64EC)"; depends+=(wine-dxvk); _install d3d10core; }
+package_wine-dxvk-d3d9() { pkgdesc="DXVK D3D9 for Wine (ARM64EC)"; depends+=(wine-dxvk); _install d3d9; }
+package_wine-dxvk-d3d8() { pkgdesc="DXVK D3D8 for Wine (ARM64EC)"; depends+=(wine-dxvk-d3d9); _install d3d8; }
+sha256sums=('ef4944134f6c39d0937f265391db2d08bca33cd3a2f0ee9133e1eb55f1cc657c'
+            'bce5cc755c613515fd44e1ee9523123d854103abae147571adb645450036274d'
+            '4d913a0871e9b81ba21854e19aea23aa23105b1538fa4617e91ac101fd4fc544'
+            '5b6f38b430f1c68c7395c570053403da14eb4cecc7fcb4040e7a5248c2f63874'
+            'c83c3e600f90a3ac98932e9259de62ad8ad3a65dd5efb1d2abcb1e4d1c8f494a'
+            '1b220e3eec1714f0451b0e3652979bd280edf10893f617837b88e6359a804ded'
+            '35824117f649befc664a12622bc801eddbba036ac03d906db400ee1c1e7903e9'
+            '9c1b8bbfd2d6c758fac4d93c2808a46bc1eee429fe656b4f21b29e02615aa8aa')

@@ -1,0 +1,36 @@
+source "$startdir/../wine-dxvk/PKGBUILD"
+pkgbase=wine-vkd3d-proton
+pkgname=(wine-vkd3d-proton)
+pkgver=3.0.1
+pkgrel=6
+pkgdesc="Vulkan-based D3D12 for Wine (ARM64EC)"
+url=https://github.com/HansKristian-Work/vkd3d-proton
+license=(LGPL-2.1-or-later MIT)
+depends+=(wine-dxvk-dxgi)
+_ext=(
+  'KhronosGroup/SPIRV-Headers f88a2d7 khronos/SPIRV-Headers'
+  'KhronosGroup/SPIRV-Headers f88a2d7 subprojects/dxil-spirv/third_party/spirv-headers'
+  'KhronosGroup/Vulkan-Headers ad9ce12 khronos/Vulkan-Headers'
+  'HansKristian-Work/dxil-spirv 62dbb07 subprojects/dxil-spirv'
+  'doitsujin/dxbc-spirv 29c93ae subprojects/dxil-spirv/subprojects/dxbc-spirv'
+  'KhronosGroup/SPIRV-Headers c8ad050 subprojects/dxil-spirv/subprojects/dxbc-spirv/submodules/spirv_headers'
+)
+_mesonargs=(-Denable_tests=false)
+_cflags="-DNDEBUG -O2 -fno-lto"
+_cxxflags=$_cflags
+_ldflags="-Wl,--gc-sections -fno-lto"
+source=(https://github.com/HansKristian-Work/vkd3d-proton/archive/v$pkgver/vkd3d-proton-$pkgver.tar.gz
+        https://github.com/bylaws/llvm-mingw/releases/download/20250920/$_mingw.tar.xz)
+for _e in "${_ext[@]}"; do
+  read -r _o _r _p <<<"$_e"
+  source+=("${_o#*/}-$_r.tar.gz::https://github.com/$_o/archive/$_r.tar.gz")
+done
+source=($(printf '%s\n' "${source[@]}" | awk '!s[$0]++'))
+package() { _install d3d12 d3d12core; }
+sha256sums=('3882a57dbd6e4f25424c46b0170ea17a1b639e74c12f84d1c37f156d99ff9a08'
+            'bce5cc755c613515fd44e1ee9523123d854103abae147571adb645450036274d'
+            '028424e4934f2ed8567319939e79d0a87e529ac7c504501b8b406f98598bdadd'
+            '7f85689bfbec9d16dd2621e5102bb7649fdff1d68b08e9c5a37eb891982ea5a7'
+            '6b99f82bb43d9a860ac3c8a71ed33984102aa37ebe27f18b64e99dc456f44c8e'
+            '05d786a300b6701b7df05b99f2919f48de086df13c5d8a3d315499700ee15d05'
+            '5b6f38b430f1c68c7395c570053403da14eb4cecc7fcb4040e7a5248c2f63874')

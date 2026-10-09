@@ -1,0 +1,83 @@
+pkgname=wine
+pkgver=11.19
+pkgrel=16
+pkgdesc="Wine with ARM64EC support (FEX) for aarch64 16k hosts"
+arch=(aarch64)
+url=https://www.winehq.org/
+license=(LGPL-2.1-or-later)
+depends=(alsa-lib dbus fontconfig freetype2 gettext gnutls gst-plugins-base-libs libcups libgphoto2 libpcap
+         libpulse libusb libva libx11 libxcomposite libxcursor libxext libxi libxinerama libxkbcommon libxrandr
+         libxrender libxxf86vm mpg123 ocl-icd openldap pcsclite sane sdl2 systemd-libs unixodbc v4l-utils
+         vulkan-icd-loader wayland mesa fex-emu-wine wine-mono wine-gecko)
+makedepends=(clang lld llvm bison flex perl python opencl-headers vulkan-headers)
+optdepends=('wine-dxvk: D3D8-11 over Vulkan' 'wine-vkd3d-proton: D3D12 over Vulkan'
+            'wine-d7vk: DirectDraw/D3D7 over Vulkan' 'samba: ntlm_auth')
+provides=(wine-wow64)
+conflicts=(wine-wow64)
+options=(!lto !debug staticlibs)
+_spec=wine-11.19.spec
+_srcdir=wine-$pkgver
+_staging=6544c23f781686f41e16863bb29512ecf3d410a0
+_wstaging=(-W server-Stored_ACLs)
+source=(https://dl.winehq.org/wine/source/11.x/wine-$pkgver.tar.xz
+        https://gitlab.winehq.org/wine/wine-staging/-/archive/$_staging/wine-staging-$_staging.tar.gz
+        wine-dll-select wine-dll-select.hook)
+
+prepare() {
+  cd $_srcdir
+  local w="$startdir/../../wine" p o
+  patch -p1 -i "$w/wine-cjk.patch"
+  cp -a "$srcdir/wine-staging-$_staging/." .
+  rm -f patches/vkd3d-latest/0003-include-Add-d3d12-options-structs.patch
+  python3 staging/patchinstall.py DESTDIR="$PWD" --all "${_wstaging[@]}"
+  for p in $(sed -n 's/^Patch6[0-9][0-9]: *//p' "$w/$_spec"); do
+    case $p in
+      wine-mono-arm.patch) o="-p0 -F3" ;;
+      2026_08_*) o="-p1 -F3" ;;
+      *) o=-p1 ;;
+    esac
+    patch $o -i "$w/$p"
+  done
+  sed -i 's/-Wl,-WX//g' configure
+}
+
+build() {
+  cd $_srcdir
+  local f
+  for f in -fcf-protection -fstack-protector-strong -fstack-clash-protection -mbranch-protection=standard; do
+    CFLAGS=${CFLAGS//$f/}
+  done
+  CFLAGS=${CFLAGS//-Wp,-D_FORTIFY_SOURCE=?/}
+  export CFLAGS CXXFLAGS="$CFLAGS"
+  unset PKG_CONFIG_PATH
+  ./configure --prefix=/usr --libdir=/usr/lib --sysconfdir=/etc/wine \
+    --with-dbus --with-x --with-wayland --with-xattr --enable-win64 \
+    --enable-archs=arm64ec,aarch64,i386 --with-mingw=clang \
+    --enable-{crtdll,ctl3d32,d3d8,d3dim,d3dim700,dmband,dmcompos,dmime,dmscript,dmstyle} \
+    --enable-{dplay,dplayx,dpwsockx,iccvid,iprop,msscript_ocx,msvcp70,msvcp71,msvcr70,msvcr71} \
+    --enable-{msvcrt20,msvcrt40,msvcrtd,olecli32,olepro32,olethk32,vdmdbg} \
+    --disable-tests
+  make TARGETFLAGS=""
+}
+
+package() {
+  cd $_srcdir
+  make prefix="$pkgdir/usr" libdir="$pkgdir/usr/lib" dlldir="$pkgdir/usr/lib/wine" install
+  local d n
+  for d in "$pkgdir"/usr/lib/wine/{aarch64,i386}-windows; do
+    for n in dxgi d3d8 d3d9 d3d10 d3d10_1 d3d10core d3d11 d3d12 d3d12core; do
+      [ -e $d/$n.dll ] || continue
+      mv $d/$n.dll $d/wine-$n.dll
+      ln -s wine-$n.dll $d/$n.dll
+    done
+  done
+  install -Dm755 "$srcdir/wine-dll-select" "$pkgdir/usr/share/libalpm/scripts/wine-dll-select"
+  install -Dm644 "$srcdir/wine-dll-select.hook" "$pkgdir/usr/share/libalpm/hooks/wine-dll-select.hook"
+  install -Dm644 /dev/stdin "$pkgdir/usr/lib/binfmt.d/wine.conf" <<<':windows:M::MZ::/usr/bin/wine:'
+  install -Dm644 /dev/stdin "$pkgdir/usr/lib/modules-load.d/ntsync.conf" <<<ntsync
+  install -d "$pkgdir"/usr/share/wine/{gecko,mono}
+}
+sha256sums=('4820066eda68e553d330239ffc628164a348d1c623e49d058e011c5a7cda95f1'
+            '4c64414df98c7b3caaae5bb30882a98f54dc61e1bff583dc57bb6c8ceabe6563'
+            'fc3250ab6800c028c0f28d154a499ae491fe7b1ae310952795a9378bd5dfb26d'
+            '99694e9ffb6652d62d8a53c2e1fc496993b9911cd5a04364ef1ae5cafa14b043')

@@ -1,0 +1,15 @@
+pkgname=wine-gecko
+pkgver=2.47.4
+pkgrel=1
+pkgdesc="Wine's built-in replacement for Microsoft's Internet Explorer"
+arch=(any)
+url=https://wiki.winehq.org/Gecko
+license=(MPL-2.0)
+source=(https://dl.winehq.org/wine/wine-gecko/$pkgver/wine-gecko-$pkgver-x86{,_64}.msi)
+noextract=(${source[@]##*/})
+
+package() {
+  install -Dm644 -t "$pkgdir"/usr/share/wine/gecko wine-gecko-$pkgver-x86{,_64}.msi
+}
+sha256sums=('26cecc47706b091908f7f814bddb074c61beb8063318e9efc5a7f789857793d6'
+            'e590b7d988a32d6aa4cf1d8aa3aa3d33766fdd4cf4c89c2dcc2095ecb28d066f')

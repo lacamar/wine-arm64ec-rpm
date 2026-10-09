@@ -24,3 +24,19 @@ To rebuild the packages locally, use `mock`:
 dnf download --source fex-emu-wine wine
 mock -r fedora-44-aarch64 -a https://download.copr.fedorainfracloud.org/results/lacamar/wine-arm64ec/fedora-44-aarch64/ --rebuild fex-emu-wine-*.src.rpm wine-*.src.rpm
 ```
+
+## Arch Linux ARM
+
+PKGBUILDs in `arch/`. Prebuilt packages (aarch64) are in the `arch-repo` release. Add to `/etc/pacman.conf`:
+
+```
+[wine-arm64ec]
+SigLevel = Optional TrustAll
+Server = https://github.com/lacamar/wine-arm64ec-rpm/releases/download/arch-repo
+```
+
+```
+sudo pacman -Sy wine wine-dxvk wine-vkd3d-proton
+```
+
+To build locally, run `arch/build.sh fex-emu-wine wine-mono wine-gecko wine wine-dxvk wine-vkd3d-proton wine-d7vk` (expects the repo at `/src`).

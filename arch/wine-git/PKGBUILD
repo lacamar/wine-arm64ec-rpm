@@ -1,0 +1,18 @@
+source "$startdir/../wine/PKGBUILD"
+pkgname=wine-git
+_commit=20315474eb2a129234d13a9d91376ec7ea752d4c
+pkgver=11.19.r1.g${_commit::7}
+pkgrel=20
+provides+=("wine=$pkgver")
+conflicts+=(wine)
+_spec=wine-git.spec
+_srcdir=wine-${_commit::7}
+_staging=2395d93
+_wstaging+=(-W wininet-proxy_username)
+source=(https://gitlab.winehq.org/wine/wine/-/archive/${_commit::7}/wine-${_commit::7}.tar.gz
+        https://gitlab.winehq.org/wine/wine-staging/-/archive/$_staging/wine-staging-$_staging.tar.gz
+        wine-dll-select wine-dll-select.hook)
+sha256sums=('91a7b0f383cf930f435dda1b8781e3c651d8ba2231dca817f81e27d00ab29482'
+            '58c651f55c40f71efe96485d635e116e3f4d570b2dd0886b59103cb1173cfbc1'
+            'fc3250ab6800c028c0f28d154a499ae491fe7b1ae310952795a9378bd5dfb26d'
+            '99694e9ffb6652d62d8a53c2e1fc496993b9911cd5a04364ef1ae5cafa14b043')

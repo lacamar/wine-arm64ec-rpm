@@ -1,0 +1,10 @@
+#!/bin/sh
+for d in /usr/lib/wine/aarch64-windows /usr/lib/wine/i386-windows; do
+  for f in "$d"/wine-d3d*.dll "$d"/wine-dxgi.dll; do
+    [ -e "$f" ] || continue
+    n=${f##*/wine-}
+    t=wine-$n
+    for p in dxvk vkd3d-proton; do [ -e "$d/$p-$n" ] && t=$p-$n; done
+    ln -sfn "$t" "$d/$n"
+  done
+done

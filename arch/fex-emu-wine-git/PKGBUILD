@@ -1,0 +1,25 @@
+source "$startdir/../fex-emu-wine/PKGBUILD"
+pkgname=fex-emu-wine-git
+_commit=14c92681f4d62cf84d901460e0358de09c8847a7
+pkgver=2610.r0.g${_commit::7}
+pkgrel=1
+provides=(fex-emu-wine)
+conflicts=(fex-emu-wine)
+_srcdir=FEX-$_commit
+_spec=fex-emu-wine-git.spec
+source[0]=FEX-$_commit.tar.gz::https://github.com/FEX-Emu/FEX/archive/$_commit.tar.gz
+sha256sums=('76bb2fb0c1bed5713828c33fc79a82efdc06b20bd8267212b438bb60fa149713'
+            'bce5cc755c613515fd44e1ee9523123d854103abae147571adb645450036274d'
+            '68e6b500890270517d226abbc3610135de1600ddde29f44c9b68cca5e2a17f60'
+            '46081f8fc9ae9dd2bc5eab0e4e4472791f9c9027dd83ea60d32cf696f33e9319'
+            'df7a152381a7fdaf98e36de7716b8d6d6ead776764bc76d1a1aef9049d1bca89'
+            '3d3653841f81ea5be1a15cd4b458f048c1fffbcd97fcc808454a7fbe7cf1a555'
+            'e0099a9035521b29523915fae2e5f1b38229df896191e4a046f7b0d55a45c7d2'
+            '800cc0653f5bc2f0ed2cc7bb383f8eeda1ff94b2e89eaee0ccc57bd5fb002fe4'
+            '57a6fca5d60a85b84e8efecc62f0ca064e6b1f89b97b513284fe7f5bd43d49eb'
+            '3250fcc53532ed6161642b77f6179c7ba73173fb2130314aa7f019a574266ff6'
+            '4741e8d302e6f700a23e05f2271424bee9f701488376a552021c0c8b5cab993e'
+            'aa68d77ef88475db710bf647017f5ccb13ceec6f55f3defa37e995b043eb990b'
+            '55804a95de0ac4741c9e52898e5bbfadafee2143f114fd9606d20b56970c6821'
+            '34e71c085636fbc1726482996d92719d0a16e6a6097970ecf2990a27b3821162'
+            '2c168a83fc9f67c5abec287fde50d2b016757f159db8bf46aac138126d504edc')

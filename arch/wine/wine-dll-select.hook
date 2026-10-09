@@ -1,0 +1,14 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Path
+Target = usr/lib/wine/*-windows/wine-d3d*.dll
+Target = usr/lib/wine/*-windows/wine-dxgi.dll
+Target = usr/lib/wine/*-windows/dxvk-*.dll
+Target = usr/lib/wine/*-windows/vkd3d-proton-*.dll
+
+[Action]
+Description = Selecting Wine Direct3D DLLs...
+When = PostTransaction
+Exec = /usr/share/libalpm/scripts/wine-dll-select

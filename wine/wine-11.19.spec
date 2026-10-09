@@ -98,7 +98,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:       2026_08_17_bylaws_rebased.patch
+Patch600:       2026_08_17_bylaws_rebased-11.19.patch
 Patch602:       2026_08_30-arm64ec-fex-bootstrap-order.patch
 # msvcrt: idempotent C++ catch frame unregistration
 Patch603:       2026_09_15-msvcrt-idempotent-cxx-unregister.patch

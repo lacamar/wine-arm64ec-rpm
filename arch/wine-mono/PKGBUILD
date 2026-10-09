@@ -1,0 +1,16 @@
+pkgname=wine-mono
+pkgver=11.3.0
+pkgrel=1
+pkgdesc="Mono for Wine, built with ARM64EC support"
+arch=(aarch64)
+url=https://github.com/wine-mono/wine-mono
+license=(GPL-2.0-or-later LGPL-2.1-only MIT MS-PL MPL-1.1)
+options=(!strip !debug)
+# ponytail: repackaged from COPR build; source build needs wine + libgdiplus
+source=(https://download.copr.fedorainfracloud.org/results/lacamar/wine-arm64ec/fedora-44-aarch64/10956528-wine-mono/wine-mono-$pkgver-1.fc44.aarch64.rpm)
+noextract=(${source[0]##*/})
+
+package() {
+  bsdtar -xf ${source[0]##*/} -C "$pkgdir"
+}
+sha256sums=('0362c9c04814f882337748f5fade366c263796889ed83834264c3f0b59c75334')

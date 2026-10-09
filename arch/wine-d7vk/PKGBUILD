@@ -1,0 +1,29 @@
+source "$startdir/../wine-dxvk/PKGBUILD"
+pkgbase=wine-d7vk
+pkgname=(wine-d7vk)
+pkgver=2.3
+pkgrel=1
+pkgdesc="Vulkan-based DirectDraw/D3D7 for Wine (copy x32/ddraw.dll next to the game)"
+url=https://github.com/WinterSnowfall/d7vk
+depends=(vulkan-icd-loader)
+makedepends=(glslang meson)
+_ext[0]='doitsujin/dxbc-spirv bf14419 subprojects/dxbc-spirv'
+_archs=(i686)
+_mesonargs+=(-Denable_dxgi=false -Denable_d3d11=false -Denable_d3d10=false -Denable_d3d8=false)
+source=(https://github.com/WinterSnowfall/d7vk/archive/v$pkgver/d7vk-$pkgver.tar.gz
+        https://github.com/bylaws/llvm-mingw/releases/download/20250920/$_mingw.tar.xz)
+for _e in "${_ext[@]}"; do
+  read -r _o _r _p <<<"$_e"
+  source+=("${_o#*/}-$_r.tar.gz::https://github.com/$_o/archive/$_r.tar.gz")
+done
+package() {
+  install -Dm644 $(find d7vk-$pkgver/build-i686/src/ddraw -name ddraw.dll) "$pkgdir"/usr/share/d7vk/x32/ddraw.dll
+}
+sha256sums=('6d56ac06062a7013da3a66986abaee115006f46566233c1cea65d576161dfbf3'
+            'bce5cc755c613515fd44e1ee9523123d854103abae147571adb645450036274d'
+            '7a2bd35d2a2186f5f77137c00302b0d9364ac01017e8ae41e30f61850d7cc2f4'
+            '5b6f38b430f1c68c7395c570053403da14eb4cecc7fcb4040e7a5248c2f63874'
+            'c83c3e600f90a3ac98932e9259de62ad8ad3a65dd5efb1d2abcb1e4d1c8f494a'
+            '1b220e3eec1714f0451b0e3652979bd280edf10893f617837b88e6359a804ded'
+            '35824117f649befc664a12622bc801eddbba036ac03d906db400ee1c1e7903e9'
+            '9c1b8bbfd2d6c758fac4d93c2808a46bc1eee429fe656b4f21b29e02615aa8aa')
