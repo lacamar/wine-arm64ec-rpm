@@ -67,12 +67,6 @@ function print_setup_externals()
 end
 }
 
-# LinuxEmulation: Implement custom longjump that is fortification safe
-Patch:          %{forgeurl}/commit/a37def2c22e528477f64296747228400ddc40222.patch
-# Async: Add run_one interface to enable more fine-grained event loop control
-Patch:          %{forgeurl}/commit/8eaf45414c05c9e7ef6f74a323d95fe7e0d883c1.patch
-# FEXServer: Don't time out while clients are still connected
-Patch:          %{forgeurl}/commit/c326e2d669fd5e9356f6107e188413a449cc1fd7.patch
 
 Patch100:       fex-emu-wine-git-host-page-size.patch
 Patch101:       fex-emu-wine-git-smc-untrap-host-page.patch

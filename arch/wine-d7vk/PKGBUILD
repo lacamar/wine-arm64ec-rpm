@@ -2,10 +2,10 @@ source "$startdir/../wine-dxvk/PKGBUILD"
 pkgbase=wine-d7vk
 pkgname=(wine-d7vk)
 pkgver=2.3
-pkgrel=1
+pkgrel=2
 pkgdesc="Vulkan-based DirectDraw/D3D7 for Wine (copy x32/ddraw.dll next to the game)"
 url=https://github.com/WinterSnowfall/d7vk
-depends=(vulkan-icd-loader)
+depends=(vulkan-icd-loader wine-dxvk-d3d9)
 makedepends=(glslang meson)
 _ext[0]='doitsujin/dxbc-spirv bf14419 subprojects/dxbc-spirv'
 _archs=(i686)

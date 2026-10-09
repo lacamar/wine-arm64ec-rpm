@@ -6,7 +6,7 @@
 
 Name:           wine-d7vk
 Version:        2.3
-Release:        ec1%{dist}
+Release:        ec2%{dist}
 Summary:        Vulkan-based implementation of D3D7, 6, 5 and 3 for Wine
 
 License:        zlib AND MIT
@@ -47,6 +47,7 @@ BuildRequires:  glslang
 BuildRequires:  meson
 
 Requires:       vulkan-loader
+Requires:       wine-dxvk-d3d9
 
 ExclusiveArch:  aarch64
 
@@ -102,5 +103,8 @@ install -Dpm 644 $(find build-i686/src/ddraw -name ddraw.dll) %{buildroot}%{_dat
 %{_datadir}/d7vk/
 
 %changelog
+* Fri Oct 09 2026 Lachlan Marie <lchlnm@pm.me> - 2.3-ec2
+- Require wine-dxvk-d3d9
+
 * Wed Sep 30 2026 Lachlan Marie <lchlnm@pm.me> - 2.3-ec1
 - Initial package

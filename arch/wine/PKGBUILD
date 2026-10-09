@@ -32,7 +32,6 @@ prepare() {
   python3 staging/patchinstall.py DESTDIR="$PWD" --all "${_wstaging[@]}"
   for p in $(sed -n 's/^Patch6[0-9][0-9]: *//p' "$w/$_spec"); do
     case $p in
-      wine-mono-arm.patch) o="-p0 -F3" ;;
       2026_08_*) o="-p1 -F3" ;;
       *) o=-p1 ;;
     esac

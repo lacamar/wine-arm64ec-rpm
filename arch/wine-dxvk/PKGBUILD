@@ -1,7 +1,7 @@
 pkgbase=wine-dxvk
 pkgname=(wine-dxvk wine-dxvk-dxgi wine-dxvk-d3d10 wine-dxvk-d3d9 wine-dxvk-d3d8)
 pkgver=3.1.1
-pkgrel=3
+pkgrel=4
 pkgdesc="Vulkan-based D3D8-11 for Wine (ARM64EC)"
 arch=(aarch64)
 url=https://github.com/doitsujin/dxvk
@@ -11,7 +11,7 @@ makedepends=(glslang meson wine)
 options=(!buildflags !lto !strip !debug)
 _mingw=llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64
 _ext=(
-  'doitsujin/dxbc-spirv 37a9774 subprojects/dxbc-spirv'
+  'doitsujin/dxbc-spirv bf14419 subprojects/dxbc-spirv'
   'KhronosGroup/SPIRV-Headers c8ad050 subprojects/dxbc-spirv/submodules/spirv_headers'
   'doitsujin/libdisplay-info 275e645 subprojects/libdisplay-info'
   'KhronosGroup/SPIRV-Headers 04f10f6 include/spirv'

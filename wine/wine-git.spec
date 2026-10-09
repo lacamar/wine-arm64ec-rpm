@@ -112,7 +112,6 @@ Patch511:       wine-cjk.patch
 
 %ifarch aarch64
 Patch600:       2026_08_17_bylaws_rebased.patch
-Patch601:       wine-mono-arm.patch
 Patch602:       2026_08_30-arm64ec-fex-bootstrap-order.patch
 Patch603:       2026_09_15-msvcrt-idempotent-cxx-unregister.patch
 Patch604:       2026_09_15-uxtheme-clip-parent-background.patch
@@ -891,7 +890,6 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %endif
 
 %patch -P 600 -p1 -F3
-%patch -P 601 -p0 -F3
 %patch -P 602 -p1 -F3
 %patch -P 603 -p1
 %patch -P 604 -p1
