@@ -8,12 +8,12 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.19
-%global bumpver 0
+%global bumpver 1
 
-%global commit 455e3509b98a6919fd4ad1def4803e08c41c03b2
+%global commit 20315474eb2a129234d13a9d91376ec7ea752d4c
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 6544c23f781686f41e16863bb29512ecf3d410a0
+%global staging_commit 2395d93338d6b75d44c4c68fec38213f2398a5a9
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -880,7 +880,7 @@ gzip -dc %{SOURCE900} | tar -xf - --strip-components=1
 # merged upstream in 11.19
 rm -f patches/vkd3d-latest/0003-include-Add-d3d12-options-structs.patch
 
-staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
+staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs -W wininet-proxy_username
 
 %endif
 # 0%%{?wine_staging}
@@ -1052,7 +1052,9 @@ mv %{buildroot}%{_bindir}/wineserver %{buildroot}%{_bindir}/wineserver32
 touch %{buildroot}%{_bindir}/wine
 touch %{buildroot}%{_bindir}/wineserver
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/dxgi.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-dxgi.dll
+%ifarch %{ix86}
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d8.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d8.dll
+%endif
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d9.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d9.dll
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d10.dll
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10_1.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d10_1.dll
@@ -1061,7 +1063,9 @@ mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d11.dll %{buildroot}%{_libdir}/win
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d12.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d12.dll
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d12core.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d12core.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/dxgi.dll
+%ifarch %{ix86}
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d8.dll
+%endif
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d9.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10_1.dll
@@ -1326,6 +1330,9 @@ end
 # handle upgrades for a few package updates
 rm -f %{_libdir}/wine/%{winepedirs}/d3d8.dll
 rm -f %{_bindir}/wine-preloader
+%ifnarch %{ix86}
+%{_sbindir}/alternatives --remove 'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d8.dll 2>/dev/null || :
+%endif
 %ifarch x86_64 aarch64
 %{_sbindir}/alternatives --remove wine %{_bindir}/wine64
 %{_sbindir}/alternatives --install %{_bindir}/wine \
@@ -1341,8 +1348,10 @@ rm -f %{_bindir}/wine-preloader
 %endif
 %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/dxgi.dll \
   'wine-dxgi%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-dxgi.dll 10
+%ifarch %{ix86}
 %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d8.dll \
   'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d8.dll 10
+%endif
 %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d9.dll \
   'wine-d3d9%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d9.dll 10
 %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d10core.dll \
@@ -1394,7 +1403,9 @@ if [ $1 -eq 0 ] ; then
   %{_sbindir}/alternatives --remove wineserver %{_bindir}/wineserver32
 %endif
   %{_sbindir}/alternatives --remove 'wine-dxgi%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-dxgi.dll
+%ifarch %{ix86}
   %{_sbindir}/alternatives --remove 'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d8.dll
+%endif
   %{_sbindir}/alternatives --remove 'wine-d3d9%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d9.dll
   %{_sbindir}/alternatives --remove 'wine-d3d10core%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d10core.dll
   %{_sbindir}/alternatives --remove 'wine-d3d10%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d10.dll
@@ -2198,6 +2209,7 @@ fi
 %endif
 %{_libdir}/wine/%{winepedirs}/wpc.dll
 %{_libdir}/wine/%{winepedirs}/wpcap.dll
+%{_libdir}/wine/%{winepedirs}/wpnapps.dll
 %{_libdir}/wine/%{winesodir}/wpcap.so
 %{_libdir}/wine/%{winepedirs}/ws2_32.dll
 %{_libdir}/wine/%{winesodir}/ws2_32.so
@@ -2213,8 +2225,8 @@ fi
 %{_libdir}/wine/%{winepedirs}/sfc.dll
 %{_libdir}/wine/%{winepedirs}/wineps.drv
 %{_libdir}/wine/%{winesodir}/wineps.so
-%ghost %{_libdir}/wine/%{winepedirs}/d3d8.dll
-%{_libdir}/wine/%{winepedirs}/wine-d3d8.dll
+%ghost %{_libdir}/wine/i386-windows/d3d8.dll
+%{_libdir}/wine/i386-windows/wine-d3d8.dll
 %{_libdir}/wine/%{winepedirs}/d3d8thk.dll
 %ghost %{_libdir}/wine/%{winepedirs}/d3d9.dll
 %{_libdir}/wine/%{winepedirs}/wine-d3d9.dll
@@ -2630,6 +2642,12 @@ fi
 %endif
 
 %changelog
+* Fri Oct 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.20
+- Update to 2031547, staging 2395d93
+- Skip wininet-proxy_username staging set
+- d3d8 is i386-only upstream
+- Package wpnapps.dll
+
 * Thu Oct 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^0.git.455e350-ec.20
 - Start with desktop as foreground window (Wwise audio)
 

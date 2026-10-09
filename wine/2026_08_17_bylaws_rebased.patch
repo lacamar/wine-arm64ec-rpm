@@ -1,25 +1,27 @@
-diff --git a/configure.ac b/configure.ac
-index c86ce39..9f4a600 100644
---- a/configure.ac
-+++ b/configure.ac
-@@ -2388,7 +2388,7 @@ esac
+diff --git a/dlls/vcruntime140_1/Makefile.in b/dlls/vcruntime140_1/Makefile.in
+index 1111111..2222222 100644
+--- a/dlls/vcruntime140_1/Makefile.in
++++ b/dlls/vcruntime140_1/Makefile.in
+@@ -1,7 +1,7 @@
+ MODULE  = vcruntime140_1.dll
+ IMPORTS = vcruntime140
+ PARENTSRC = ../msvcrt
+-ENABLE_ARCHS = x86_64 arm64ec
++ENABLE_ARCHS = x86_64 arm64ec aarch64
  
- dnl *** Check for modules to disable by default
+ VER_FILEDESCRIPTION_STR = "Wine runtime library"
+ VER_PRODUCTVERSION      = 14,50,35719,0
+diff --git a/programs/dpnsvr/Makefile.in b/programs/dpnsvr/Makefile.in
+index 1111111..2222222 100644
+--- a/programs/dpnsvr/Makefile.in
++++ b/programs/dpnsvr/Makefile.in
+@@ -1,5 +1,5 @@
+ MODULE    = dpnsvr.exe
+-ENABLE_ARCHS = i386 x86_64 arm64ec
++ENABLE_ARCHS = i386 x86_64 arm64ec aarch64
  
--enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec}
-+enable_vcruntime140_1=${enable_vcruntime140_1:-x86_64,arm64ec,aarch64}
+ EXTRADLLFLAGS = -mwindows -municode
  
- if test -n "$PE_ARCHS"
- then
-@@ -2429,7 +2429,7 @@ enable_wuauserv=${enable_wuauserv:-$HOST_ARCH}
- dnl Explicitly enable some programs for arm64ec
- enable_cmd=${enable_cmd:-yes}
- enable_dllhost=${enable_dllhost:-yes}
--enable_dpnsvr=${enable_dpnsvr:-i386,x86_64,arm64ec}
-+enable_dpnsvr=${enable_dpnsvr:-i386,x86_64,arm64ec,aarch64}
- enable_dxdiag=${enable_dxdiag:-yes}
- enable_msiexec=${enable_msiexec:-yes}
- enable_netsh=${enable_netsh:-yes}
 diff --git a/dlls/advapi32/Makefile.in b/dlls/advapi32/Makefile.in
 index 53abe47..e7fcc58 100644
 --- a/dlls/advapi32/Makefile.in
