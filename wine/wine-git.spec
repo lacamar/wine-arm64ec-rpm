@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 20
+Release:        ec.%autorelease -b 21
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -158,6 +158,7 @@ Patch644:       2026_10_07-winewayland-owned-fullscreen-popups.patch
 Patch645:       2026_10_07-win32u-sdr-white-level.patch
 Patch646:       2026_10_07-win32u-keep-layered-surface.patch
 Patch647:       2026_10_08-explorer-desktop-foreground.patch
+Patch648:       2026_10_10-mshtml-zoom-dpi.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -936,6 +937,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 645 -p1
 %patch -P 646 -p1
 %patch -P 647 -p1
+%patch -P 648 -p1
 %endif
 
 %build
@@ -2640,6 +2642,9 @@ fi
 %endif
 
 %changelog
+* Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.21
+- Fix double DPI zoom in mshtml (Lightroom About)
+
 * Fri Oct 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.20
 - Update to 2031547, staging 2395d93
 - Skip wininet-proxy_username staging set

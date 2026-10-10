@@ -1,0 +1,36 @@
+Subject: mshtml: Exclude DPI scaling from Gecko full zoom.
+
+--- a/dlls/mshtml/nsembed.c
++++ b/dlls/mshtml/nsembed.c
+@@ -1307,6 +1307,12 @@
+     return ret;
+ }
+ 
++static float dpi_scale(GeckoBrowser *browser)
++{
++    UINT dpi = GetDpiForWindow(browser->hwnd);
++    return dpi ? dpi / 96.0f : 1.0f;
++}
++
+ void set_viewer_zoom(GeckoBrowser *browser, float factor)
+ {
+     nsIContentViewer *content_viewer;
+@@ -1322,7 +1328,8 @@
+     assert(nsres == NS_OK && content_viewer);
+     nsIDocShell_Release(doc_shell);
+ 
+-    nsres = nsIContentViewer_SetFullZoom(content_viewer, factor);
++    /* IE zoom includes DPI scaling, Gecko applies it on its own */
++    nsres = nsIContentViewer_SetFullZoom(content_viewer, factor / dpi_scale(browser));
+     if(NS_FAILED(nsres))
+         ERR("SetFullZoom failed: %08lx\n", nsres);
+ 
+@@ -1349,7 +1356,7 @@
+     TRACE("Got %f\n", factor);
+ 
+     nsIContentViewer_Release(content_viewer);
+-    return factor;
++    return factor * dpi_scale(browser);
+ }
+ 
+ struct nsWeakReference {
