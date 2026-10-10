@@ -1,0 +1,43 @@
+Subject: msvcrt: Fix locale names for UTF-8 code page.
+
+--- a/dlls/msvcrt/locale.c
++++ b/dlls/msvcrt/locale.c
+@@ -338,6 +338,7 @@
+     const char *cp, *region;
+     BOOL is_sname = FALSE;
+     DWORD locale_cp;
++    UINT name_cp = CP_ACP;
+ 
+     if (!strcmp(locale, data->cached_locale)) {
+         if (codepage)
+@@ -386,7 +387,9 @@
+         }
+ #endif
+ 
+-        MultiByteToWideChar(CP_ACP, 0, search_language_buf, -1, search.search_language, MAX_ELEM_LEN);
++        if (cp && (!_strnicmp(cp, ".UTF-8", 6) || !_strnicmp(cp, ".UTF8", 5) || !strcmp(cp, ".65001")))
++            name_cp = CP_UTF8;
++        MultiByteToWideChar(name_cp, 0, search_language_buf, -1, search.search_language, MAX_ELEM_LEN);
+         if (search.allow_sname && IsValidLocaleName(search.search_language))
+         {
+             search.match_flags = FOUND_SNAME;
+@@ -394,7 +397,7 @@
+         }
+         else
+         {
+-            MultiByteToWideChar(CP_ACP, 0, search_country_buf, -1, search.search_country, MAX_ELEM_LEN);
++            MultiByteToWideChar(name_cp, 0, search_country_buf, -1, search.search_country, MAX_ELEM_LEN);
+             EnumSystemLocalesEx( find_best_locale_proc, 0, (LPARAM)&search, NULL);
+ 
+             if (!search.match_flags)
+@@ -558,9 +561,8 @@
+                 |LOCALE_NOUSEROVERRIDE, &wbuf[len], ARRAY_SIZE(wbuf) - len);
+         wbuf[len-1] = '.';
+         swprintf(wbuf+len, ARRAY_SIZE(wbuf) - len,L"%d", cp);
+-        len += wcslen(wbuf+len);
+ 
+-        WideCharToMultiByte(cp, 0, wbuf, -1, buf, ARRAY_SIZE(buf), NULL, NULL);
++        len = WideCharToMultiByte(cp, 0, wbuf, -1, buf, ARRAY_SIZE(buf), NULL, NULL) - 1;
+ 
+         return init_category_name(buf, len, locinfo, category);
+     }
