@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 22
+Release:        ec.%autorelease -b 23
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -160,6 +160,7 @@ Patch646:       2026_10_07-win32u-keep-layered-surface.patch
 Patch647:       2026_10_08-explorer-desktop-foreground.patch
 Patch648:       2026_10_10-mshtml-zoom-dpi.patch
 Patch649:       2026_10_10-msvcrt-utf8-locale-name.patch
+Patch650:       2026_10_10-win32u-egl-display-extensions.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -940,6 +941,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 647 -p1
 %patch -P 648 -p1
 %patch -P 649 -p1
+%patch -P 650 -p1
 %endif
 
 %build
@@ -2644,6 +2646,9 @@ fi
 %endif
 
 %changelog
+* Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.23
+- Backport EGL display extension merge (Red Eclipse white world)
+
 * Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.22
 - Fix UTF-8 locale names in msvcrt (Luanti)
 
