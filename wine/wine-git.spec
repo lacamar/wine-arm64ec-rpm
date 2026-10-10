@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 24
+Release:        ec.%autorelease -b 25
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -162,6 +162,7 @@ Patch648:       2026_10_10-mshtml-zoom-dpi.patch
 Patch649:       2026_10_10-msvcrt-utf8-locale-name.patch
 Patch650:       2026_10_10-win32u-egl-display-extensions.patch
 Patch651:       2026_10_10-opengl32-ext-dsa-procs.patch
+Patch652:       2026_10_10-winewayland-fullscreen-output-origin.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -944,6 +945,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 649 -p1
 %patch -P 650 -p1
 %patch -P 651 -p1
+%patch -P 652 -p1
 %endif
 
 %build
@@ -2648,6 +2650,9 @@ fi
 %endif
 
 %changelog
+* Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.25
+- Keep forced-fullscreen windows on output (Freeciv clicks)
+
 * Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.24
 - Expose EXT_dsa procs to GLEW (Pioneer)
 

@@ -1,0 +1,32 @@
+--- a/dlls/winewayland.drv/window.c
++++ b/dlls/winewayland.drv/window.c
+@@ -589,7 +589,7 @@
+     BOOL needs_exit_size_move = FALSE;
+     BOOL restoring_from_minimize = FALSE;
+     struct wayland_win_data *data;
+-    RECT rect, surface_rect;
++    RECT rect, surface_rect, window, visible, output;
+ 
+     if (!(data = wayland_win_data_get(hwnd))) return;
+     if (!(surface = data->wayland_surface))
+@@ -716,8 +716,20 @@
+         }
+     }
+ 
++    window = data->rects.window;
++    visible = data->rects.visible;
+     wayland_win_data_release(data);
+ 
++    /* the compositor places fullscreen windows, keep pointer coords on screen */
++    if ((state & WAYLAND_SURFACE_CONFIG_STATE_FULLSCREEN) && get_current_output_rect(&visible, &output) &&
++        (visible.left != output.left || visible.top != output.top))
++    {
++        if (IsRectEmpty(&rect)) rect = window;
++        OffsetRect(&rect, output.left - visible.left, output.top - visible.top);
++        TRACE("hwnd=%p moving to output %s\n", hwnd, wine_dbgstr_rect(&output));
++        flags &= ~SWP_NOMOVE;
++    }
++
+     TRACE("processing=%dx%d,%#x\n", width, height, state);
+ 
+     if (needs_enter_size_move) send_message(hwnd, WM_ENTERSIZEMOVE, 0, 0);
