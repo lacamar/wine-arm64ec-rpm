@@ -2,7 +2,7 @@ source "$startdir/../fex-emu-wine/PKGBUILD"
 pkgname=fex-emu-wine-git
 _commit=14c92681f4d62cf84d901460e0358de09c8847a7
 pkgver=2610.r0.g${_commit::7}
-pkgrel=1
+pkgrel=2
 provides=(fex-emu-wine)
 conflicts=(fex-emu-wine)
 _srcdir=FEX-$_commit
