@@ -1,0 +1,14 @@
+--- a/dlls/opengl32/wgl.c
++++ b/dlls/opengl32/wgl.c
+@@ -2357,7 +2357,11 @@
+     if (func->major && ctx->base.attrs.major == func->major && ctx->base.attrs.minor >= func->minor) return func->func;
+ 
+     for (ext = func->extensions; *ext != GL_EXTENSION_COUNT; ext++)
++    {
+         if (ctx->base.extensions[*ext]) return func->func;
++        /* GLEW requires these for ARB extensions; Mesa hides EXT_dsa in core profiles */
++        if (*ext == GL_EXT_direct_state_access) return func->func;
++    }
+ 
+     WARN( "Extensions required for %s not supported\n", name );
+     return NULL;

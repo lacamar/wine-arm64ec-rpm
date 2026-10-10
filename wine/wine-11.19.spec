@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec17%{dist}
+Release:        ec18%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -163,6 +163,7 @@ Patch645:       2026_10_07-win32u-sdr-white-level.patch
 Patch646:       2026_10_07-win32u-keep-layered-surface.patch
 Patch647:       2026_10_08-explorer-desktop-foreground.patch
 Patch648:       2026_10_10-msvcrt-utf8-locale-name.patch
+Patch649:       2026_10_10-opengl32-ext-dsa-procs.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -842,6 +843,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 646 -p1
 %patch -P 647 -p1
 %patch -P 648 -p1
+%patch -P 649 -p1
 %endif
 
 %build
@@ -2534,6 +2536,9 @@ fi
 %endif
 
 %changelog
+* Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec18
+- Expose EXT_dsa procs to GLEW (Pioneer)
+
 * Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec17
 - Fix UTF-8 locale names in msvcrt (Luanti)
 

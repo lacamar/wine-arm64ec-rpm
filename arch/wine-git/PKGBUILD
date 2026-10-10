@@ -2,7 +2,7 @@ source "$startdir/../wine/PKGBUILD"
 pkgname=wine-git
 _commit=20315474eb2a129234d13a9d91376ec7ea752d4c
 pkgver=11.19.r1.g${_commit::7}
-pkgrel=23
+pkgrel=24
 provides+=("wine=$pkgver")
 conflicts+=(wine)
 _spec=wine-git.spec

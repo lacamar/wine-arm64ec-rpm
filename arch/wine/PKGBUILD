@@ -1,6 +1,6 @@
 pkgname=wine
 pkgver=11.19
-pkgrel=17
+pkgrel=18
 pkgdesc="Wine with ARM64EC support (FEX) for aarch64 16k hosts"
 arch=(aarch64)
 url=https://www.winehq.org/
