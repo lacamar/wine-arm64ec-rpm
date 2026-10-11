@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec21%{dist}
+Release:        ec22%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2542,6 +2542,9 @@ fi
 %endif
 
 %changelog
+* Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec22
+- Fix msvcp120_app money id forwards
+
 * Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec21
 - Export msvcp money facet ids (FreeOrion)
 

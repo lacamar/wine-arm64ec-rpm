@@ -82,18 +82,18 @@
 -# extern ?id@?$moneypunct@G$0A@@std@@2V0locale@2@A
 -# extern ?id@?$moneypunct@_W$00@std@@2V0locale@2@A
 -# extern ?id@?$moneypunct@_W$0A@@std@@2V0locale@2@A
-+@ extern ?id@?$money_get@DV?$istreambuf_iterator@DU?$char_traits@D@std@@@std@@@std@@2V0locale@2@A money_get_char_id
-+@ extern ?id@?$money_get@GV?$istreambuf_iterator@GU?$char_traits@G@std@@@std@@@std@@2V0locale@2@A money_get_short_id
-+@ extern ?id@?$money_get@_WV?$istreambuf_iterator@_WU?$char_traits@_W@std@@@std@@@std@@2V0locale@2@A money_get_wchar_id
-+@ extern ?id@?$money_put@DV?$ostreambuf_iterator@DU?$char_traits@D@std@@@std@@@std@@2V0locale@2@A money_put_char_id
-+@ extern ?id@?$money_put@GV?$ostreambuf_iterator@GU?$char_traits@G@std@@@std@@@std@@2V0locale@2@A money_put_short_id
-+@ extern ?id@?$money_put@_WV?$ostreambuf_iterator@_WU?$char_traits@_W@std@@@std@@@std@@2V0locale@2@A money_put_wchar_id
-+@ extern ?id@?$moneypunct@D$00@std@@2V0locale@2@A moneypunct_char_intl_id
-+@ extern ?id@?$moneypunct@D$0A@@std@@2V0locale@2@A moneypunct_char_id
-+@ extern ?id@?$moneypunct@G$00@std@@2V0locale@2@A moneypunct_short_intl_id
-+@ extern ?id@?$moneypunct@G$0A@@std@@2V0locale@2@A moneypunct_short_id
-+@ extern ?id@?$moneypunct@_W$00@std@@2V0locale@2@A moneypunct_wchar_intl_id
-+@ extern ?id@?$moneypunct@_W$0A@@std@@2V0locale@2@A moneypunct_wchar_id
++@ extern ?id@?$money_get@DV?$istreambuf_iterator@DU?$char_traits@D@std@@@std@@@std@@2V0locale@2@A msvcp120.?id@?$money_get@DV?$istreambuf_iterator@DU?$char_traits@D@std@@@std@@@std@@2V0locale@2@A
++@ extern ?id@?$money_get@GV?$istreambuf_iterator@GU?$char_traits@G@std@@@std@@@std@@2V0locale@2@A msvcp120.?id@?$money_get@GV?$istreambuf_iterator@GU?$char_traits@G@std@@@std@@@std@@2V0locale@2@A
++@ extern ?id@?$money_get@_WV?$istreambuf_iterator@_WU?$char_traits@_W@std@@@std@@@std@@2V0locale@2@A msvcp120.?id@?$money_get@_WV?$istreambuf_iterator@_WU?$char_traits@_W@std@@@std@@@std@@2V0locale@2@A
++@ extern ?id@?$money_put@DV?$ostreambuf_iterator@DU?$char_traits@D@std@@@std@@@std@@2V0locale@2@A msvcp120.?id@?$money_put@DV?$ostreambuf_iterator@DU?$char_traits@D@std@@@std@@@std@@2V0locale@2@A
++@ extern ?id@?$money_put@GV?$ostreambuf_iterator@GU?$char_traits@G@std@@@std@@@std@@2V0locale@2@A msvcp120.?id@?$money_put@GV?$ostreambuf_iterator@GU?$char_traits@G@std@@@std@@@std@@2V0locale@2@A
++@ extern ?id@?$money_put@_WV?$ostreambuf_iterator@_WU?$char_traits@_W@std@@@std@@@std@@2V0locale@2@A msvcp120.?id@?$money_put@_WV?$ostreambuf_iterator@_WU?$char_traits@_W@std@@@std@@@std@@2V0locale@2@A
++@ extern ?id@?$moneypunct@D$00@std@@2V0locale@2@A msvcp120.?id@?$moneypunct@D$00@std@@2V0locale@2@A
++@ extern ?id@?$moneypunct@D$0A@@std@@2V0locale@2@A msvcp120.?id@?$moneypunct@D$0A@@std@@2V0locale@2@A
++@ extern ?id@?$moneypunct@G$00@std@@2V0locale@2@A msvcp120.?id@?$moneypunct@G$00@std@@2V0locale@2@A
++@ extern ?id@?$moneypunct@G$0A@@std@@2V0locale@2@A msvcp120.?id@?$moneypunct@G$0A@@std@@2V0locale@2@A
++@ extern ?id@?$moneypunct@_W$00@std@@2V0locale@2@A msvcp120.?id@?$moneypunct@_W$00@std@@2V0locale@2@A
++@ extern ?id@?$moneypunct@_W$0A@@std@@2V0locale@2@A msvcp120.?id@?$moneypunct@_W$0A@@std@@2V0locale@2@A
  @ extern ?id@?$num_get@DV?$istreambuf_iterator@DU?$char_traits@D@std@@@std@@@std@@2V0locale@2@A msvcp120.?id@?$num_get@DV?$istreambuf_iterator@DU?$char_traits@D@std@@@std@@@std@@2V0locale@2@A
  @ extern ?id@?$num_get@GV?$istreambuf_iterator@GU?$char_traits@G@std@@@std@@@std@@2V0locale@2@A msvcp120.?id@?$num_get@GV?$istreambuf_iterator@GU?$char_traits@G@std@@@std@@@std@@2V0locale@2@A
  @ extern ?id@?$num_get@_WV?$istreambuf_iterator@_WU?$char_traits@_W@std@@@std@@@std@@2V0locale@2@A msvcp120.?id@?$num_get@_WV?$istreambuf_iterator@_WU?$char_traits@_W@std@@@std@@@std@@2V0locale@2@A

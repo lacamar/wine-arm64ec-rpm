@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 27
+Release:        ec.%autorelease -b 28
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2654,6 +2654,9 @@ fi
 %endif
 
 %changelog
+* Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.28
+- Fix msvcp120_app money id forwards
+
 * Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.27
 - Export msvcp money facet ids (FreeOrion)
 
