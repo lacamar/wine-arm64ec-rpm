@@ -1,0 +1,97 @@
+Subject: msvcrt: Don't take d/D as exponent in scanf floats.
+
+--- a/dlls/msvcrt/msvcrt.h
++++ b/dlls/msvcrt/msvcrt.h
+@@ -355,7 +355,7 @@
+     enum fpmod mod;
+ };
+ struct fpnum fpnum_parse(wchar_t (*)(void*), void (*)(void*),
+-        void*, pthreadlocinfo, BOOL);
++        void*, pthreadlocinfo, BOOL, BOOL);
+ int fpnum_double(struct fpnum*, double*);
+ /* Maybe one day we'll enable the invalid parameter handlers with the full set of information (msvcrXXd)
+  *      #define MSVCRT_INVALID_PMT(x) MSVCRT_call_invalid_parameter_handler(x, __FUNCTION__, __FILE__, __LINE__, 0)
+--- a/dlls/msvcrt/string.c
++++ b/dlls/msvcrt/string.c
+@@ -741,7 +741,7 @@
+ }
+ 
+ static struct fpnum fpnum_parse_bnum(wchar_t (*get)(void *ctx), void (*unget)(void *ctx),
+-        void *ctx, pthreadlocinfo locinfo, BOOL ldouble, struct bnum *b)
++        void *ctx, pthreadlocinfo locinfo, BOOL ldouble, BOOL d_exp, struct bnum *b)
+ {
+ #if _MSVCR_VER >= 140
+     const wchar_t _infinity[] = L"infinity";
+@@ -874,7 +874,7 @@
+         return fpnum(0, 0, 0, 0);
+     }
+ 
+-    if(nch=='e' || nch=='E' || nch=='d' || nch=='D') {
++    if(nch=='e' || nch=='E' || (d_exp && (nch=='d' || nch=='D'))) {
+         int e=0, s=1;
+ 
+         nch = get(ctx);
+@@ -973,20 +973,20 @@
+ }
+ 
+ struct fpnum fpnum_parse(wchar_t (*get)(void *ctx), void (*unget)(void *ctx),
+-       void *ctx, pthreadlocinfo locinfo, BOOL ldouble)
++       void *ctx, pthreadlocinfo locinfo, BOOL ldouble, BOOL d_exp)
+ {
+     if(!ldouble) {
+         BYTE bnum_data[FIELD_OFFSET(struct bnum, data[BNUM_PREC64])];
+         struct bnum *b = (struct bnum*)bnum_data;
+ 
+         b->size = BNUM_PREC64;
+-        return fpnum_parse_bnum(get, unget, ctx, locinfo, ldouble, b);
++        return fpnum_parse_bnum(get, unget, ctx, locinfo, ldouble, d_exp, b);
+     } else {
+         BYTE bnum_data[FIELD_OFFSET(struct bnum, data[BNUM_PREC80])];
+         struct bnum *b = (struct bnum*)bnum_data;
+ 
+         b->size = BNUM_PREC80;
+-        return fpnum_parse_bnum(get, unget, ctx, locinfo, ldouble, b);
++        return fpnum_parse_bnum(get, unget, ctx, locinfo, ldouble, d_exp, b);
+     }
+ }
+ 
+@@ -1031,7 +1031,7 @@
+         p++;
+     beg = p;
+ 
+-    fp = fpnum_parse(strtod_str_get, strtod_str_unget, &p, locinfo, FALSE);
++    fp = fpnum_parse(strtod_str_get, strtod_str_unget, &p, locinfo, FALSE, TRUE);
+     if (end) *end = (p == beg ? (char*)str : (char*)p);
+ 
+     err = fpnum_double(&fp, &ret);
+@@ -1520,7 +1520,7 @@
+         p++;
+     beg = p;
+ 
+-    fp = fpnum_parse(strtod_str_get, strtod_str_unget, &p, locinfo, TRUE);
++    fp = fpnum_parse(strtod_str_get, strtod_str_unget, &p, locinfo, TRUE, TRUE);
+     if (endptr) *endptr = (p == beg ? (char*)str : (char*)p);
+     if (p == beg) ret = 4;
+ 
+--- a/dlls/msvcrt/wcs.c
++++ b/dlls/msvcrt/wcs.c
+@@ -592,7 +592,7 @@
+         p++;
+     beg = p;
+ 
+-    fp = fpnum_parse(strtod_wstr_get, strtod_wstr_unget, &p, locinfo, FALSE);
++    fp = fpnum_parse(strtod_wstr_get, strtod_wstr_unget, &p, locinfo, FALSE, TRUE);
+     if (end) *end = (p == beg ? (wchar_t*)str : (wchar_t*)p);
+ 
+     err = fpnum_double(&fp, &ret);
+--- a/dlls/msvcrt/scanf.h
++++ b/dlls/msvcrt/scanf.h
+@@ -419,7 +419,7 @@
+ #endif
+ 
+                     fp = fpnum_parse(_STRTOD_NAME_(strtod_scanf_get),
+-                            _STRTOD_NAME_(strtod_scanf_unget), &ctx, locinfo, FALSE);
++                            _STRTOD_NAME_(strtod_scanf_unget), &ctx, locinfo, FALSE, FALSE);
+                     fpnum_double(&fp, &cur);
+                     if(!rd && ctx.err) {
+                         _UNLOCK_FILE_(file);

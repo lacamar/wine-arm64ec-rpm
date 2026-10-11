@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec19%{dist}
+Release:        ec20%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -165,6 +165,7 @@ Patch647:       2026_10_08-explorer-desktop-foreground.patch
 Patch648:       2026_10_10-msvcrt-utf8-locale-name.patch
 Patch649:       2026_10_10-opengl32-ext-dsa-procs.patch
 Patch650:       2026_10_10-winewayland-fullscreen-output-origin.patch
+Patch651:       2026_10_11-msvcrt-scanf-no-d-exponent.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -846,6 +847,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 648 -p1
 %patch -P 649 -p1
 %patch -P 650 -p1
+%patch -P 651 -p1
 %endif
 
 %build
@@ -2538,6 +2540,9 @@ fi
 %endif
 
 %changelog
+* Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec20
+- Stop scanf %f taking d as exponent (Warsow UI)
+
 * Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec19
 - Keep forced-fullscreen windows on output (Freeciv clicks)
 
