@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 26
+Release:        ec.%autorelease -b 27
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -164,6 +164,7 @@ Patch650:       2026_10_10-win32u-egl-display-extensions.patch
 Patch651:       2026_10_10-opengl32-ext-dsa-procs.patch
 Patch652:       2026_10_10-winewayland-fullscreen-output-origin.patch
 Patch653:       2026_10_11-msvcrt-scanf-no-d-exponent.patch
+Patch654:       2026_10_11-msvcp-money-facet-ids.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -948,6 +949,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 651 -p1
 %patch -P 652 -p1
 %patch -P 653 -p1
+%patch -P 654 -p1
 %endif
 
 %build
@@ -2652,6 +2654,9 @@ fi
 %endif
 
 %changelog
+* Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.27
+- Export msvcp money facet ids (FreeOrion)
+
 * Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.26
 - Stop scanf %f taking d as exponent (Warsow UI)
 

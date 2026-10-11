@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec20%{dist}
+Release:        ec21%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -166,6 +166,7 @@ Patch648:       2026_10_10-msvcrt-utf8-locale-name.patch
 Patch649:       2026_10_10-opengl32-ext-dsa-procs.patch
 Patch650:       2026_10_10-winewayland-fullscreen-output-origin.patch
 Patch651:       2026_10_11-msvcrt-scanf-no-d-exponent.patch
+Patch652:       2026_10_11-msvcp-money-facet-ids.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -848,6 +849,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 649 -p1
 %patch -P 650 -p1
 %patch -P 651 -p1
+%patch -P 652 -p1
 %endif
 
 %build
@@ -2540,6 +2542,9 @@ fi
 %endif
 
 %changelog
+* Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec21
+- Export msvcp money facet ids (FreeOrion)
+
 * Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec20
 - Stop scanf %f taking d as exponent (Warsow UI)
 
