@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 28
+Release:        ec.%autorelease -b 29
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -165,6 +165,7 @@ Patch651:       2026_10_10-opengl32-ext-dsa-procs.patch
 Patch652:       2026_10_10-winewayland-fullscreen-output-origin.patch
 Patch653:       2026_10_11-msvcrt-scanf-no-d-exponent.patch
 Patch654:       2026_10_11-msvcp-money-facet-ids.patch
+Patch655:       2026_10_13-ntdll-skip-autofs-mounts.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -950,6 +951,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 652 -p1
 %patch -P 653 -p1
 %patch -P 654 -p1
+%patch -P 655 -p1
 %endif
 
 %build
@@ -2654,6 +2656,9 @@ fi
 %endif
 
 %changelog
+* Tue Oct 13 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.29
+- Skip autofs mounts in drive device lookup
+
 * Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.28
 - Fix msvcp120_app money id forwards
 

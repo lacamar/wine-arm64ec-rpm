@@ -1,0 +1,18 @@
+Subject: ntdll: Skip autofs and nfs4/smb3 mounts when looking up drive devices.
+
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -781,9 +781,12 @@
+     {
+         /* don't even bother stat'ing network mounts, there's no meaningful device anyway */
+         if (!strcmp( entry->mnt_type, "nfs" ) ||
++            !strcmp( entry->mnt_type, "nfs4" ) ||
+             !strcmp( entry->mnt_type, "cifs" ) ||
++            !strcmp( entry->mnt_type, "smb3" ) ||
+             !strcmp( entry->mnt_type, "smbfs" ) ||
+-            !strcmp( entry->mnt_type, "ncpfs" )) continue;
++            !strcmp( entry->mnt_type, "ncpfs" ) ||
++            !strcmp( entry->mnt_type, "autofs" )) continue;
+ 
+         if (stat( entry->mnt_dir, &st ) == -1) continue;
+         if (st.st_dev != dev || st.st_ino != ino) continue;

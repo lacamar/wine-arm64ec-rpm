@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.19
-Release:        ec22%{dist}
+Release:        ec23%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -167,6 +167,7 @@ Patch649:       2026_10_10-opengl32-ext-dsa-procs.patch
 Patch650:       2026_10_10-winewayland-fullscreen-output-origin.patch
 Patch651:       2026_10_11-msvcrt-scanf-no-d-exponent.patch
 Patch652:       2026_10_11-msvcp-money-facet-ids.patch
+Patch653:       2026_10_13-ntdll-skip-autofs-mounts.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -850,6 +851,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 650 -p1
 %patch -P 651 -p1
 %patch -P 652 -p1
+%patch -P 653 -p1
 %endif
 
 %build
@@ -2542,6 +2544,9 @@ fi
 %endif
 
 %changelog
+* Tue Oct 13 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec23
+- Skip autofs mounts in drive device lookup
+
 * Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec22
 - Fix msvcp120_app money id forwards
 
