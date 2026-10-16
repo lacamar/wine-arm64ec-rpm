@@ -4,9 +4,9 @@
 %global srcname FEX
 %global tag 2610
 
-%global bumpver 0
+%global bumpver 1
 
-%global commit 14c92681f4d62cf84d901460e0358de09c8847a7
+%global commit 5285020de0b30dbdae7b44d0d83541af2d13d002
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -231,6 +231,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Fri Oct 16 2026 Lachlan Marie <lchlnm@pm.me> - 2610^1.git.5285020-2
+ - Update to commit 5285020de0b30dbdae7b44d0d83541af2d13d002
+
 * Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 2610^0.git.14c9268-2
 - Branch-free SetFlagsFromCompactedEFLAGS
 
