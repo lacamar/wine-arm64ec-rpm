@@ -7,13 +7,13 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global tag 11.19
+%global tag 11.20
 %global bumpver 1
 
-%global commit 20315474eb2a129234d13a9d91376ec7ea752d4c
+%global commit 7298a818b79446bae153b8d5aa27235ab3703bf9
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 2395d93338d6b75d44c4c68fec38213f2398a5a9
+%global staging_commit 711f5be0b016c2730c268eb92369bf56b9ec9782
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 29
+Release:        ec.%autorelease -b 30
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -111,7 +111,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:       2026_08_17_bylaws_rebased.patch
+Patch600:       2026_08_17_bylaws_rebased-11.20.patch
 Patch602:       2026_08_30-arm64ec-fex-bootstrap-order.patch
 Patch603:       2026_09_15-msvcrt-idempotent-cxx-unregister.patch
 Patch604:       2026_09_15-uxtheme-clip-parent-background.patch
@@ -138,7 +138,7 @@ Patch624:       2026_10_04-winewayland-stale-client-surfaces.patch
 Patch625:       2026_10_04-mfreadwrite-pass-dxgi-samples.patch
 Patch626:       2026_10_05-ntdll-thread-stack-guard-headroom.patch
 Patch627:       2026_10_05-ntdll-arm64ec-bounds-check-RtlIsEcCode.patch
-Patch628:       2026_10_05-msvcrt-mark-rethrow-in-filter.patch
+Patch628:       2026_10_05-msvcrt-mark-rethrow-in-filter-11.20.patch
 Patch629:       2026_10_05-winewayland-fractional-scale-lock-order.patch
 Patch630:       2026_10_05-winewayland-trackpad-smooth-scroll.patch
 Patch631:       2026_10_06-winewayland-protocols.patch
@@ -160,12 +160,11 @@ Patch646:       2026_10_07-win32u-keep-layered-surface.patch
 Patch647:       2026_10_08-explorer-desktop-foreground.patch
 Patch648:       2026_10_10-mshtml-zoom-dpi.patch
 Patch649:       2026_10_10-msvcrt-utf8-locale-name.patch
-Patch650:       2026_10_10-win32u-egl-display-extensions.patch
 Patch651:       2026_10_10-opengl32-ext-dsa-procs.patch
 Patch652:       2026_10_10-winewayland-fullscreen-output-origin.patch
 Patch653:       2026_10_11-msvcrt-scanf-no-d-exponent.patch
 Patch654:       2026_10_11-msvcp-money-facet-ids.patch
-Patch655:       2026_10_13-ntdll-skip-autofs-mounts.patch
+Patch655:       2026_10_13-ntdll-skip-autofs-mounts-11.20.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -884,10 +883,8 @@ This package adds the opencl driver for wine.
 %if 0%{?wine_staging}
 # setup and apply wine-staging patches
 gzip -dc %{SOURCE900} | tar -xf - --strip-components=1
-# merged upstream in 11.19
-rm -f patches/vkd3d-latest/0003-include-Add-d3d12-options-structs.patch
 
-staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs -W wininet-proxy_username
+staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 
 %endif
 # 0%%{?wine_staging}
@@ -946,7 +943,6 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 647 -p1
 %patch -P 648 -p1
 %patch -P 649 -p1
-%patch -P 650 -p1
 %patch -P 651 -p1
 %patch -P 652 -p1
 %patch -P 653 -p1
@@ -2656,6 +2652,11 @@ fi
 %endif
 
 %changelog
+* Sat Oct 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.20^1.git.7298a81-ec.30
+- Update to 11.20
+- Staging 711f5be
+- Drop merged EGL display extensions patch
+
 * Tue Oct 13 2026 Lachlan Marie <lchlnm@pm.me> - 11.19^1.git.2031547-ec.29
 - Skip autofs mounts in drive device lookup
 
