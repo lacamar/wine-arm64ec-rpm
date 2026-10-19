@@ -1,0 +1,156 @@
+#!/usr/bin/python3
+"""precheck SPEC [--against SPEC] [--compile|--no-compile] [--force] [--accept-fuzz]
+
+Catches what costs a 40-minute COPR round trip: missing local sources,
+patches that fail or apply with fuzz, configure/%files drift from the
+previous spec, and (when Patch600 changed) ntdll/wow64 compile errors.
+Fuzz is checked against a per-spec baseline: review the hunks, then
+--accept-fuzz records them.
+"""
+import argparse
+import difflib
+import hashlib
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+from mx_rpm.config import Config
+from mx_rpm.download import fetch_sources
+from mx_rpm.specfile import Spec
+from mx_rpm.update import _PATCH_HEADER_RE
+
+CACHE = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "wine-arm64ec-dev/precheck"
+CONFIGURE = ["--enable-win64", "--enable-archs=arm64ec,aarch64,i386", "--with-mingw=clang", "--disable-tests", "--without-x", "--without-wayland",
+             "--without-gstreamer", "--without-cups", "--without-sane", "--without-krb5",
+             "--without-netapi", "--without-pcap"]
+
+
+def ver_key(p: Path):
+    return [int(x) if x.isdigit() else x for x in re.split(r"(\d+)", p.stem)]
+
+
+def previous_spec(spec: Path) -> Path | None:
+    prefix = re.sub(r"-[0-9][^-]*$|-git$", "", spec.stem)
+    sibs = sorted((p for p in spec.parent.glob(f"{prefix}-[0-9]*.spec") if p != spec), key=ver_key)
+    if not spec.stem.endswith("-git"):
+        sibs = [p for p in sibs if ver_key(p) < ver_key(spec)]
+    return sibs[-1] if sibs else None
+
+
+def sections(text: str) -> list[str]:
+    out, in_files = [], False
+    for line in text.splitlines():
+        if line.startswith("%files"):
+            in_files = True
+        elif re.match(r"%(changelog|post|pre|install|check)\b", line):
+            in_files = False
+        if in_files or re.search(r"^\s*--(enable|disable|with|without)-", line):
+            out.append(line)
+    return out
+
+
+def patch600(text: str) -> str | None:
+    m = re.search(r"^Patch600:\s*(\S+)", text, re.MULTILINE)
+    return m.group(1) if m else None
+
+
+def stamp(spec: Path, parsed: Spec) -> str:
+    h = hashlib.sha256(spec.read_bytes())
+    for e in parsed.entries:
+        f = spec.parent / Path(e.url.partition("#")[0]).name
+        if f.is_file():
+            h.update(f.read_bytes())
+    return h.hexdigest()
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("spec", type=Path)
+    ap.add_argument("--against", type=Path)
+    ap.add_argument("--compile", action=argparse.BooleanOptionalAction, default=None)
+    ap.add_argument("--force", action="store_true")
+    ap.add_argument("--accept-fuzz", action="store_true")
+    a = ap.parse_args()
+    spec = a.spec.resolve()
+    work = CACHE / spec.stem
+    work.mkdir(parents=True, exist_ok=True)
+    parsed = Spec(spec)
+    text = spec.read_text()
+    prev = a.against.resolve() if a.against else previous_spec(spec)
+    prev_text = prev.read_text() if prev else ""
+    do_compile = a.compile if a.compile is not None else bool(prev) and patch600(text) != patch600(prev_text)
+
+    key = stamp(spec, parsed) + str(do_compile)
+    stamp_file = work / "passed"
+    if not a.force and stamp_file.is_file() and stamp_file.read_text() == key:
+        print(f"precheck {spec.stem}: unchanged since last pass")
+        return 0
+    stamp_file.unlink(missing_ok=True)
+
+    src_dir = Config().src_root / spec.stem
+    missing = [r.dest.name for r in fetch_sources(parsed, src_dir, spec_dir=spec.parent) if not r.ok]
+    if missing:
+        print(f"FAIL missing sources (add them next to the spec): {' '.join(missing)}")
+        return 1
+
+    if prev:
+        diff = list(difflib.unified_diff(sections(prev_text), sections(text), prev.name, spec.name, lineterm="", n=1))
+        if diff:
+            print(f"WARN configure/%files differ from {prev.name}:")
+            print("\n".join(diff))
+
+    top = work / "top"
+    shutil.rmtree(top, ignore_errors=True)
+    proc = subprocess.run(["rpmbuild", "-bp", "--nodeps", "--define", f"_topdir {top}",
+                           "--define", f"_sourcedir {src_dir}", str(spec)],
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                          env={**os.environ, "LC_ALL": "C"}, check=False)
+    (work / "prep.log").write_text(proc.stdout)
+    if proc.returncode:
+        print(f"FAIL %prep, tail of {work / 'prep.log'}:")
+        print("\n".join(proc.stdout.splitlines()[-15:]))
+        return 1
+    fuzz, patch, target = [], "?", "?"
+    for line in proc.stdout.splitlines():
+        if m := _PATCH_HEADER_RE.match(line):
+            patch = m.group(1) or m.group(2)
+        elif line.startswith("patching file "):
+            target = line.removeprefix("patching file ")
+        elif m := re.match(r"(Hunk #\d+) succeeded at \d+ with (fuzz \d+)", line):
+            fuzz.append(f"{patch} {target} {m.group(1)} {m.group(2)}")
+    fuzz_ok = work / "fuzz-ok"
+    if a.accept_fuzz:
+        fuzz_ok.write_text("".join(f + "\n" for f in fuzz))
+    new = sorted(set(fuzz) - set(fuzz_ok.read_text().splitlines() if fuzz_ok.is_file() else []))
+    if new:
+        print(f"FAIL new fuzzy hunks (can land in the wrong function); check them in {top}/BUILD, then --accept-fuzz:")
+        print("\n".join(new))
+        return 1
+
+    if do_compile:
+        srcs = list(top.glob("BUILD/*/*/configure")) or list(top.glob("BUILD/*/configure"))
+        obj = work / "obj"
+        shutil.rmtree(obj, ignore_errors=True)
+        obj.mkdir()
+        log = work / "compile.log"
+        with log.open("w") as fh:
+            ok = subprocess.run([str(srcs[0])] + CONFIGURE, cwd=obj, stdout=fh, stderr=subprocess.STDOUT, check=False).returncode == 0 \
+                and subprocess.run(["make", f"-j{os.cpu_count()}", "dlls/ntdll/all", "dlls/wow64/all"],
+                                   cwd=obj, stdout=fh, stderr=subprocess.STDOUT, check=False).returncode == 0
+        if not ok:
+            print(f"FAIL ntdll/wow64 compile, errors from {log}:")
+            print("\n".join([line for line in log.read_text().splitlines() if re.search(r"\b[Ee]rror:", line)][:20]))
+            return 1
+        shutil.rmtree(obj)
+
+    shutil.rmtree(top)
+    stamp_file.write_text(key)
+    print(f"precheck {spec.stem}: ok" + (" (ntdll/wow64 compiled)" if do_compile else ""))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
