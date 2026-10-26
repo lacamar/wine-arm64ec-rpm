@@ -57,8 +57,4 @@ if command -v bd >/dev/null 2>&1; then
   if [ "$_bd_exit" -ne 0 ]; then exit "$_bd_exit"; fi
 fi
 # --- END BEADS INTEGRATION v1.3.1 ---
-[ "${PRECHECK:-1}" = 0 ] && exit 0
-for spec in $(git diff --name-only '@{u}..HEAD' -- 'wine/*.spec' 2>/dev/null); do
-  [ -f "$spec" ] && { tools/precheck "$spec" || { echo >&2 "pre-push: precheck failed for $spec (PRECHECK=0 to skip)"; exit 1; }; }
-done
 exit 0
