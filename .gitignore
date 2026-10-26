@@ -6,3 +6,10 @@
 .beads/proxieddb/
 *.gate.lock*
 debug.log
+
+__pycache__/
+build/
+dist/
+node_modules/
+.pytest_cache/
+.ruff_cache/
