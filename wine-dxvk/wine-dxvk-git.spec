@@ -1,10 +1,10 @@
 # _libdir was restructured in F42 wine package to support a directory/symlink replacement
 %global _libdir %{_libdir}/wine-wow64
 
-%global bumpver 7
+%global bumpver 8
 %global tag 3.1.1
 
-%global commit d30be2baea02a67b9502bffda0ec8b0d915bb3d2
+%global commit 0cfe0898289fb11e3d8d0e1c62cd344b825b7d57
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -24,17 +24,17 @@ Provides:       wine-dxvk = %{version}-%{release}
 
 License:        zlib AND MIT
 URL:            https://github.com/doitsujin/dxvk
-Source0:        https://github.com/doitsujin/dxvk/archive/%{shortcommit}/dxvk-%{shortcommit}.tar.gz
+Source0:        https://github.com/doitsujin/dxvk/archive/%{commit}/dxvk-%{shortcommit}.tar.gz
 Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64.tar.xz
 
 
 %{lua:
 local externals = {
-  { name="dxbc-spirv", ref="c7f0697", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
+  { name="dxbc-spirv", ref="687a301", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
   { name="SPIRV-Headers", ref="04f10f6", owner="KhronosGroup", path="include/spirv", version="1.3.341.0", license="CC0" },
-  { name="Vulkan-Headers", ref="8864cdc", owner="KhronosGroup", path="include/vulkan", version="1.4.344.0", license="Apache-2.0" },
+  { name="Vulkan-Headers", ref="6802bb4", owner="KhronosGroup", path="include/vulkan", version="1.4.363.0", license="Apache-2.0" },
   { name="mingw-directx-headers", ref="9df86f2", owner="misyltoad", path="include/native/directx", license="LGPL v2.1" },
 }
 
@@ -316,6 +316,10 @@ fi
 %{_libdir}/wine/i386-windows/dxvk-dxgi.dll
 
 %changelog
+* Thu Oct 29 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^8.git.0cfe089-ec7
+- Update to commit 0cfe0898289fb11e3d8d0e1c62cd344b825b7d57
+- Update dxbc-spirv, Vulkan-Headers
+
 * Fri Oct 09 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^7.git.d30be2b-ec7
 - Version wine-dxvk Provides
 - vulkan-tools for posttrans

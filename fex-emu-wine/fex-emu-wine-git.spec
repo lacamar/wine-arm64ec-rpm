@@ -4,9 +4,9 @@
 %global srcname FEX
 %global tag 2610
 
-%global bumpver 1
+%global bumpver 2
 
-%global commit 5285020de0b30dbdae7b44d0d83541af2d13d002
+%global commit fb48e2d19de4bd49bbc66d42242609357883a302
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -231,6 +231,10 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Thu Oct 29 2026 Lachlan Marie <lchlnm@pm.me> - 2610^2.git.fb48e2d-2
+ - Update to commit fb48e2d19de4bd49bbc66d42242609357883a302
+ - Rebase dispatcher-rethrow patch
+
 * Fri Oct 16 2026 Lachlan Marie <lchlnm@pm.me> - 2610^1.git.5285020-2
  - Update to commit 5285020de0b30dbdae7b44d0d83541af2d13d002
 

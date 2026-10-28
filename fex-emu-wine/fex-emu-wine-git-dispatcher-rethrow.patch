@@ -1,16 +1,16 @@
 --- a/Source/Windows/ARM64EC/Module.cpp
 +++ b/Source/Windows/ARM64EC/Module.cpp
-@@ -488,9 +488,11 @@
-   auto& Fault = Thread->CurrentFrame->SynchronousFaultData;
+@@ -566,9 +566,11 @@
  
+ static void RethrowGuestException(FEXCore::Core::InternalThreadState* Thread, const EXCEPTION_RECORD& Rec, ARM64_NT_CONTEXT& HostContext) {
    LogMan::Msg::DFmt("Reconstructing context");
--  if (!IsDispatcherAddress(Context.Pc)) {
--    ReconstructThreadState(Thread, Context);
-+  if (IsDispatcherAddress(Context.Pc)) {
+-  if (!IsDispatcherAddress(HostContext.Pc)) {
+-    ReconstructThreadState(Thread, HostContext);
++  if (IsDispatcherAddress(HostContext.Pc)) {
 +    // SRA may still be live, e.g. right after EnterEC before any spill
-+    LogMan::Msg::EFmt("Exception {:X} in dispatcher: pc {:X} addr {:X}", Rec.ExceptionCode, Context.Pc, Rec.ExceptionInformation[1]);
++    LogMan::Msg::EFmt("Exception {:X} in dispatcher: pc {:X} addr {:X}", Rec.ExceptionCode, HostContext.Pc, Rec.ExceptionInformation[1]);
    }
-+  ReconstructThreadState(Thread, Context);
-   ARM64_NT_CONTEXT GuestContext = StoreStateToPackedECContext(Thread, Context.Fpcr, Context.Fpsr);
-   LogMan::Msg::DFmt("pc: {:X} rip: {:X}", Context.Pc, GuestContext.Pc);
++  ReconstructThreadState(Thread, HostContext);
+   auto GuestContext = StoreStateToPackedECContext(Thread, HostContext.Fpcr, HostContext.Fpsr);
+   LogMan::Msg::DFmt("pc: {:X} rip: {:X}", HostContext.Pc, GuestContext.Pc);
  
