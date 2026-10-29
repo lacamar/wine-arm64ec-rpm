@@ -3,7 +3,7 @@
 # they ship no standalone conformance suite, and vkd3d tests only borrow DXVK's dxgi.
 import argparse, glob, hashlib, json, os, re, select, shutil, signal, subprocess, sys, time
 
-EXCLUDE = {"test_shader_sm62_denorm": "asahi GPU timeout, unmapped read at 0x0 (DCMP)", "test_shader_fp16": "asahi GPU timeout, unmapped read at 0x0 (DCMP)", "test_view_min_lod": "asahi GPU timeout, unmapped read at 0x0 (DCMP)", "test_vbv_stride_edge_cases": "asahi GPU fault (unmapped read at 0x0) on honeykrisp"}
+EXCLUDE = {"test_null_descriptor_mismatch_type": "asahi GPU timeout (unmapped read at 0x0), reported in following tests; faults alone"}
 
 BEGIN = re.compile(r"======== (\w+) begin =+$")
 END = re.compile(r"======== (\w+) end =+$")
@@ -102,6 +102,15 @@ def run_chunk(wine, env, bindir, skip, per_test, log):
     return lines, hung, p.returncode
 
 
+def save(out, results, wall):
+    res = {f"vkd3d:{n}": {k: r[k] for k in ("status", "failures", "detail")} for n, r in sorted(results.items())}
+    json.dump(res, open(os.path.join(out, "results.json"), "w"), indent=1)
+    c = {}
+    for r in res.values():
+        c[r["status"]] = c.get(r["status"], 0) + 1
+    return f"vkd3d: {len(res)} tests in {wall:.0f}s {c}"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--wine")
@@ -110,6 +119,8 @@ def main():
     ap.add_argument("--src")
     ap.add_argument("--work")
     ap.add_argument("--test-timeout", type=int, default=180)
+    ap.add_argument("--chunk", type=int, default=25)
+    ap.add_argument("--tests", help="comma list; also ignores EXCLUDE")
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args()
     if a.selftest:
@@ -120,35 +131,40 @@ def main():
     work = a.work or os.path.join(a.out, "work")
     os.makedirs(work, exist_ok=True)
     env = dict(os.environ, WINEPREFIX=a.prefix, DISPLAY="", VKD3D_TEST_PLATFORM="wine", WINEDEBUG="-all")
-    results, skip = {}, set(EXCLUDE)
+    env.pop("VKD3D_TEST_FILTER", None)
+    env.pop("VKD3D_TEST_MATCH", None)
+    flt, match = os.environ.get("VKD3D_TEST_FILTER"), os.environ.get("VKD3D_TEST_MATCH")
+    allt = re.findall(r"decl_test\((\w+)\)", open(os.path.join(a.src, "tests/d3d12_tests.h")).read())
+    excl = {} if a.tests else EXCLUDE
+    todo = a.tests.split(",") if a.tests else [t for t in allt if t not in excl and (not flt or flt in t)
+                                                and (not match or match == t)]
+    results = {n: {"status": "skip", "failures": 0, "detail": "excluded: " + w} for n, w in excl.items()}
     t0 = time.time()
     with open(os.path.join(a.out, "log.txt"), "w") as log:
         bindir = build(a.src, work, log)
-        while True:
-            lines, hung, rc = run_chunk(a.wine, env, bindir, skip, a.test_timeout, log)
-            got = parse(lines)
-            bad = [n for n, r in got.items() if r["open"]]
-            for n, r in got.items():
-                if r["open"]:
-                    r["status"] = "timeout" if hung else "crash"
-                    r["detail"] += f"no progress {a.test_timeout}s\n" if hung else f"rc={rc}\n"
-                elif r["status"] == "pass" and r["skips"]:
-                    r["status"] = "skip"
-            results.update(got)
-            skip |= set(got)
-            if any("tests executed" in l for l in lines):
-                break
-            if not bad:
-                log.write(f"stage: run ended rc={rc} outside any test\n")
-                break
-    for n, why in EXCLUDE.items():
-        results[n] = {"status": "skip", "failures": 0, "detail": "excluded: " + why}
-    out = {f"vkd3d:{n}": {k: r[k] for k in ("status", "failures", "detail")} for n, r in sorted(results.items())}
-    json.dump(out, open(os.path.join(a.out, "results.json"), "w"), indent=1)
-    c = {}
-    for r in out.values():
-        c[r["status"]] = c.get(r["status"], 0) + 1
-    print(f"vkd3d: {len(out)} tests in {time.time()-t0:.0f}s {c}")
+        for i in range(0, len(todo), a.chunk):
+            want = set(todo[i:i + a.chunk])
+            while want:
+                skip = set(allt) - want
+                lines, hung, rc = run_chunk(a.wine, env, bindir, skip, a.test_timeout, log)
+                got = {n: r for n, r in parse(lines).items() if n in want}
+                for n, r in got.items():
+                    if r["open"]:
+                        r["status"] = "timeout" if hung else "crash"
+                        r["detail"] += f"no progress {a.test_timeout}s\n" if hung else f"rc={rc}\n"
+                    elif r["status"] == "pass" and r["skips"]:
+                        r["status"] = "skip"
+                results.update(got)
+                want -= set(got)
+                if not got:
+                    log.write(f"stage: chunk ended rc={rc} outside any test\n")
+                    break
+                if any("tests executed" in l for l in lines):
+                    break
+            for n in want:
+                results[n] = {"status": "crash", "failures": 0, "detail": "not run: chunk died"}
+            save(a.out, results, time.time() - t0)
+    print(save(a.out, results, time.time() - t0))
 
 
 main()
