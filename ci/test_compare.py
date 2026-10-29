@@ -21,4 +21,8 @@ assert run.compare(base, base) == {}
 assert run.compare(base, {"a": r("skip")}) == {"a": "pass -> skip", "e": "pass -> missing"}
 assert run.compare(base, {}) == {"a": "pass -> missing", "e": "pass -> missing"}
 assert run.fixed(base, cand) == ["d"]
+lines = lambda st, *l: {"status": st, "failures": 0, "failed": list(l), "detail": ""}
+assert run.compare({"x": lines("crash", "a.c:1")}, {"x": lines("crash", "a.c:1", "a.c:9")}) == {"x": "new failures at a.c:9"}
+assert run.compare({"x": lines("crash", "a.c:1", "a.c:9")}, {"x": lines("crash", "a.c:1")}) == {}
+assert run.compare({"x": lines("timeout", "a.c:1")}, {"x": lines("timeout", "a.c:5")}) == {}
 print("ok")

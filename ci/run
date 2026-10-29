@@ -75,6 +75,8 @@ def compare(base: dict, cand: dict) -> dict:
             regs[i] = f"{b['failures']} -> {c['failures']} failures"
         elif b["status"] == "fail" and c["status"] in ("crash", "timeout"):
             regs[i] = f"fail -> {c['status']}"
+        elif "failed" in b and "timeout" not in (b["status"], c["status"]) and (new := set(c.get("failed", [])) - set(b["failed"])):
+            regs[i] = "new failures at " + ", ".join(sorted(new)[:3])
     return regs
 
 

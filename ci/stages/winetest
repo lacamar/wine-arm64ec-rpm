@@ -23,6 +23,7 @@ EXE = {"64": "winetest64.exe", "32": "winetest.exe"}
 MAX_AGE = 7 * 86400
 TIMEOUT = 300
 SUMMARY = re.compile(r"(\d+) tests executed \((\d+) marked as todo, (\d+) as flaky, (\d+) failures?\), (\d+) skipped")
+FAILED = re.compile(r"^(\w+\.c:\d+): Test failed", re.M)
 INTERESTING = re.compile(r"Test failed|Unhandled exception|Test marked todo|err:")
 
 
@@ -63,12 +64,13 @@ def wine(a, *args, timeout):
 
 
 def classify(rc, out):
+    failed = sorted({m.group(1) for m in FAILED.finditer(out)})[:300]
     m = SUMMARY.search(out)
     if rc is None:
-        return {"status": "timeout", "failures": 0, "detail": ""}
+        return {"status": "timeout", "failures": len(failed), "failed": failed, "detail": ""}
     detail = "\n".join([l for l in out.splitlines() if INTERESTING.search(l)][:5] or out.splitlines()[-3:])
     if not m:
-        return {"status": "crash", "failures": 0, "detail": f"rc={rc}\n{detail}"}
+        return {"status": "crash", "failures": len(failed), "failed": failed, "detail": f"rc={rc}\n{detail}"}
     executed, _, _, failures, skipped = map(int, m.groups())
     if failures:
         status = "fail"
@@ -76,7 +78,7 @@ def classify(rc, out):
         status = "crash"
     else:
         status = "skip" if executed == 0 and skipped else "pass"
-    return {"status": status, "failures": failures, "detail": detail if status != "pass" else ""}
+    return {"status": status, "failures": failures, "failed": failed, "detail": detail if status != "pass" else ""}
 
 
 def main() -> int:
