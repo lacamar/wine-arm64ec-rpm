@@ -1831,6 +1831,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/mfplay.dll
 %{_libdir}/wine/%{winepedirs}/mfreadwrite.dll
 %{_libdir}/wine/%{winepedirs}/mfsrcsnk.dll
+%{_libdir}/wine/%{winepedirs}/mfwmaaec.dll
 %{_libdir}/wine/%{winepedirs}/mgmtapi.dll
 %{_libdir}/wine/%{winepedirs}/midimap.dll
 %{_libdir}/wine/%{winepedirs}/mlang.dll
@@ -2654,6 +2655,7 @@ fi
 %changelog
 * Thu Oct 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.20^6.git.66caeb4-ec.30
 - Update to commit 66caeb46aea4aa8fe6f87b7a209e7867651c09dd
+- Package mfwmaaec.dll
 
 * Wed Oct 28 2026 Lachlan Marie <lchlnm@pm.me> - 11.20^5.git.0738d52-ec.30
 - Update to commit 0738d528db522f52d9d75f2aec712688dd31d1d2
