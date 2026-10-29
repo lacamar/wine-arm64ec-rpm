@@ -1,9 +1,10 @@
 --- a/dlls/ntdll/unix/virtual.c
 +++ b/dlls/ntdll/unix/virtual.c
-@@ -3168,8 +3168,31 @@
+@@ -3168,8 +3168,32 @@
                              debugstr_us(nt_name), sec[i].Name, ptr + sec[i].VirtualAddress,
                              sec[i].PointerToRawData, (int)pos, file_size, map_size,
                              sec[i].Characteristics );
++            pos += (sec[i].VirtualAddress - pos) & host_page_mask;
 -            if (map_file_into_view( view, shared_fd, sec[i].VirtualAddress, map_size, pos,
 -                                    VPROT_COMMITTED | VPROT_READ | VPROT_WRITE, FALSE ) != STATUS_SUCCESS)
 +            if (((sec[i].VirtualAddress | map_size) & host_page_mask) &&
@@ -34,3 +35,22 @@
              {
                  ERR_(module)( "Could not map %s shared section %.8s\n", debugstr_us(nt_name), sec[i].Name );
                  goto done;
+--- a/server/mapping.c
++++ b/server/mapping.c
+@@ -623,7 +623,7 @@
+         {
+             get_section_sizes( &sec[i], align_mask, &map_size, &read_pos, &file_size );
+             if (file_size > max_size) max_size = file_size;
+-            total_size += map_size;
++            total_size += ((sec[i].VirtualAddress - total_size) & host_page_mask) + map_size;
+         }
+     }
+     if (!total_size) return 1;  /* nothing to do */
+@@ -645,6 +645,7 @@
+         if (!(sec[i].Characteristics & IMAGE_SCN_MEM_SHARED)) continue;
+         if (!(sec[i].Characteristics & IMAGE_SCN_MEM_WRITE)) continue;
+         get_section_sizes( &sec[i], align_mask, &map_size, &read_pos, &file_size );
++        shared_pos += (sec[i].VirtualAddress - shared_pos) & host_page_mask;
+         write_pos = shared_pos;
+         shared_pos += map_size;
+         if (!sec[i].PointerToRawData || !file_size) continue;
