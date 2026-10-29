@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+# vkd3d-proton d3d12 suite. dxvk/d7vk need nothing beyond winetest's d3d9/d3d11/ddraw:
+# they ship no standalone conformance suite, and vkd3d tests only borrow DXVK's dxgi.
+import argparse, glob, hashlib, json, os, re, select, shutil, signal, subprocess, sys, time
+
+EXCLUDE = {"test_vbv_stride_edge_cases": "asahi GPU fault (unmapped read at 0x0) on honeykrisp"}
+
+BEGIN = re.compile(r"======== (\w+) begin =+$")
+END = re.compile(r"======== (\w+) end =+$")
+FAIL = re.compile(r"^\w+:\d+[^:]*: Test failed: ")
+SKIP = re.compile(r"^\w+:\d+[^:]*: Test skipped: ")
+
+
+def parse(lines):
+    res, cur = {}, None
+    for l in lines:
+        l = l.rstrip("\r\n")
+        if m := BEGIN.search(l):
+            cur = res.setdefault(m[1], {"status": "pass", "failures": 0, "detail": "", "open": True, "skips": 0})
+        elif m := END.search(l):
+            if m[1] in res:
+                res[m[1]]["open"] = False
+            cur = None
+        elif cur and FAIL.match(l):
+            cur["failures"] += 1
+            cur["status"] = "fail"
+            if cur["detail"].count("\n") < 2:
+                cur["detail"] += l[:200] + "\n"
+        elif cur and SKIP.match(l):
+            cur["skips"] += 1
+    return res
+
+
+def selftest():
+    out = ["x: ======== a begin ========", "a:12: Test failed: bad\n", "a:13 [c]: Test failed: bad2",
+           "a: ======== a end ==========", "a: ======== b begin ========", "b:3: Test skipped: no",
+           "b: ======== b end ==========", "b: ======== c begin ========"]
+    r = parse(out)
+    assert r["a"]["failures"] == 2 and r["a"]["status"] == "fail" and not r["a"]["open"]
+    assert r["b"]["skips"] == 1 and r["b"]["failures"] == 0
+    assert r["c"]["open"]
+
+
+def src_hash(src):
+    h = hashlib.sha256()
+    for root, dirs, files in os.walk(src):
+        dirs[:] = sorted(d for d in dirs if not d.startswith(("llvm-mingw", "b-", "build", ".git")))
+        for f in sorted(files):
+            p = os.path.join(root, f)
+            if os.path.islink(p):
+                continue
+            h.update(os.path.relpath(p, src).encode())
+            with open(p, "rb") as fh:
+                h.update(hashlib.sha256(fh.read()).digest())
+    return h.hexdigest()[:16]
+
+
+def build(src, work, log):
+    bindir = os.path.join(work, "vkd3d-" + src_hash(src))
+    if all(os.path.exists(os.path.join(bindir, f)) for f in ("d3d12.exe", "d3d12.dll", "d3d12core.dll")):
+        return bindir
+    bd = bindir + ".build"
+    shutil.rmtree(bd, ignore_errors=True)
+    env = dict(os.environ, CFLAGS="-DNDEBUG -O2 -fno-lto", CXXFLAGS="-DNDEBUG -O2 -fno-lto",
+               LDFLAGS="-Wl,--gc-sections -fno-lto")
+    for tc in glob.glob(os.path.join(src, "llvm-mingw-*", "bin")):
+        env["PATH"] = tc + ":" + env["PATH"]
+    for cmd in (["meson", "setup", "--cross-file", os.path.join(src, "build-arm64ec.txt"), "--buildtype=release",
+                 "-Denable_tests=true", bd],
+                ["nice", "-n", "19", "meson", "compile", "-C", bd, "-j6"]):
+        if subprocess.run(cmd, cwd=src, env=env, stdout=log, stderr=subprocess.STDOUT).returncode:
+            sys.exit("vkd3d build failed")
+    os.makedirs(bindir, exist_ok=True)
+    for sub, f in (("tests", "d3d12.exe"), ("libs/d3d12", "d3d12.dll"), ("libs/d3d12core", "d3d12core.dll")):
+        shutil.copy(os.path.join(bd, sub, f), bindir)
+    shutil.rmtree(bd)
+    return bindir
+
+
+def run_chunk(wine, env, bindir, skip, per_test, log):
+    env = dict(env, VKD3D_TEST_EXCLUDE=",".join(sorted(skip)))
+    p = subprocess.Popen([wine, "d3d12.exe"], cwd=bindir, env=env, stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT, start_new_session=True, text=True, errors="replace")
+    lines, last, hung = [], time.time(), False
+    while True:
+        if select.select([p.stdout], [], [], 5)[0]:
+            l = p.stdout.readline()
+            if not l:
+                break
+            lines.append(l)
+            log.write(l)
+            log.flush()
+            if BEGIN.search(l) or END.search(l):
+                last = time.time()
+        elif time.time() - last > per_test:
+            hung = True
+            break
+    if hung:
+        os.killpg(p.pid, signal.SIGKILL)
+        subprocess.run([os.path.join(os.path.dirname(wine), "wineserver"), "-k"], env=env)
+    p.wait()
+    return lines, hung, p.returncode
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--wine")
+    ap.add_argument("--prefix")
+    ap.add_argument("--out")
+    ap.add_argument("--src")
+    ap.add_argument("--work")
+    ap.add_argument("--test-timeout", type=int, default=180)
+    ap.add_argument("--selftest", action="store_true")
+    a = ap.parse_args()
+    if a.selftest:
+        return selftest()
+    if not (a.wine and a.prefix and a.out and a.src):
+        ap.error("--wine --prefix --out --src required")
+    os.makedirs(a.out, exist_ok=True)
+    work = a.work or os.path.join(a.out, "work")
+    os.makedirs(work, exist_ok=True)
+    env = dict(os.environ, WINEPREFIX=a.prefix, DISPLAY="", VKD3D_TEST_PLATFORM="wine", WINEDEBUG="-all")
+    results, skip = {}, set(EXCLUDE)
+    t0 = time.time()
+    with open(os.path.join(a.out, "log.txt"), "w") as log:
+        bindir = build(a.src, work, log)
+        while True:
+            lines, hung, rc = run_chunk(a.wine, env, bindir, skip, a.test_timeout, log)
+            got = parse(lines)
+            bad = [n for n, r in got.items() if r["open"]]
+            for n, r in got.items():
+                if r["open"]:
+                    r["status"] = "timeout" if hung else "crash"
+                    r["detail"] += f"no progress {a.test_timeout}s\n" if hung else f"rc={rc}\n"
+                elif r["status"] == "pass" and r["skips"]:
+                    r["status"] = "skip"
+            results.update(got)
+            skip |= set(got)
+            if any("tests executed" in l for l in lines):
+                break
+            if not bad:
+                log.write(f"stage: run ended rc={rc} outside any test\n")
+                break
+    for n, why in EXCLUDE.items():
+        results[n] = {"status": "skip", "failures": 0, "detail": "excluded: " + why}
+    out = {f"vkd3d:{n}": {k: r[k] for k in ("status", "failures", "detail")} for n, r in sorted(results.items())}
+    json.dump(out, open(os.path.join(a.out, "results.json"), "w"), indent=1)
+    c = {}
+    for r in out.values():
+        c[r["status"]] = c.get(r["status"], 0) + 1
+    print(f"vkd3d: {len(out)} tests in {time.time()-t0:.0f}s {c}")
+
+
+main()
