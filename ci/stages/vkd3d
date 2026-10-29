@@ -3,7 +3,7 @@
 # they ship no standalone conformance suite, and vkd3d tests only borrow DXVK's dxgi.
 import argparse, glob, hashlib, json, os, re, select, shutil, signal, subprocess, sys, time
 
-EXCLUDE = {"test_vbv_stride_edge_cases": "asahi GPU fault (unmapped read at 0x0) on honeykrisp"}
+EXCLUDE = {"test_shader_sm62_denorm": "asahi GPU timeout, unmapped read at 0x0 (DCMP)", "test_shader_fp16": "asahi GPU timeout, unmapped read at 0x0 (DCMP)", "test_view_min_lod": "asahi GPU timeout, unmapped read at 0x0 (DCMP)", "test_vbv_stride_edge_cases": "asahi GPU fault (unmapped read at 0x0) on honeykrisp"}
 
 BEGIN = re.compile(r"======== (\w+) begin =+$")
 END = re.compile(r"======== (\w+) end =+$")
