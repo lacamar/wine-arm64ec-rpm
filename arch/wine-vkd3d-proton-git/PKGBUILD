@@ -1,0 +1,42 @@
+pkgname=wine-vkd3d-proton-git
+_spec=$startdir/../../wine-vkd3d-proton/wine-vkd3d-proton-git.spec
+. "$startdir/../spec.sh"
+pkgdesc="Vulkan-based D3D12 for Wine (ARM64EC)"
+arch=(aarch64)
+url=https://github.com/HansKristian-Work/vkd3d-proton
+license=(LGPL-2.1-or-later MIT)
+depends=(wine vulkan-icd-loader wine-dxvk-dxgi)
+makedepends=(glslang meson wine)
+provides=("wine-vkd3d-proton=$pkgver")
+conflicts=(wine-vkd3d-proton)
+options=(!buildflags !lto !strip !debug)
+_name=vkd3d-proton
+_srcdir=$_name-$_commit
+source=($_name-$_commit.tar.gz::$url/archive/$_commit.tar.gz $_mingwsrc $(_extsrc))
+sha256sums=("${source[@]/*/SKIP}")
+
+prepare() {
+  cd $_srcdir
+  local p
+  for p in $(sed -n 's/^Patch[0-9]*: *//p' "$_spec"); do
+    patch -p1 -i "$startdir/../../wine-vkd3d-proton/$p"
+  done
+  _unpack_ext
+  _cross arm64ec i686
+}
+
+build() {
+  cd $_srcdir
+  export PATH="$srcdir/$_mingw/bin:$PATH"
+  export CFLAGS="-DNDEBUG -O2 -fno-lto" CXXFLAGS="-DNDEBUG -O2 -fno-lto" LDFLAGS="-Wl,--gc-sections -fno-lto"
+  local a
+  for a in arm64ec i686; do
+    meson setup --cross-file ../cross-$a.txt --buildtype=release -Denable_tests=false build-$a
+    meson compile -C build-$a
+  done
+}
+
+package() {
+  local n
+  for n in d3d12 d3d12core; do _dll arm64ec aarch64 $n; _dll i686 i386 $n; done
+}

@@ -1,0 +1,35 @@
+pkgname=wine-d7vk-git
+_spec=$startdir/../../wine-d7vk/wine-d7vk-git.spec
+. "$startdir/../spec.sh"
+pkgdesc="Vulkan-based DirectDraw/D3D7 for Wine (copy x32/ddraw.dll next to the game)"
+arch=(aarch64)
+url=https://github.com/WinterSnowfall/d7vk
+license=(Zlib MIT)
+depends=(vulkan-icd-loader wine-dxvk-d3d9)
+makedepends=(glslang meson wine)
+provides=("wine-d7vk=$pkgver")
+conflicts=(wine-d7vk)
+options=(!buildflags !lto !strip !debug)
+_srcdir=d7vk-$_commit
+source=(d7vk-$_commit.tar.gz::$url/archive/$_commit.tar.gz $_mingwsrc $(_extsrc))
+sha256sums=("${source[@]/*/SKIP}")
+
+prepare() {
+  cd $_srcdir
+  _unpack_ext
+  _cross i686
+}
+
+build() {
+  cd $_srcdir
+  export PATH="$srcdir/$_mingw/bin:$PATH"
+  export CFLAGS="-DNDEBUG -fPIC -O2 -pthread -fno-strict-aliasing -fno-stack-protector -fno-lto"
+  export CXXFLAGS="$CFLAGS -fpermissive" LDFLAGS="-fPIC -Wl,--sort-common -Wl,--gc-sections -Wl,-O1 -fno-lto"
+  meson setup --cross-file ../cross-i686.txt --buildtype=release -Dbuild_id=true \
+    -Denable_dxgi=false -Denable_d3d11=false -Denable_d3d10=false -Denable_d3d8=false build-i686
+  meson compile -C build-i686
+}
+
+package() {
+  install -Dm644 $(find "$srcdir/$_srcdir/build-i686/src/ddraw" -name ddraw.dll) "$pkgdir/usr/share/d7vk/x32/ddraw.dll"
+}

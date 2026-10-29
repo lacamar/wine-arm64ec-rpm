@@ -36,10 +36,10 @@ Server = https://github.com/lacamar/wine-arm64ec-rpm/releases/download/arch-repo
 ```
 
 ```
-sudo pacman -Sy wine wine-dxvk wine-vkd3d-proton
+sudo pacman -Sy wine-git wine-dxvk-git wine-vkd3d-proton-git
 ```
 
-To build locally, run `arch/build.sh fex-emu-wine wine-mono wine-gecko wine wine-dxvk wine-vkd3d-proton wine-d7vk` (expects the repo at `/src`).
+To build locally, run `arch/build.sh fex-emu-wine-git wine-mono wine-gecko wine-git wine-dxvk-git wine-vkd3d-proton-git wine-d7vk-git` (expects the repo at `/src`). The -git PKGBUILDs read commit, refs and patch lists from the RPM specs, so they follow spec bumps; checksums are skipped.
 
 Maintainers: `arch/publish.sh` rebuilds stale packages and updates the release.
 

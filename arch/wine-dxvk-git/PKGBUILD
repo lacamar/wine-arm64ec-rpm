@@ -1,0 +1,47 @@
+pkgbase=wine-dxvk-git
+pkgname=(wine-dxvk-git wine-dxvk-dxgi-git wine-dxvk-d3d10-git wine-dxvk-d3d9-git wine-dxvk-d3d8-git)
+_spec=$startdir/../../wine-dxvk/wine-dxvk-git.spec
+. "$startdir/../spec.sh"
+pkgdesc="Vulkan-based D3D8-11 for Wine (ARM64EC)"
+arch=(aarch64)
+url=https://github.com/doitsujin/dxvk
+license=(Zlib MIT)
+depends=(wine vulkan-icd-loader)
+makedepends=(glslang meson wine)
+options=(!buildflags !lto !strip !debug)
+_name=dxvk
+_srcdir=$_name-$_commit
+source=($_name-$_commit.tar.gz::$url/archive/$_commit.tar.gz $_mingwsrc $(_extsrc))
+sha256sums=("${source[@]/*/SKIP}")
+
+prepare() {
+  cd $_srcdir
+  local p
+  for p in "$startdir/../../wine-dxvk"/*.patch; do [ -e "$p" ] && patch -p1 -i "$p"; done
+  _unpack_ext
+  _cross arm64ec i686
+}
+
+build() {
+  cd $_srcdir
+  export PATH="$srcdir/$_mingw/bin:$PATH"
+  export CFLAGS="-DNDEBUG -fPIC -O2 -pthread -fno-strict-aliasing -fno-stack-protector -fno-lto"
+  export CXXFLAGS="$CFLAGS -fpermissive" LDFLAGS="-fPIC -Wl,--sort-common -Wl,--gc-sections -Wl,-O1 -fno-lto"
+  local a
+  for a in arm64ec i686; do
+    meson setup --cross-file ../cross-$a.txt --buildtype=release -Dbuild_id=true build-$a
+    meson compile -C build-$a
+  done
+}
+
+_install() {
+  local n
+  for n; do _dll arm64ec aarch64 $n; _dll i686 i386 $n; done
+}
+
+_prov() { provides=("$1=$pkgver"); conflicts=("$1"); }
+package_wine-dxvk-git() { _prov wine-dxvk; depends+=(wine-dxvk-dxgi); _install d3d11; }
+package_wine-dxvk-dxgi-git() { pkgdesc="DXVK DXGI for Wine (ARM64EC)"; _prov wine-dxvk-dxgi; _install dxgi; }
+package_wine-dxvk-d3d10-git() { pkgdesc="DXVK D3D10 for Wine (ARM64EC)"; _prov wine-dxvk-d3d10; depends+=(wine-dxvk); _install d3d10core; }
+package_wine-dxvk-d3d9-git() { pkgdesc="DXVK D3D9 for Wine (ARM64EC)"; _prov wine-dxvk-d3d9; depends+=(wine-dxvk); _install d3d9; }
+package_wine-dxvk-d3d8-git() { pkgdesc="DXVK D3D8 for Wine (ARM64EC)"; _prov wine-dxvk-d3d8; depends+=(wine-dxvk-d3d9); _install d3d8; }
