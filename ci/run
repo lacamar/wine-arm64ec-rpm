@@ -333,7 +333,7 @@ def process(spec: Path, a, hl) -> int:
     errors, results = [], {}
     if not a.candidate:
         log(f"{stem}: precheck")
-        r = subprocess.run(["flock", CACHE / "precheck.lock", "nice", "-n", "19", wt / "tools/precheck", spec], cwd=wt, capture_output=True, text=True)
+        r = subprocess.run(["nice", "-n", "19", wt / "tools/precheck", spec], cwd=wt, capture_output=True, text=True)
         if r.returncode:
             raise RuntimeError(f"precheck failed:\n{r.stdout[-800:]}")
         log(f"{stem}: mock build")

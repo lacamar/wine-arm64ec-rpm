@@ -10,6 +10,7 @@ Fuzz is checked against a per-spec baseline: review the hunks, then
 """
 import argparse
 import difflib
+import fcntl
 import hashlib
 import os
 import re
@@ -70,6 +71,9 @@ def main() -> int:
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--accept-fuzz", action="store_true")
     a = ap.parse_args()
+    CACHE.mkdir(parents=True, exist_ok=True)
+    lock = open(CACHE.parent / "precheck.lock", "w")
+    fcntl.flock(lock, fcntl.LOCK_EX)
     spec = a.spec.resolve()
     work = CACHE / spec.stem
     work.mkdir(parents=True, exist_ok=True)

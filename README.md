@@ -15,7 +15,8 @@ Add the Copr repo and install the packages it provides to use Wine without havin
 
 ```
 sudo dnf copr enable lacamar/wine-arm64ec
-sudo dnf install fex-emu-wine wine
+sudo dnf install fex-emu-wine wine            # latest releases
+sudo dnf install fex-emu-wine-git wine-git   # or follow upstream HEAD
 ```
 
 To rebuild the packages locally, use `mock`:
@@ -45,7 +46,16 @@ Maintainers: `arch/publish.sh` rebuilds stale packages and updates the release.
 
 ## Development
 
+Each package has `<name>.spec` (latest release) and `<name>-git.spec` (upstream HEAD).
+
 ```
-just lint   # rpmlint staged specs
-just test   # precheck specs changed since upstream
+just lint          # rpmlint staged specs
+just test          # precheck specs changed since upstream
+tools/bump SPEC    # move a spec to upstream's latest release / HEAD
+just ci [SPEC]     # bump, build, A/B-test against the shipped build (report only)
+just ci-timer      # daily CI run via a systemd user timer
 ```
+
+The CI runs on an Asahi machine (aarch64, 16K pages): Wine's winetest modules, FEX's ASM suites
+through the shipped FEX DLLs, vkd3d-proton's d3d12 suite and `ci/tests/hostpage.c` (4K guest pages
+on 16K host pages), comparing each candidate with the build currently on COPR.
