@@ -1,0 +1,16 @@
+--- a/dlls/ntdll/unix/file.c
++++ b/dlls/ntdll/unix/file.c
+@@ -752,9 +752,12 @@
+         {
+             /* don't even bother stat'ing network mounts, there's no meaningful device anyway */
+             if (!strcmp( entry->mnt_type, "nfs" ) ||
++                !strcmp( entry->mnt_type, "nfs4" ) ||
+                 !strcmp( entry->mnt_type, "cifs" ) ||
++                !strcmp( entry->mnt_type, "smb3" ) ||
+                 !strcmp( entry->mnt_type, "smbfs" ) ||
+-                !strcmp( entry->mnt_type, "ncpfs" )) continue;
++                !strcmp( entry->mnt_type, "ncpfs" ) ||
++                !strcmp( entry->mnt_type, "autofs" )) continue;
+ 
+             if (!strcmp( entry->mnt_type, "supermount" ))
+             {

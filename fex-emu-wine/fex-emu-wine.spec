@@ -70,7 +70,7 @@ Patch102:       fex-emu-wine-git-callback-code-buffer.patch
 Patch103:       fex-emu-wine-smc-untrappable-host-page.patch
 Patch104:       fex-emu-wine-precise-faults.patch
 Patch105:       fex-emu-wine-git-suspend-backedge.patch
-Patch106:       fex-emu-wine-git-dispatcher-rethrow.patch
+Patch106:       fex-emu-wine-dispatcher-rethrow.patch
 
 
 BuildRequires:  cmake

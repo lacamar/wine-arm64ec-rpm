@@ -98,7 +98,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:       2026_08_17_bylaws_rebased.patch
+Patch600:       2026_08_17_bylaws_rebased-11.20.patch
 Patch602:       2026_08_30-arm64ec-fex-bootstrap-order.patch
 # msvcrt: idempotent C++ catch frame unregistration
 Patch603:       2026_09_15-msvcrt-idempotent-cxx-unregister.patch
@@ -142,7 +142,7 @@ Patch624:       2026_10_04-winewayland-stale-client-surfaces.patch
 Patch625:       2026_10_04-mfreadwrite-pass-dxgi-samples.patch
 Patch626:       2026_10_05-ntdll-thread-stack-guard-headroom.patch
 Patch627:       2026_10_05-ntdll-arm64ec-bounds-check-RtlIsEcCode.patch
-Patch628:       2026_10_05-msvcrt-mark-rethrow-in-filter.patch
+Patch628:       2026_10_05-msvcrt-mark-rethrow-in-filter-11.20.patch
 Patch629:       2026_10_05-winewayland-fractional-scale-lock-order.patch
 Patch630:       2026_10_05-winewayland-trackpad-smooth-scroll.patch
 Patch631:       2026_10_06-winewayland-protocols.patch
@@ -167,7 +167,7 @@ Patch649:       2026_10_10-opengl32-ext-dsa-procs.patch
 Patch650:       2026_10_10-winewayland-fullscreen-output-origin.patch
 Patch651:       2026_10_11-msvcrt-scanf-no-d-exponent.patch
 Patch652:       2026_10_11-msvcp-money-facet-ids.patch
-Patch653:       2026_10_13-ntdll-skip-autofs-mounts.patch
+Patch653:       2026_10_13-ntdll-skip-autofs-mounts-11.20.patch
 %endif
 
 %if 0%{?wine_staging}

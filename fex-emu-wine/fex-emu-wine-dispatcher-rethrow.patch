@@ -1,0 +1,16 @@
+--- a/Source/Windows/ARM64EC/Module.cpp
++++ b/Source/Windows/ARM64EC/Module.cpp
+@@ -488,9 +488,11 @@
+   auto& Fault = Thread->CurrentFrame->SynchronousFaultData;
+ 
+   LogMan::Msg::DFmt("Reconstructing context");
+-  if (!IsDispatcherAddress(Context.Pc)) {
+-    ReconstructThreadState(Thread, Context);
++  if (IsDispatcherAddress(Context.Pc)) {
++    // SRA may still be live, e.g. right after EnterEC before any spill
++    LogMan::Msg::EFmt("Exception {:X} in dispatcher: pc {:X} addr {:X}", Rec.ExceptionCode, Context.Pc, Rec.ExceptionInformation[1]);
+   }
++  ReconstructThreadState(Thread, Context);
+   ARM64_NT_CONTEXT GuestContext = StoreStateToPackedECContext(Thread, Context.Fpcr, Context.Fpsr);
+   LogMan::Msg::DFmt("pc: {:X} rip: {:X}", Context.Pc, GuestContext.Pc);
+ 
