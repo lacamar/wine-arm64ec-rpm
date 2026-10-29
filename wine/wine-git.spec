@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 30
+Release:        ec.%autorelease -b 31
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2653,6 +2653,9 @@ fi
 %endif
 
 %changelog
+* Thu Oct 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.20^6.git.66caeb4-ec.31
+- Map shared PE sections larger than a host page
+
 * Thu Oct 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.20^6.git.66caeb4-ec.30
 - Update to commit 66caeb46aea4aa8fe6f87b7a209e7867651c09dd
 - Package mfwmaaec.dll

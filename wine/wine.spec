@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.20
-Release:        ec1%{dist}
+Release:        ec2%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2553,6 +2553,9 @@ fi
 %endif
 
 %changelog
+* Thu Oct 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.20-ec2
+- Map shared PE sections larger than a host page
+
 * Sat Oct 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.20-ec1
 - Update to 11.20
 - Staging from v11.20 tag
