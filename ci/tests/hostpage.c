@@ -254,6 +254,8 @@ static void test_file_mapping(void)
     CHECK("file_mapping_4k_view", ok, "read back '%s'", buf);
 }
 
+#ifdef SHARED_SECTION
+/* own image: a loader that can't map it must not hide the other tests */
 /* big enough to hold a whole 16K host page, which is the part that can be shared */
 __attribute__((section(".shr"), shared)) volatile LONG shared_area[0x10000 / sizeof(LONG)] = {1};
 #define shared_value shared_area[0x8000 / sizeof(LONG)]
@@ -276,13 +278,19 @@ static void test_shared_section(const char *self)
     CHECK("shared_section", code == 0 && shared_value == 0x5678, "child exit %lu value %#lx", code, shared_value);
 }
 
+#endif
+
 int main(int argc, char **argv)
 {
+#ifdef SHARED_SECTION
     if (argc > 1 && !strcmp(argv[1], "child")) {
         if (shared_value != 0x1234) return 1;
         shared_value = 0x5678;
         return 0;
     }
+    setvbuf(stdout, NULL, _IONBF, 0);
+    test_shared_section(argv[0]);
+#else
     setvbuf(stdout, NULL, _IONBF, 0);
     AddVectoredExceptionHandler(1, handler);
     test_sysinfo();
@@ -297,6 +305,7 @@ int main(int argc, char **argv)
     test_moffs_fault();
     test_suspend_spin();
     test_file_mapping();
-    test_shared_section(argv[0]);
+#endif
+    printf("done\n");
     return failures;
 }
