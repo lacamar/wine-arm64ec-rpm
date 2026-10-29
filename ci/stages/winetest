@@ -1,0 +1,139 @@
+#!/usr/bin/python3
+"""winetest --wine W --prefix P --out O --work D [--modules a,b] [--bits 64,32] [--only id,...]
+
+Daily WineHQ winetest binaries, one `<mod>_test.exe <subtest>` per result id
+(`<mod><bits>:<subtest>`). OUT/key.txt holds the winetest sha256: baselines are only
+comparable for the same build.
+"""
+import argparse
+import hashlib
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import time
+import urllib.request
+from pathlib import Path
+
+URL = "https://gitlab.winehq.org/wine/wine/-/jobs/artifacts/master/raw/{}?job=build-daily-winetest"
+EXE = {"64": "winetest64.exe", "32": "winetest.exe"}
+MAX_AGE = 7 * 86400
+TIMEOUT = 300
+SUMMARY = re.compile(r"(\d+) tests executed \((\d+) marked as todo, (\d+) as flaky, (\d+) failures?\), (\d+) skipped")
+INTERESTING = re.compile(r"Test failed|Unhandled exception|Test marked todo|err:")
+
+
+def fetch(path: Path):
+    if path.is_file() and time.time() - path.stat().st_mtime < MAX_AGE:
+        return
+    try:
+        req = urllib.request.Request(URL.format(path.name), headers={"User-Agent": "wine-arm64ec-ci"})
+        with urllib.request.urlopen(req, timeout=120) as r, open(f"{path}.part", "wb") as f:
+            while chunk := r.read(1 << 20):
+                f.write(chunk)
+        os.replace(f"{path}.part", path)
+    except OSError as e:
+        if not path.is_file():
+            sys.exit(f"cannot download {path.name}: {e}")
+        print(f"refresh of {path.name} failed, keeping old: {e}", file=sys.stderr)
+
+
+def sha(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while chunk := f.read(1 << 20):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def wine(a, *args, timeout):
+    p = subprocess.Popen([a.wine, *args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                         text=True, errors="replace", start_new_session=True)
+    try:
+        out, _ = p.communicate(timeout=timeout)
+        return p.returncode, out
+    except subprocess.TimeoutExpired:
+        os.killpg(p.pid, signal.SIGKILL)
+        out, _ = p.communicate()
+        subprocess.run([Path(a.wine).with_name("wineserver"), "-k"], capture_output=True)
+        return None, out
+
+
+def classify(rc, out):
+    m = SUMMARY.search(out)
+    if rc is None:
+        return {"status": "timeout", "failures": 0, "detail": ""}
+    detail = "\n".join([l for l in out.splitlines() if INTERESTING.search(l)][:5] or out.splitlines()[-3:])
+    if not m:
+        return {"status": "crash", "failures": 0, "detail": f"rc={rc}\n{detail}"}
+    executed, _, _, failures, skipped = map(int, m.groups())
+    if failures:
+        status = "fail"
+    elif rc:
+        status = "crash"
+    else:
+        status = "skip" if executed == 0 and skipped else "pass"
+    return {"status": status, "failures": failures, "detail": detail if status != "pass" else ""}
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--wine", required=True)
+    ap.add_argument("--prefix", required=True)
+    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--work", type=Path, required=True)
+    ap.add_argument("--src")
+    ap.add_argument("--modules", default="ntdll,kernel32,kernelbase,ucrtbase,msvcrt")
+    ap.add_argument("--bits", default="64,32")
+    ap.add_argument("--only", default="")
+    a = ap.parse_args()
+    a.out.mkdir(parents=True, exist_ok=True)
+    a.work.mkdir(parents=True, exist_ok=True)
+    only = [i for i in a.only.split(",") if i]
+    bits = sorted({re.match(r"[a-z0-9_]+?(\d\d):", i).group(1) for i in only} if only else a.bits.split(","), reverse=True)
+
+    keys, tests, results = [], {}, {}
+    for b in bits:
+        exe = a.work / EXE[b]
+        fetch(exe)
+        digest = sha(exe)
+        keys.append(digest)
+        xdir = a.work / f"x{b}"
+        if not (xdir / ".sha").is_file() or (xdir / ".sha").read_text() != digest:
+            shutil.rmtree(xdir, ignore_errors=True)
+            rc, out = wine(a, str(exe), "-x", str(xdir), timeout=600)
+            if rc != 0 or not any(xdir.glob("*_test.exe")):
+                sys.exit(f"winetest -x failed: rc={rc}\n{out[-500:]}")
+            (xdir / ".sha").write_text(digest)
+        for mod in a.modules.split(","):
+            t = xdir / f"{mod}_test.exe"
+            if not t.is_file():
+                continue
+            if only:
+                tests[b, mod] = [i.split(":", 1)[1] for i in only if i.startswith(f"{mod}{b}:")]
+            else:
+                rc, out = wine(a, str(t), "--list", timeout=60)
+                tests[b, mod] = re.findall(r"^\s+(\S+)", out, re.M)
+                if not tests[b, mod]:
+                    results[f"{mod}{b}:_list"] = {"status": "crash", "failures": 0, "detail": f"rc={rc}\n{out[-300:]}"}
+    (a.out / "key.txt").write_text("+".join(keys))
+
+    with open(a.out / "log.txt", "w") as log:
+        for (b, mod), subs in tests.items():
+            for sub in subs:
+                if not sub:
+                    continue
+                t0 = time.time()
+                rc, out = wine(a, str(a.work / f"x{b}" / f"{mod}_test.exe"), sub, timeout=TIMEOUT)
+                r = results[f"{mod}{b}:{sub}"] = classify(rc, out)
+                log.write(f"== {mod}{b}:{sub} {r['status']} failures={r['failures']} {time.time() - t0:.0f}s\n{out}\n")
+                log.flush()
+    (a.out / "results.json").write_text(json.dumps(results, indent=1))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

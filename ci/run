@@ -1,0 +1,428 @@
+#!/usr/bin/python3
+"""ci/run [--spec SPEC ... | --all] [--ship] [--force] [--stages a,b] [--modules m,n]
+         [--candidate PATH ...] [--baseline PATH ...] [--no-bump] [--no-bd] [--keep-prefixes]
+
+Per spec: bump, precheck, local mock build, A/B (shipped COPR build vs candidate) through
+every ci/stages/* the package maps to, report. --ship (default: report only) commits the
+bump, pushes, builds on COPR and upgrades the installed packages when nothing regressed.
+--candidate/--baseline take rpms, rpm dirs or extracted trees and skip the build/download.
+"""
+import argparse
+import datetime
+import fcntl
+import fnmatch
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+CI = Path(__file__).resolve().parent
+ROOT = CI.parent
+
+
+def xdg(var, default):
+    return Path(os.environ.get(var) or Path.home() / default)
+
+
+CACHE = xdg("XDG_CACHE_HOME", ".cache") / "wine-arm64ec-dev"
+STATE = xdg("XDG_STATE_HOME", ".local/state") / "wine-arm64ec-ci"
+PREFIXES = xdg("XDG_DATA_HOME", ".local/share") / "wine-prefixes"
+RESULT_ROOT = Path(os.environ.get("RESULT_ROOT") or Path.home() / ".local/rpm/rpms")
+SRC_ROOT = Path(os.environ.get("SRC_ROOT") or Path.home() / ".local/rpm/sources")
+GT_INSTANCE = os.environ.get("CI_GT_INSTANCE", "ci")
+RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
+COPR = "https://download.copr.fedorainfracloud.org/results/lacamar/wine-arm64ec/fedora-{}-aarch64/"
+STAGE_TIMEOUT = 6 * 3600
+
+CORE = "ntdll,kernel32,kernelbase,ucrtbase,msvcrt"
+GFX = "d3d9,d3d10core,d3d11,d3d12,dxgi,ddraw"
+STAGES = [
+    ("wine-dxvk*", [("winetest", ["--modules", "d3d9,d3d10core,d3d11,dxgi"])]),
+    ("wine-d7vk*", [("winetest", ["--modules", "ddraw", "--bits", "32"])]),
+    ("wine-vkd3d-proton*", [("winetest", ["--modules", "d3d12"]), ("vkd3d", [])]),
+    ("fex-emu-wine*", [("winetest", ["--modules", CORE]), ("hostpage", []), ("fex-asm", [])]),
+    ("wine", [("winetest", ["--modules", f"{CORE},{GFX}"]), ("hostpage", [])]),
+    ("wine-git", [("winetest", ["--modules", f"{CORE},{GFX}"]), ("hostpage", [])]),
+]
+NEEDS_SRC = {"fex-asm", "vkd3d"}
+RERUN_ONLY = {"winetest"}
+
+
+def log(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
+def out(cmd, **kw):
+    return subprocess.run(cmd, capture_output=True, text=True, check=True, **kw).stdout
+
+
+def compare(base: dict, cand: dict) -> dict:
+    regs = {}
+    for i, b in base.items():
+        c = cand.get(i)
+        if c is None:
+            if b["status"] == "pass":
+                regs[i] = "pass -> missing"
+            continue
+        if b["status"] == "pass" and c["status"] != "pass":
+            regs[i] = f"pass -> {c['status']}"
+        elif c["failures"] > b["failures"]:
+            regs[i] = f"{b['failures']} -> {c['failures']} failures"
+        elif b["status"] == "fail" and c["status"] in ("crash", "timeout"):
+            regs[i] = f"fail -> {c['status']}"
+    return regs
+
+
+def fixed(base: dict, cand: dict) -> list:
+    return [i for i, b in base.items() if b["status"] != "pass" and cand.get(i, {}).get("status") == "pass"]
+
+
+class Headless:
+    def __init__(self):
+        self.up = False
+
+    def gt(self, *a):
+        return subprocess.run(["gt", *a], env={**os.environ, "GT_INSTANCE": GT_INSTANCE}, capture_output=True, text=True)
+
+    def state(self):
+        try:
+            return json.loads((RUNTIME / GT_INSTANCE / "state.json").read_text())
+        except (OSError, ValueError):
+            return {}
+
+    def start(self):
+        s = self.state()
+        if not (s.get("sway") and os.path.exists(f"/proc/{s['sway']}")):
+            log(f"gt up (instance {GT_INSTANCE})")
+            r = self.gt("up", "--single")
+            if r.returncode:
+                sys.exit(f"gt up failed: {r.stderr[-300:]}")
+        self.up = True
+        sinks = out(["pactl", "list", "short", "sinks"]).split()
+        if "claude-test" not in sinks:
+            subprocess.run(["pactl", "load-module", "module-null-sink", "sink_name=claude-test",
+                            "sink_properties=device.description=claude-test node.virtual=true"], check=True, capture_output=True)
+
+    def stop(self):
+        if self.up:
+            self.gt("down")
+            self.up = False
+
+    def env(self, prefix: Path) -> dict:
+        if not self.up:
+            self.start()
+        assert prefix.name.endswith("-test-claude") and prefix.parent == PREFIXES, prefix
+        s = self.state()
+        wayland = s.get("wayland")
+        assert wayland and os.path.exists(f"/proc/{s['sway']}"), "headless session is not running"
+        assert wayland != os.environ.get("WAYLAND_DISPLAY"), "refusing to use the caller's display"
+        env = {k: os.environ[k] for k in ("PATH", "HOME", "USER", "LANG", "XDG_RUNTIME_DIR", "XDG_CONFIG_HOME",
+                                          "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME") if k in os.environ}
+        env.update(WAYLAND_DISPLAY=wayland, DISPLAY="", PULSE_SINK="claude-test", WINEPREFIX=str(prefix),
+                   WINEDEBUG="-all", WINEDLLOVERRIDES="mscoree,mshtml=d")
+        assert env["DISPLAY"] == "" and env["WAYLAND_DISPLAY"] == wayland and env["PULSE_SINK"] == "claude-test"
+        assert Path(env["WINEPREFIX"]).name.endswith("-test-claude")
+        return env
+
+
+def worktree() -> Path:
+    wt = CACHE / "ci/worktree"
+    if wt.exists():
+        subprocess.run(["git", "-C", wt, "checkout", "-fqB", "ci", "main"], check=True)
+        subprocess.run(["git", "-C", wt, "clean", "-fdq"], check=True)
+    else:
+        wt.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "-C", ROOT, "worktree", "add", "-qB", "ci", wt, "main"], check=True)
+    return wt
+
+
+def main_checkout() -> Path:
+    return Path(out(["git", "-C", ROOT, "rev-parse", "--path-format=absolute", "--git-common-dir"]).strip()).parent
+
+
+def rpmspec(spec: Path, qf: str, srpm=False) -> list:
+    r = subprocess.run(["rpmspec", "-q", *(["--srpm"] if srpm else []), "--qf", qf, spec], capture_output=True, text=True, check=True)
+    return [l for l in r.stdout.splitlines() if l]
+
+
+def real_rpms(names):
+    return [n for n in names if not re.search(r"-debug(info|source)\b", n)]
+
+
+def shipped(srpm: str, fedora: str):
+    rows = out(["dnf", "repoquery", f"--repofrompath=ci,{COPR.format(fedora)}", "--repo=ci", "--latest-limit=1",
+                "--qf", "%{name}|%{evr}|%{arch}|%{sourcerpm}\n"]).splitlines()
+    rx = re.compile(rf"{re.escape(srpm)}-([^-]+-[^-]+)\.src\.rpm$")
+    mine = [r.split("|") for r in rows if rx.match(r.split("|")[3])]
+    if not mine:
+        return None, []
+    top = max({m[3] for m in mine}, key=lambda s: sum(1 for m in mine if m[3] == s))
+    evr = rx.match(top).group(1)
+    return evr, [f"{m[0]}-{m[1]}.{m[2]}" for m in mine if m[3] == top]
+
+
+def download_baseline(evr, pkgs, fedora, srpm) -> Path:
+    d = CACHE / "ci/baseline-rpms" / f"{srpm}-{evr}"
+    pkgs = real_rpms(pkgs)
+    if not all((d / f"{p}.rpm").is_file() for p in pkgs):
+        d.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["dnf", "download", f"--repofrompath=ci,{COPR.format(fedora)}", "--repo=ci", f"--destdir={d}", *pkgs], check=True, capture_output=True)
+    keep = {f"{p}.rpm" for p in pkgs}
+    for f in d.glob("*.rpm"):
+        if f.name not in keep:
+            f.unlink()
+    return d
+
+
+def prep_src(spec: Path, stem: str):
+    top = CACHE / "ci/src" / stem
+    shutil.rmtree(top, ignore_errors=True)
+    r = subprocess.run(["rpmbuild", "-bp", "--nodeps", "--define", f"_topdir {top}", "--define", f"_sourcedir {SRC_ROOT / stem}", spec],
+                       capture_output=True, text=True)
+    dirs = [p for p in top.glob("BUILD/*/*") if p.is_dir() and p.name not in ("SPECPARTS", "BUILDROOT")] or list(top.glob("BUILD/*"))
+    if r.returncode or not dirs:
+        log(f"%prep for --src failed: {r.stdout[-300:]}")
+        return None
+    return dirs[0]
+
+
+def make_tree(name: str, paths) -> Path:
+    tree = CACHE / "ci" / f"tree-{name}"
+    subprocess.run([CI / "overlay", tree, *paths], check=True, capture_output=True)
+    return tree
+
+
+class Run:
+    def __init__(self, a, hl, stem, rundir, base_paths, src):
+        self.a, self.hl, self.stem, self.rundir, self.base_paths, self.src = a, hl, stem, rundir, base_paths, src
+        self._base = None
+
+    def stage(self, tree: Path, label: str, stage: str, args: list):
+        prefix = PREFIXES / f"ci-{self.stem}-{label}-{stage}-test-claude"
+        env = self.hl.env(prefix)
+        shutil.rmtree(prefix, ignore_errors=True)
+        prefix.mkdir(parents=True)
+        o = self.rundir / label / stage
+        o.mkdir(parents=True, exist_ok=True)
+        wine = tree / "bin/wine"
+        try:
+            subprocess.run([wine, "wineboot", "-i"], env=env, timeout=600, capture_output=True, stdin=subprocess.DEVNULL)
+            cmd = [CI / "stages" / stage, "--wine", wine, "--prefix", prefix, "--out", o, "--work", CACHE / "ci/work" / stage]
+            if self.src and stage in NEEDS_SRC:
+                cmd += ["--src", self.src]
+            with open(o / "stage.log", "w") as lf:
+                p = subprocess.Popen(cmd + args, env=env, start_new_session=True, stdout=lf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
+                try:
+                    rc = p.wait(STAGE_TIMEOUT)
+                except subprocess.TimeoutExpired:
+                    os.killpg(p.pid, signal.SIGKILL)
+                    rc = "timeout"
+        finally:
+            subprocess.run([tree / "bin/wineserver", "-k"], env=env, capture_output=True)
+            if not self.a.keep_prefixes:
+                shutil.rmtree(prefix, ignore_errors=True)
+        if rc != 0 or not (o / "results.json").is_file():
+            raise RuntimeError(f"{label} stage {stage} broke (rc={rc}), see {o / 'stage.log'}")
+        key = (o / "key.txt").read_text() if (o / "key.txt").is_file() else ""
+        return json.loads((o / "results.json").read_text()), key
+
+    def ab(self, stage, args, cand_tree, cache):
+        t0 = time.time()
+        log(f"{stage}: candidate")
+        cand, key = self.stage(cand_tree, "cand", stage, args)
+        sig = f"{key}|{' '.join(args)}"
+        hit = cache["stages"].get(stage)
+        if not self.a.baseline and hit and hit["sig"] == sig:
+            log(f"{stage}: cached baseline")
+            base = hit["results"]
+        else:
+            log(f"{stage}: baseline")
+            base, _ = self.stage(self.base_tree(), "base", stage, args)
+            if not self.a.baseline:
+                cache["stages"][stage] = {"sig": sig, "results": base}
+        regs = compare(base, cand)
+        if regs:
+            log(f"{stage}: {len(regs)} candidate regressions, rerunning them")
+            extra = ["--only", ",".join(regs)] if stage in RERUN_ONLY else []
+            again, _ = self.stage(cand_tree, "cand2", stage, args + extra)
+            regs = compare({i: base[i] for i in regs}, again)
+            cand.update({i: again[i] for i in regs if i in again})
+        return {"base": base, "cand": cand, "sig": sig, "regs": regs, "fixed": fixed(base, cand), "secs": int(time.time() - t0)}
+
+    def base_tree(self):
+        if self._base is None:
+            self._base = make_tree(f"{self.stem}-base", self.base_paths)
+        return self._base
+
+
+def plan(stem, a):
+    if a.stages:
+        items = [(x, []) for x in a.stages.split(",")]
+    else:
+        items = next((st for pat, st in STAGES if fnmatch.fnmatchcase(stem, pat)), [])
+    return [(x, ["--modules", a.modules, *(args[2:] if args[:1] == ["--modules"] else args)] if x == "winetest" and a.modules else list(args))
+            for x, args in items]
+
+
+def render(stem, base_evr, cand_evr, results, errors):
+    n = sum(len(r["regs"]) for r in results.values())
+    lines = [f"# {stem}: {base_evr} -> {cand_evr}", "", f"result: {'ERROR' if errors else 'REGRESSION' if n else 'ok'}", ""]
+    lines += [f"- {e}" for e in errors]
+    lines += ["| stage | tests | baseline pass | candidate pass | regressions | fixed | secs |", "|---|---|---|---|---|---|---|"]
+    for s, r in results.items():
+        bp = sum(v["status"] == "pass" for v in r["base"].values())
+        cp = sum(v["status"] == "pass" for v in r["cand"].values())
+        lines.append(f"| {s} | {len(r['cand'])} | {bp} | {cp} | {len(r['regs'])} | {len(r['fixed'])} | {r['secs']} |")
+    for s, r in results.items():
+        for i, why in r["regs"].items():
+            lines += ["", f"## {s} {i}: {why}", "```", r["cand"].get(i, {}).get("detail", "")[:600], "```"]
+    return "\n".join(lines) + "\n", n
+
+
+def ship(wt: Path, spec: Path, stem, cand_evr, installed):
+    rel = spec.relative_to(wt)
+    subprocess.run(["git", "-C", wt, "add", rel], check=True)
+    subprocess.run(["git", "-C", wt, "commit", "-qm", f"{stem}: update to {cand_evr}\n\n- A/B winetest/hostpage clean"], check=True)
+    subprocess.run(["git", "-C", wt, "push", "origin", "HEAD:main"], check=True)
+    subprocess.run(["git", "-C", main_checkout(), "merge", "--ff-only", "ci"], check=False)
+    lock = CACHE / "mx-rpm.lock"
+    r = subprocess.run(["flock", lock, "nice", "-n", "19", "mx-rpm", "-S", "--no-git-commit", "--copr", "wine-arm64ec", "--copr-wait", spec], cwd=wt)
+    if r.returncode:
+        raise RuntimeError("COPR build failed, not installing")
+    if installed:
+        subprocess.run(["pkexec", "dnf", "upgrade", "--refresh", "-y", *installed], check=True)
+
+
+def process(spec: Path, a, hl) -> int:
+    stem = spec.stem
+    stages = []
+    for s, args in plan(stem, a):
+        if (CI / "stages" / s).is_file():
+            stages.append((s, args))
+        else:
+            log(f"{stem}: stage {s} not written yet, skipped")
+    if not stages:
+        log(f"{stem}: no stages mapped, skipped")
+        return 0
+    fedora = out(["rpm", "-E", "%fedora"]).strip()
+    wt = None
+    if not a.candidate:
+        wt = worktree()
+        spec = wt / spec.resolve().relative_to(ROOT)
+        if not a.no_bump:
+            bumped = subprocess.run([wt / "tools/bump", spec], capture_output=True, text=True)
+            if bumped.returncode:
+                raise RuntimeError(f"bump failed: {bumped.stderr[-300:]}")
+            log(f"{stem}: bump -> {bumped.stdout.strip() or 'nothing new'}")
+    srpm = rpmspec(spec, "%{name}", srpm=True)[0]
+    cand_evr = rpmspec(spec, "%{evr}", srpm=True)[0]
+    base_evr, base_pkgs = shipped(srpm, fedora)
+    if base_evr == cand_evr and not a.force and not a.candidate:
+        log(f"{stem}: {cand_evr} already shipped")
+        return 0
+    if base_evr is None and not a.baseline:
+        raise RuntimeError(f"{srpm} not on COPR, no baseline")
+
+    rundir = STATE / "runs" / f"{time.strftime('%Y%m%d-%H%M%S')}-{stem}"
+    rundir.mkdir(parents=True)
+    errors, results = [], {}
+    if not a.candidate:
+        log(f"{stem}: precheck")
+        r = subprocess.run(["flock", CACHE / "precheck.lock", "nice", "-n", "19", wt / "tools/precheck", spec], cwd=wt, capture_output=True, text=True)
+        if r.returncode:
+            raise RuntimeError(f"precheck failed:\n{r.stdout[-800:]}")
+        log(f"{stem}: mock build")
+        r = subprocess.run(["flock", CACHE / "mx-rpm.lock", "nice", "-n", "19", "mx-rpm", "--no-git-commit", spec], cwd=wt,
+                           stdout=open(rundir / "build.log", "w"), stderr=subprocess.STDOUT)
+        if r.returncode:
+            raise RuntimeError(f"build failed, see {rundir / 'build.log'}")
+    names = real_rpms(rpmspec(spec, "%{name}-%{evr}.%{arch}\n"))
+    cand_paths = [Path(p) for p in a.candidate] or [RESULT_ROOT / stem / f"{n}.rpm" for n in names]
+    missing = [p for p in cand_paths if not p.exists()]
+    if missing:
+        raise RuntimeError(f"candidate rpms missing: {missing}")
+    base_paths = [Path(p) for p in a.baseline] or [download_baseline(base_evr, base_pkgs, fedora, srpm)]
+    run = Run(a, hl, stem, rundir, base_paths, prep_src(spec, stem) if any(s in NEEDS_SRC for s, _ in stages) else None)
+    cand_tree = make_tree(f"{stem}-cand", cand_paths)
+
+    cf = STATE / "baseline" / f"{stem}.json"
+    cache = {"evr": None, "stages": {}}
+    if cf.is_file():
+        cache = json.loads(cf.read_text())
+    if cache["evr"] != base_evr:
+        cache = {"evr": base_evr, "stages": {}}
+    for s, args in stages:
+        try:
+            results[s] = run.ab(s, args, cand_tree, cache)
+        except RuntimeError as e:
+            errors.append(str(e))
+            log(str(e))
+    if not a.baseline:
+        cf.parent.mkdir(parents=True, exist_ok=True)
+        cf.write_text(json.dumps(cache))
+
+    text, nregs = render(stem, base_evr, cand_evr, results, errors)
+    (rundir / "summary.md").write_text(text)
+    (rundir / "results.json").write_text(json.dumps(results))
+    log(f"{stem}: {rundir / 'summary.md'}")
+    verdict = "ERROR" if errors else f"{nregs} regressions" if nregs else "ok"
+    subprocess.run(["notify-send", "-a", "wine-arm64ec-ci", f"CI {stem} {cand_evr}: {verdict}"], capture_output=True)
+    if nregs and not a.no_bd:
+        subprocess.run(["bd", "create", f"CI regression: {stem} {cand_evr}", "-t", "bug", "-p", "2", "-d", text[:4000]],
+                       cwd=main_checkout(), capture_output=True)
+    if errors or nregs:
+        return 2 if errors else 1
+    if a.ship and not a.candidate:
+        installed = [n.rsplit("-", 2)[0] for n in names if subprocess.run(["rpm", "-q", n.rsplit("-", 2)[0]], capture_output=True).returncode == 0]
+        ship(wt, spec, stem, cand_evr, installed)
+        cache = {"evr": cand_evr, "stages": {s: {"sig": r["sig"], "results": r["cand"]} for s, r in results.items()}}
+        cf.write_text(json.dumps(cache))
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--spec", action="append", type=Path, default=[])
+    ap.add_argument("--all", action="store_true")
+    ap.add_argument("--ship", action="store_true")
+    ap.add_argument("--force", action="store_true")
+    ap.add_argument("--no-bump", action="store_true")
+    ap.add_argument("--no-bd", action="store_true")
+    ap.add_argument("--keep-prefixes", action="store_true")
+    ap.add_argument("--stages")
+    ap.add_argument("--modules")
+    ap.add_argument("--candidate", action="append", default=[])
+    ap.add_argument("--baseline", action="append", default=[])
+    a = ap.parse_args()
+    specs = sorted(ROOT.glob("*/*.spec")) if a.all else [s.resolve() for s in a.spec]
+    if not specs:
+        ap.error("--spec or --all")
+    STATE.mkdir(parents=True, exist_ok=True)
+    CACHE.mkdir(parents=True, exist_ok=True)
+    lock = open(STATE / "lock", "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        print("another ci/run is active")
+        return 0
+    hl = Headless()
+    rc = 0
+    try:
+        for s in specs:
+            try:
+                rc = max(rc, process(s, a, hl))
+            except (RuntimeError, subprocess.CalledProcessError) as e:
+                log(f"{s.stem}: {e}")
+                rc = 2
+    finally:
+        hl.stop()
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main())

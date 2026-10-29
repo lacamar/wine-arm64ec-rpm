@@ -1,0 +1,113 @@
+#!/usr/bin/python3
+"""overlay DIR [RPM|RPMDIR|TREE ...]
+
+Wine tree of symlinks into the system /usr with the given packages extracted over it.
+Loader, wineserver, wine-preloader and ntdll.so are real copies so the tree is self-locating.
+"""
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+USR = Path("/usr")
+ROOTS = ["lib64/wine-wow64", "lib64/wine", "share/wine"]
+ALIAS = re.compile(r"(?:dxvk|vkd3d-proton)-(.+\.dll)$")
+
+
+def mirror(src: Path, dst: Path):
+    if src.is_symlink():
+        dst.symlink_to(os.readlink(src))
+    elif src.is_dir():
+        dst.mkdir()
+        for e in os.scandir(src):
+            mirror(Path(e.path), dst / e.name)
+    else:
+        dst.symlink_to(src)
+
+
+def put(src: Path, dst: Path, root: Path):
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if dst.is_symlink() or dst.is_file():
+        dst.unlink()
+    if src.is_symlink():
+        t = os.readlink(src)
+        if t.startswith("/usr/"):
+            t = os.path.relpath(root / t[5:], dst.parent)
+        dst.symlink_to(t)
+    else:
+        shutil.copy2(src, dst)
+
+
+def merge(stage: Path, root: Path) -> list[Path]:
+    new = []
+    for d, dirs, files in os.walk(stage / "usr"):
+        for n in dirs + files:
+            p = Path(d) / n
+            dst = root / p.relative_to(stage / "usr")
+            if p.is_dir() and not p.is_symlink():
+                if dst.is_symlink():
+                    sys.exit(f"{dst}: symlinked dir in the way")
+                dst.mkdir(parents=True, exist_ok=True)
+            else:
+                put(p, dst, root)
+                new.append(dst)
+    return new
+
+
+def realcopy(p: Path):
+    if p.is_symlink():
+        t = p.resolve()
+        p.unlink()
+        shutil.copy2(t, p)
+
+
+def main() -> int:
+    root = Path(sys.argv[1]).resolve()
+    shutil.rmtree(root, ignore_errors=True)
+    (root / "bin").mkdir(parents=True)
+    for f in [*USR.glob("bin/wine*"), USR / "bin/msidb"]:
+        if f.exists() or f.is_symlink():
+            (root / "bin" / f.name).symlink_to(f)
+    for r in ROOTS:
+        if (USR / r).exists() or (USR / r).is_symlink():
+            (root / r).parent.mkdir(parents=True, exist_ok=True)
+            mirror(USR / r, root / r)
+
+    rpms, trees = [], []
+    for a in map(Path, sys.argv[2:]):
+        if a.is_dir() and (a / "usr").is_dir():
+            trees.append(a)
+        elif a.is_dir():
+            rpms += sorted(a.glob("*.rpm"))
+        else:
+            rpms.append(a)
+    new = []
+    with tempfile.TemporaryDirectory(dir=root.parent) as td:
+        for r in rpms:
+            stage = Path(td) / r.stem
+            stage.mkdir()
+            subprocess.run(f"rpm2cpio '{r}' | cpio -idmu --quiet", shell=True, cwd=stage, check=True)
+            new += merge(stage, root)
+        for t in trees:
+            new += merge(t, root)
+
+    for f in (root / "bin").glob("wine*"):
+        realcopy(f)
+    for f in root.glob("lib64/wine*/**/aarch64-unix/*"):
+        if f.name in ("wine", "wine-preloader", "ntdll.so"):
+            realcopy(f)
+    for p in new:
+        if m := ALIAS.match(p.name):
+            put(p, p.with_name(m.group(1)), root)
+        if p.parts[-3:-1] == ("d7vk", "x32"):
+            for d in root.glob("lib64/wine*/**/i386-windows"):
+                put(p, d / p.name, root)
+    print(root)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

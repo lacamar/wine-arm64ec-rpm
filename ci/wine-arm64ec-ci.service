@@ -1,0 +1,11 @@
+[Unit]
+Description=Wine ARM64EC CI: bump, build, A/B test
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/src/wine-arm64ec-rpm/ci/run --all
+Nice=19
+IOSchedulingClass=idle
+Slice=background.slice
+TimeoutStartSec=12h

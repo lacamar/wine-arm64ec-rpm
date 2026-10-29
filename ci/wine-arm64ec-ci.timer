@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily Wine ARM64EC CI
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

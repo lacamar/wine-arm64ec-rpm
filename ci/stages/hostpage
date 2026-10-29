@@ -1,0 +1,57 @@
+#!/usr/bin/python3
+"""hostpage --wine W --prefix P --out O --work D
+
+Builds ci/tests/hostpage.c as x86-64 and i386 PE and runs it; ids `hostpage<bits>:<test>`.
+"""
+import argparse
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+SRC = Path(__file__).resolve().parents[1] / "tests/hostpage.c"
+CC = {"64": "x86_64-w64-mingw32-gcc", "32": "i686-w64-mingw32-gcc"}
+LINE = re.compile(r"^(\w+): (ok|FAIL)\b(.*)$")
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--wine", required=True)
+    ap.add_argument("--prefix")
+    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--work", type=Path, required=True)
+    ap.add_argument("--src")
+    ap.add_argument("--only")
+    a = ap.parse_args()
+    a.out.mkdir(parents=True, exist_ok=True)
+    a.work.mkdir(parents=True, exist_ok=True)
+    results = {}
+    with open(a.out / "log.txt", "w") as log:
+        for bits, cc in CC.items():
+            exe = a.work / f"hostpage{bits}.exe"
+            if not exe.is_file() or exe.stat().st_mtime < SRC.stat().st_mtime:
+                subprocess.run([cc, "-O1", "-o", exe, SRC], check=True)
+            try:
+                p = subprocess.run([a.wine, exe], capture_output=True, text=True, errors="replace",
+                                   stdin=subprocess.DEVNULL, timeout=300)
+                rc, out = p.returncode, p.stdout
+            except subprocess.TimeoutExpired as e:
+                rc, out = None, (e.stdout or b"").decode(errors="replace")
+            log.write(f"== hostpage{bits} rc={rc}\n{out}\n")
+            for line in out.splitlines():
+                if m := LINE.match(line):
+                    ok = m.group(2) == "ok"
+                    results[f"hostpage{bits}:{m.group(1)}"] = {
+                        "status": "pass" if ok else "fail", "failures": 0 if ok else 1, "detail": "" if ok else line}
+            if rc is None or rc > 100 or "shared_section" not in out:
+                results[f"hostpage{bits}:_complete"] = {
+                    "status": "timeout" if rc is None else "crash", "failures": 0, "detail": f"rc={rc}\n{out[-300:]}"}
+            else:
+                results[f"hostpage{bits}:_complete"] = {"status": "pass", "failures": 0, "detail": ""}
+    (a.out / "results.json").write_text(json.dumps(results, indent=1))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
