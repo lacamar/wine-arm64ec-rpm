@@ -13,3 +13,4 @@ dist/
 node_modules/
 .pytest_cache/
 .ruff_cache/
+.claude/worktrees/
