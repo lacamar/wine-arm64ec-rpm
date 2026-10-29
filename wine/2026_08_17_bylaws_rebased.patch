@@ -1,5 +1,4 @@
 diff --git a/dlls/vcruntime140_1/Makefile.in b/dlls/vcruntime140_1/Makefile.in
-index 1111111..2222222 100644
 --- a/dlls/vcruntime140_1/Makefile.in
 +++ b/dlls/vcruntime140_1/Makefile.in
 @@ -1,7 +1,7 @@
@@ -8,20 +7,19 @@ index 1111111..2222222 100644
  PARENTSRC = ../msvcrt
 -ENABLE_ARCHS = x86_64 arm64ec
 +ENABLE_ARCHS = x86_64 arm64ec aarch64
- 
+
  VER_FILEDESCRIPTION_STR = "Wine runtime library"
  VER_PRODUCTVERSION      = 14,50,35719,0
 diff --git a/programs/dpnsvr/Makefile.in b/programs/dpnsvr/Makefile.in
-index 1111111..2222222 100644
 --- a/programs/dpnsvr/Makefile.in
 +++ b/programs/dpnsvr/Makefile.in
 @@ -1,5 +1,5 @@
  MODULE    = dpnsvr.exe
 -ENABLE_ARCHS = i386 x86_64 arm64ec
 +ENABLE_ARCHS = i386 x86_64 arm64ec aarch64
- 
+
  EXTRADLLFLAGS = -mwindows -municode
- 
+
 diff --git a/dlls/advapi32/Makefile.in b/dlls/advapi32/Makefile.in
 index 53abe47..e7fcc58 100644
 --- a/dlls/advapi32/Makefile.in
@@ -484,16 +482,16 @@ diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
 index 05fe451..608cb37 100644
 --- a/dlls/ntdll/unix/virtual.c
 +++ b/dlls/ntdll/unix/virtual.c
-@@ -248,6 +248,9 @@ static void *preload_reserve_end;
+@@ -227,6 +227,9 @@ static const size_t view_block_size = 0x100000;
  static BOOL force_exec_prot;  /* whether to force PROT_EXEC on all PROT_READ mmaps */
  static BOOL enable_write_exceptions;  /* raise exception on writes to executable memory */
- 
+
 +#define FEX_STATS_SHM_MAX_SIZE 0x400000
 +static void *fex_stats_shm;
 +
- struct range_entry
- {
-     void *base;
+ static UINT_PTR *mem_areas;
+ static const UINT_PTR initial_mem_areas[] = { 0, ~(UINT_PTR)0 };
+ static unsigned int mem_areas_size = 0x1000 << sizeof(void*);
 @@ -6150,6 +6153,49 @@ static unsigned int get_memory_image_info( HANDLE process, LPCVOID addr, MEMORY_
      return status;
  }
@@ -699,18 +697,7 @@ diff --git a/include/winnt.h b/include/winnt.h
 index 2dc1aad..2e4d9e3 100644
 --- a/include/winnt.h
 +++ b/include/winnt.h
-@@ -1518,6 +1518,10 @@ typedef struct _KNONVOLATILE_CONTEXT_POINTERS
- #define XSTATE_MASK_AMX_TILE_DATA           (1 << XSTATE_AMX_TILE_DATA)
- #define XSTATE_MASK_LWP                     ((UINT64)1 << XSTATE_LWP)
- 
-+#define XSTATE_ARM64_SVE 2
-+
-+#define XSTATE_MASK_ARM64_SVE (1 << XSTATE_ARM64_SVE)
-+
- typedef struct _XSTATE_FEATURE
- {
-     ULONG Offset;
-@@ -1558,6 +1562,13 @@ typedef struct _XSAVE_AREA_HEADER
+@@ -1558,6 +1558,13 @@ typedef struct _XSAVE_AREA_HEADER
  }
  XSAVE_AREA_HEADER, *PXSAVE_AREA_HEADER;
  

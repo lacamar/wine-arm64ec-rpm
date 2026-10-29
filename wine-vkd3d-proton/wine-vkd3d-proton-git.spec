@@ -1,6 +1,12 @@
 # _libdir was restructured in F42 wine package to support a directory/symlink replacement
 %global _libdir %{_libdir}/wine-wow64
 
+%global bumpver 0
+%global tag 3.1
+
+%global commit 4522cc1a8b1347f1ab1b0f7b14a23ed9444d95d1
+%{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
+
 %global debug_package %{nil}
 
 %global winepedir aarch64-windows
@@ -9,14 +15,17 @@
 %global __brp_strip_lto %nil
 %global __brp_strip_static_archive %nil
 
-Name:           wine-vkd3d-proton
-Version:        3.0.1
-Release:        ec6%{dist}
+Name:           wine-vkd3d-proton-git
+Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
+Release:        ec1%{?dist}
 Summary:        Vulkan-based implementation of D3D12 for Wine (ARM64EC)
+
+Conflicts:      wine-vkd3d-proton
+Provides:       wine-vkd3d-proton = %{version}-%{release}
 
 License:        LGPL-2.1-or-later AND MIT
 URL:            https://github.com/HansKristian-Work/vkd3d-proton
-Source0:        %{url}/archive/v%{version}/vkd3d-proton-%{version}.tar.gz
+Source0:        https://github.com/HansKristian-Work/vkd3d-proton/archive/%{commit}/vkd3d-proton-%{shortcommit}.tar.gz
 Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64.tar.xz
 Patch0:         wine-vkd3d-proton-honeykrisp-occlusion-pool.patch
 Patch1:         wine-vkd3d-proton-scrgb-srgb-fallback.patch
@@ -24,10 +33,11 @@ Patch1:         wine-vkd3d-proton-scrgb-srgb-fallback.patch
 
 %{lua:
 local externals = {
-  { name="SPIRV-Headers", ref="f88a2d7", owner="KhronosGroup", paths={"khronos/SPIRV-Headers", "subprojects/dxil-spirv/third_party/spirv-headers"} },
-  { name="Vulkan-Headers", ref="ad9ce12", owner="KhronosGroup", paths={"khronos/Vulkan-Headers"} },
-  { name="dxil-spirv", ref="62dbb07", owner="HansKristian-Work", paths={"subprojects/dxil-spirv"} },
-  { name="dxbc-spirv", ref="29c93ae", owner="doitsujin", paths={"subprojects/dxil-spirv/subprojects/dxbc-spirv"} },
+  { name="SPIRV-Headers", ref="f88a2d7", owner="KhronosGroup", paths={"khronos/SPIRV-Headers"} },
+  { name="SPIRV-Headers", ref="c63848e", owner="KhronosGroup", paths={"subprojects/dxil-spirv/third_party/spirv-headers"} },
+  { name="Vulkan-Headers", ref="ee2ec5f", owner="KhronosGroup", paths={"khronos/Vulkan-Headers"} },
+  { name="dxil-spirv", ref="8b48f0e", owner="HansKristian-Work", paths={"subprojects/dxil-spirv"} },
+  { name="dxbc-spirv", ref="8dae2d8", owner="doitsujin", paths={"subprojects/dxil-spirv/subprojects/dxbc-spirv"} },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", paths={"subprojects/dxil-spirv/subprojects/dxbc-spirv/submodules/spirv_headers"} },
 }
 
@@ -69,7 +79,7 @@ ExclusiveArch:  aarch64
 %{summary}
 
 %prep
-%autosetup -n vkd3d-proton-%{version} -a1 -p1
+%autosetup -n vkd3d-proton-%{commit} -a1 -p1
 %{lua: print_setup_externals()}
 
 cat << EOF > build-arm64ec.txt
@@ -153,20 +163,6 @@ fi
 %{_libdir}/wine/i386-windows/vkd3d-proton-d3d12core.dll
 
 %changelog
-* Wed Oct 07 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec6
-- Present scRGB via sRGB formats
+* Thu Oct 29 2026 Lachlan Marie <lchlnm@pm.me> - 3.1^0.git.4522cc1-ec1
+- Initial package
 
-* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec5
-- Require wine-core(wow64-libdir)
-
-* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec4
-- Shrink occlusion query pools on Honeykrisp
-
-* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec3
-- Move to wine-wow64 libdir
-
-* Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec2
-- Add 32-bit DLLs
-
-* Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 3.0.1-ec1
-- Initial ARM64EC build

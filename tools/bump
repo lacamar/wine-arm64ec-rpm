@@ -1,0 +1,197 @@
+#!/usr/bin/python3
+"""bump SPEC [--ref SHA|--version X] [--dry-run]
+
+Moves a spec to upstream's latest release (SPEC.spec) or HEAD (SPEC-git.spec):
+Version/Release or tag/bumpver/commit, wine-staging, bundled submodule refs
+in the %{lua: externals} table, and a %changelog entry. Prints the new
+version-release, or nothing when already current.
+"""
+import argparse
+import datetime
+import json
+import re
+import subprocess
+import sys
+import urllib.request
+from pathlib import Path
+
+UPSTREAM = {
+    "wine": ("gitlab", "wine/wine", r"wine-(\d+\.\d+(?:\.\d+)?)"),
+    "fex-emu-wine": ("github", "FEX-Emu/FEX", r"FEX-(\d+(?:\.\d+)?)"),
+    "wine-dxvk": ("github", "doitsujin/dxvk", r"v(\d+\.\d+(?:\.\d+)?)"),
+    "wine-vkd3d-proton": ("github", "HansKristian-Work/vkd3d-proton", r"v(\d+\.\d+(?:\.\d+)?)"),
+    "wine-d7vk": ("github", "WinterSnowfall/d7vk", r"v(\d+\.\d+(?:\.\d+)?)"),
+    "wine-mono": ("github", "wine-mono/wine-mono", r"wine-mono-(\d+\.\d+\.\d+)"),
+}
+STAGING = ("gitlab", "wine/wine-staging")
+
+
+def get(url: str):
+    req = urllib.request.Request(url, headers={"User-Agent": "wine-arm64ec-rpm"})
+    if "api.github.com" in url:
+        tok = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True).stdout.strip()
+        if tok:
+            req.add_header("Authorization", f"Bearer {tok}")
+    with urllib.request.urlopen(req, timeout=60) as r:
+        body = r.read().decode()
+    return json.loads(body) if r.headers.get_content_type() == "application/json" else body
+
+
+def git_url(forge: str, repo: str) -> str:
+    return f"https://{'github.com' if forge == 'github' else 'gitlab.winehq.org'}/{repo}.git"
+
+
+def head(forge: str, repo: str) -> str:
+    out = subprocess.run(["git", "ls-remote", git_url(forge, repo), "HEAD"], capture_output=True,
+                         text=True, check=True).stdout
+    return out.split()[0]
+
+
+def vkey(v: str):
+    return [int(x) for x in v.split(".")]
+
+
+def latest_release(forge: str, repo: str, pat: str) -> str:
+    out = subprocess.run(["git", "ls-remote", "--tags", "--refs", git_url(forge, repo)],
+                         capture_output=True, text=True, check=True).stdout
+    tags = [m.group(1) for line in out.splitlines() if (m := re.fullmatch(pat, line.split("refs/tags/")[1]))]
+    if forge == "github":
+        # forks carry parent tags (d7vk has dxvk's v3.1.1): trust published releases
+        rel = get(f"https://api.github.com/repos/{repo}/releases?per_page=20")
+        published = {m.group(1) for r in rel if not r["prerelease"] and (m := re.fullmatch(pat, r["tag_name"]))}
+        if published:
+            tags = [t for t in tags if t in published] or sorted(published, key=vkey)
+    return max(tags, key=vkey)
+
+
+def submodules(repo: str, ref: str, prefix: str = "") -> list[tuple[str, str, str]]:
+    """(path, owner/name, sha) for every submodule, recursively; GitHub only."""
+    try:
+        gm = get(f"https://raw.githubusercontent.com/{repo}/{ref}/.gitmodules")
+    except urllib.error.HTTPError:
+        return []
+    out = []
+    for path, url in re.findall(r"path\s*=\s*(\S+)\s*\n\s*url\s*=\s*(\S+)", gm):
+        url = re.sub(r"\.git$", "", url)
+        if url.startswith("../"):
+            url = repo.split("/")[0] + "/" + url[3:]
+        name = "/".join(url.split("/")[-2:])
+        sha = get(f"https://api.github.com/repos/{repo}/contents/{path}?ref={ref}")["sha"]
+        out.append((prefix + path, name, sha))
+        out += submodules(name, sha, prefix + path + "/")
+    return out
+
+
+def tag_version(repo: str, sha: str) -> str | None:
+    out = subprocess.run(["git", "ls-remote", "--tags", f"https://github.com/{repo}.git"],
+                         capture_output=True, text=True).stdout
+    vers = [m.group(1) for line in out.splitlines()
+            if line.split()[0] == sha and (m := re.search(r"(\d+(?:\.\d+)+)", line.split()[1]))]
+    return max(vers, key=lambda v: (v.count("."), vkey(v)), default=None)
+
+
+def bump_externals(text: str, repo: str, ref: str) -> tuple[str, list[str]]:
+    subs = submodules(repo, ref)
+    changed = []
+
+    def fix(m: re.Match) -> str:
+        entry = m.group(0)
+        name = re.search(r'name="([^"]+)"', entry).group(1)
+        owner = re.search(r'owner="([^"]+)"', entry).group(1)
+        pm = re.search(r'paths=\{([^}]*)\}', entry) or re.search(r'path=("[^"]+")', entry)
+        paths = re.findall(r'"([^"]+)"', pm.group(1)) if pm else []
+        cands = [s for s in subs if s[1].lower() == f"{owner}/{name}".lower()]
+        if len(cands) > 1 and paths:
+            cands = [s for s in cands if any(s[0].endswith(p.lstrip("./")) or p.endswith(s[0]) for p in paths)] or cands
+        if not cands:
+            return entry
+        sub = min(cands, key=lambda c: c[0].count("/"))
+        new = sub[2][:7]
+        old = re.search(r'ref="([^"]+)"', entry).group(1)
+        if new != old:
+            changed.append(name)
+            entry = entry.replace(f'ref="{old}"', f'ref="{new}"')
+            if vm := re.search(r'version="([^"]+)"', entry):
+                ver = tag_version(sub[1], sub[2])
+                if ver:
+                    entry = entry.replace(vm.group(0), f'version="{ver}"')
+        return entry
+
+    text = re.sub(r"\{ name=\"[^\n]*\},?", fix, text)
+    return text, changed
+
+
+def setg(text: str, name: str, val: str) -> str:
+    return re.sub(rf"^(%global\s+{name}\s+)\S+", lambda m: m.group(1) + val, text, count=1, flags=re.M)
+
+
+def getg(text: str, name: str) -> str | None:
+    m = re.search(rf"^%global\s+{name}\s+(\S+)", text, re.M)
+    return m.group(1) if m else None
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("spec", type=Path)
+    ap.add_argument("--ref", help="upstream commit for -git specs (default HEAD)")
+    ap.add_argument("--version", help="release version (default latest)")
+    ap.add_argument("--dry-run", action="store_true")
+    a = ap.parse_args()
+    spec = a.spec
+    text = orig = spec.read_text()
+    is_git = spec.stem.endswith("-git")
+    forge, repo, pat = UPSTREAM[spec.stem.removesuffix("-git")]
+    latest = a.version or latest_release(forge, repo, pat)
+    notes = []
+
+    if is_git:
+        old_commit = getg(text, "commit")
+        commit = a.ref or head(forge, repo)
+        if commit == old_commit and getg(text, "tag") == latest:
+            return 0
+        if getg(text, "tag") != latest:
+            text = setg(setg(text, "tag", latest), "bumpver", "0")
+        elif commit != old_commit:
+            text = setg(text, "bumpver", str(int(getg(text, "bumpver")) + 1))
+        text = setg(text, "commit", commit)
+        notes.append(f"Update to commit {commit}")
+        if getg(text, "staging_commit"):
+            st = head(*STAGING)
+            if st != getg(text, "staging_commit"):
+                text = setg(text, "staging_commit", st)
+                notes.append(f"Update wine-staging to {st[:7]}")
+        ref = commit
+    else:
+        old = re.search(r"^Version:\s*(\S+)", text, re.M).group(1)
+        if vkey(latest) <= vkey(old):
+            return 0
+        text = re.sub(r"^(Version:\s*)\S+", lambda m: m.group(1) + latest, text, count=1, flags=re.M)
+        text = re.sub(r"^(Release:\s*(?:ec)?)\d+", lambda m: m.group(1) + "1", text, count=1, flags=re.M)
+        major = latest.split(".")[0]
+        text = re.sub(r"(dl\.winehq\.org/wine/source/)\d+\.x", rf"\g<1>{major}.x", text)
+        notes.append(f"Update to {latest}")
+        ref = next(t for t in [f"v{latest}", f"FEX-{latest}", f"wine-mono-{latest}", f"wine-{latest}"] if re.fullmatch(pat, t))
+
+    if forge == "github" and "externals" in text:
+        text, ext = bump_externals(text, repo, ref)
+        if ext:
+            notes.append(f"Update {', '.join(sorted(set(ext)))}")
+
+    spec.write_text(text)
+    vr = subprocess.run(["rpmspec", "-q", "--srpm", "--qf", "%{version}-%{release}", str(spec)],
+                        capture_output=True, text=True, check=True).stdout
+    vr = re.sub(r"\.fc\d+$", "", vr)
+    who = subprocess.run(["rpmdev-packager"], capture_output=True, text=True, check=True).stdout.strip()
+    date = datetime.date.today().strftime("%a %b %d %Y")
+    entry = f"* {date} {who} - {vr}\n" + "".join(f"- {n}\n" for n in notes) + "\n"
+    text = re.sub(r"^%changelog\n", lambda m: m.group(0) + entry, text, count=1, flags=re.M)
+    if a.dry_run:
+        spec.write_text(orig)
+    else:
+        spec.write_text(text)
+    print(vr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

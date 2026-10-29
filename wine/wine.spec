@@ -1,6 +1,6 @@
 # The new wow64 mode is disabled by default
 # https://gitlab.winehq.org/wine/wine/-/releases/wine-9.0#wow64
-%if 0%{?fedora} >= 42
+%if 0%{?fedora} >= 43
 %bcond new_wow64 1
 %else
 %bcond new_wow64 0
@@ -11,7 +11,7 @@
 
 %global no64bit   0
 %global winegecko 2.47.4
-%global winemono  11.2.0
+%global winemono  11.3.0
 %if 0%{?fedora}
 %global opencl    1
 %endif
@@ -50,7 +50,7 @@
 # 0%%{?fedora}
 
 Name:           wine
-Version:        11.13
+Version:        11.20
 Release:        ec1%{dist}
 Summary:        A compatibility layer for windows applications
 
@@ -98,8 +98,76 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:       2026_07_09_bylaws_rebased.patch
-Patch601:       wine-mono-arm.patch
+Patch600:       2026_08_17_bylaws_rebased.patch
+Patch602:       2026_08_30-arm64ec-fex-bootstrap-order.patch
+# msvcrt: idempotent C++ catch frame unregistration
+Patch603:       2026_09_15-msvcrt-idempotent-cxx-unregister.patch
+# uxtheme: clip DrawThemeParentBackground to the child
+Patch604:       2026_09_15-uxtheme-clip-parent-background.patch
+# winewayland: popup subsurfaces, on-screen toplevels, Decorated=Y
+Patch605:       2026_09_15-winewayland-popup-subsurfaces.patch
+# d2d1: layers and primitive blend modes
+Patch606:       2026_09_15-d2d1-layers-primitive-blend.patch
+# win32u: no 16-bit clamp on window sizes
+Patch607:       2026_09_15-win32u-unclamped-window-sizes.patch
+# win32u: protect the BeginPaint DC
+Patch608:       2026_09_16-win32u-protect-paint-dc.patch
+# winewayland: follow host light/dark theme
+Patch609:       2026_09_16-winewayland-follow-host-color-scheme.patch
+# win32u: keep monitor position for single-mode sources
+Patch610:       2026_09_16-win32u-monitor-physical-position.patch
+# comctl32: group box caption row background
+Patch611:       2026_09_16-comctl32-groupbox-caption-row.patch
+# win32u: prepend to the swapchain pNext chain
+Patch612:       2026_09_16-win32u-vulkan-swapchain-pnext.patch
+# winewayland: PrimaryOutput setting
+Patch613:       2026_09_16-winewayland-primary-output.patch
+# winewayland: decorations follow the compositor by default
+Patch614:       2026_09_17-winewayland-decorations-default.patch
+# d2d1: no join geometry for collinear outline segments
+Patch615:       2026_09_17-d2d1-collinear-outline-join.patch
+# winewayland: no forced tile size on fixed-size windows
+Patch616:       2026_09_17-winewayland-tiled-fixed-size.patch
+# winewayland: windows follow the output the compositor shows them on
+Patch617:       2026_09_17-winewayland-follow-output.patch
+# win32u: virtual modes up to the largest monitor on every source
+Patch618:       2026_09_17-win32u-extend-virtual-modes.patch
+# vkd3d-shader: "linear" is a valid sampler_state value
+Patch619:       2026_09_17-vkd3d-shader-state-block-keywords.patch
+Patch620:       2026_09_18-server-scale-dpi-signed.patch
+Patch621:       2026_09_26-ntdll-subpage-guard-decommit.patch
+Patch622:       2026_09_26-ntdll-unaligned-shared-sections.patch
+Patch623:       2026_10_04-dsound-3d-input-tail.patch
+Patch624:       2026_10_04-winewayland-stale-client-surfaces.patch
+Patch625:       2026_10_04-mfreadwrite-pass-dxgi-samples.patch
+Patch626:       2026_10_05-ntdll-thread-stack-guard-headroom.patch
+Patch627:       2026_10_05-ntdll-arm64ec-bounds-check-RtlIsEcCode.patch
+Patch628:       2026_10_05-msvcrt-mark-rethrow-in-filter.patch
+Patch629:       2026_10_05-winewayland-fractional-scale-lock-order.patch
+Patch630:       2026_10_05-winewayland-trackpad-smooth-scroll.patch
+Patch631:       2026_10_06-winewayland-protocols.patch
+Patch632:       2026_10_06-win32u-menu-keyboard-cues.patch
+Patch633:       2026_10_06-winewayland-xdg-parent.patch
+Patch634:       2026_10_06-win32u-winewayland-dead-keys.patch
+Patch635:       2026_10_06-secur32-ntoskrnl-eager-rpcrt4.patch
+Patch636:       2026_10_06-win32u-mat2-negative-fixed.patch
+Patch637:       2026_10_06-kernelbase-lightroom-cef-in-process-gpu.patch
+Patch638:       2026_10_06-win32u-popup-owner-hint.patch
+Patch639:       2026_10_06-winewayland-xdg-decoration.patch
+Patch640:       2026_10_06-win32u-scrollbar-orientation.patch
+Patch641:       2026_10_07-win32u-menu-escape.patch
+Patch642:       2026_10_07-mshtml-docopen-navcomplete.patch
+Patch643:       2026_10_07-comctl32-datetime-field-width.patch
+Patch644:       2026_10_07-winewayland-owned-fullscreen-popups.patch
+Patch645:       2026_10_07-win32u-sdr-white-level.patch
+Patch646:       2026_10_07-win32u-keep-layered-surface.patch
+Patch647:       2026_10_08-explorer-desktop-foreground.patch
+Patch648:       2026_10_10-msvcrt-utf8-locale-name.patch
+Patch649:       2026_10_10-opengl32-ext-dsa-procs.patch
+Patch650:       2026_10_10-winewayland-fullscreen-output-origin.patch
+Patch651:       2026_10_11-msvcrt-scanf-no-d-exponent.patch
+Patch652:       2026_10_11-msvcp-money-facet-ids.patch
+Patch653:       2026_10_13-ntdll-skip-autofs-mounts.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -219,6 +287,7 @@ BuildRequires:  mingw64-zlib
 
 Requires:       wine-common = %{version}-%{release}
 Requires:       wine-desktop = %{version}-%{release}
+#Requires:       ntsync-autoload = %{version}-%{release}
 Requires:       wine-winefonts = %{version}-%{release}
 
 # x86-32 parts
@@ -274,6 +343,16 @@ Requires:       wine-pulseaudio(aarch-64) = %{version}-%{release}
 Requires:       wine-opencl(aarch-64) = %{version}-%{release}
 Requires:       mingw64-wine-gecko = %winegecko
 Requires:       mesa-dri-drivers(aarch-64)
+Requires:       mingw32-wine-gecko = %winegecko
+Requires:       ntsync-autoload = %{version}-%{release}
+Requires:       fex-emu-wine
+Requires:       wine-dxvk
+Requires:       wine-dxvk-d3d8
+Requires:       wine-dxvk-d3d9
+Requires:       wine-dxvk-d3d10
+Requires:       wine-vkd3d-proton
+Requires:       wine-d7vk
+Requires:       wine-mono = %winemono
 %endif
 
 %description
@@ -294,6 +373,9 @@ Requires(preun):       %{_sbindir}/alternatives
 
 # require -filesystem
 Requires:       wine-filesystem = %{version}-%{release}
+%if %{with new_wow64}
+Provides:       wine-core(wow64-libdir)
+%endif
 
 %ifarch %{ix86}
 # CUPS support uses dlopen - rhbz#1367537
@@ -386,8 +468,8 @@ Requires:       libva
 %endif
 %endif
 
-Provides:       bundled(libjpeg) = 9f
-Provides:       bundled(mpg123-libs) = 1.32.9
+Provides:       bundled(mingw-libjpeg) = 10
+Provides:       bundled(mingw-mpg123-libs) = 1.33.5
 
 %description core
 Wine core package includes the basic wine stuff needed by all other packages.
@@ -432,11 +514,13 @@ BuildArch:      noarch
 Desktop integration features for wine, including mime-types and a binary format
 handler service.
 
-%package ntsync
+%package -n ntsync-autoload
 Summary:       Kernel module load file for ntsync
 BuildArch:     noarch
+Provides:      wine-ntsync = %{version}-%{release}
+Obsoletes:     wine-ntsync < %{version}-%{release}
 
-%description ntsync
+%description -n ntsync-autoload
 Kernel module load file for ntsync
 
 %package winefonts
@@ -707,12 +791,65 @@ staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
 %endif
 # 0%%{?wine_staging}
 
+%ifarch aarch64
 %if 0%{?fedora} >= 45
 sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %endif
 
 %patch -P 600 -p1 -F3
-%patch -P 601 -p0 -F3
+%patch -P 602 -p1 -F3
+%patch -P 603 -p1
+%patch -P 604 -p1
+%patch -P 605 -p1
+%patch -P 606 -p1
+%patch -P 607 -p1
+%patch -P 608 -p1
+%patch -P 609 -p1
+%patch -P 610 -p1
+%patch -P 611 -p1
+%patch -P 612 -p1
+%patch -P 613 -p1
+%patch -P 614 -p1
+%patch -P 615 -p1
+%patch -P 616 -p1
+%patch -P 617 -p1
+%patch -P 618 -p1
+%patch -P 619 -p1
+%patch -P 620 -p1
+%patch -P 621 -p1
+%patch -P 622 -p1
+%patch -P 623 -p1
+%patch -P 624 -p1
+%patch -P 625 -p1
+%patch -P 626 -p1
+%patch -P 627 -p1
+%patch -P 628 -p1
+%patch -P 629 -p1
+%patch -P 630 -p1
+%patch -P 631 -p1
+%patch -P 632 -p1
+%patch -P 633 -p1
+%patch -P 634 -p1
+%patch -P 635 -p1
+%patch -P 636 -p1
+%patch -P 637 -p1
+%patch -P 638 -p1
+%patch -P 639 -p1
+%patch -P 640 -p1
+%patch -P 641 -p1
+%patch -P 642 -p1
+%patch -P 643 -p1
+%patch -P 644 -p1
+%patch -P 645 -p1
+%patch -P 646 -p1
+%patch -P 647 -p1
+%patch -P 648 -p1
+%patch -P 649 -p1
+%patch -P 650 -p1
+%patch -P 651 -p1
+%patch -P 652 -p1
+%patch -P 653 -p1
+%endif
 
 %build
 # This package uses top level ASM constructs which are incompatible with LTO.
@@ -748,12 +885,18 @@ export CFLAGS="$(echo "$CFLAGS" | sed -e 's/-mbranch-protection=standard//')"
 # required so that both Linux and Windows development files can be found
 unset PKG_CONFIG_PATH
 
+# _libdir was restructured and must use a new prefix until at least Fedora 45
+%global _x_libdir %{_libdir}
+%if %{with new_wow64}
+%global _libdir %{_libdir}/wine-wow64
+%endif
+
 %configure \
  --sysconfdir=%{_sysconfdir}/wine \
- --x-includes=%{_includedir} --x-libraries=%{_libdir} \
+ --x-includes=%{_includedir} --x-libraries=%{_x_libdir} \
  --with-dbus \
  --with-x \
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
  --enable-win64 \
 %ifarch x86_64
 %if %{with new_wow64}
@@ -770,11 +913,34 @@ unset PKG_CONFIG_PATH
 %ifarch %{ix86}
  --with-system-dllpath=%{mingw32_bindir} \
 %endif
-%if 0%{?wine_staging}
- --with-wayland \
-%else
- --without-wayland \
-%endif
+%{?wine_staging: --with-xattr} \
+ --enable-crtdll \
+ --enable-ctl3d32 \
+ --enable-d3d8 \
+ --enable-d3dim \
+ --enable-d3dim700 \
+ --enable-dmband \
+ --enable-dmcompos \
+ --enable-dmime \
+ --enable-dmscript \
+ --enable-dmstyle \
+ --enable-dplay \
+ --enable-dplayx \
+ --enable-dpwsockx \
+ --enable-iccvid \
+ --enable-iprop \
+ --enable-msscript_ocx \
+ --enable-msvcp70 \
+ --enable-msvcp71 \
+ --enable-msvcr70 \
+ --enable-msvcr71 \
+ --enable-msvcrt20 \
+ --enable-msvcrt40 \
+ --enable-msvcrtd \
+ --enable-olecli32 \
+ --enable-olepro32 \
+ --enable-olethk32 \
+ --enable-vdmdbg \
  --disable-tests
 
 %make_build TARGETFLAGS=""
@@ -786,7 +952,7 @@ unset PKG_CONFIG_PATH
         UPDATE_DESKTOP_DATABASE=/bin/true
 
 # setup for alternatives usage
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 mv %{buildroot}%{_bindir}/wine %{buildroot}%{_bindir}/wine64
 mv %{buildroot}%{_bindir}/wineserver %{buildroot}%{_bindir}/wineserver64
 %endif
@@ -797,19 +963,27 @@ mv %{buildroot}%{_bindir}/wineserver %{buildroot}%{_bindir}/wineserver32
 touch %{buildroot}%{_bindir}/wine
 touch %{buildroot}%{_bindir}/wineserver
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/dxgi.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-dxgi.dll
+%ifarch %{ix86}
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d8.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d8.dll
+%endif
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d9.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d9.dll
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d10.dll
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10_1.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d10_1.dll
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10core.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d10core.dll
 mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d11.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d11.dll
+mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d12.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d12.dll
+mv %{buildroot}%{_libdir}/wine/%{winepedir}/d3d12core.dll %{buildroot}%{_libdir}/wine/%{winepedir}/wine-d3d12core.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/dxgi.dll
+%ifarch %{ix86}
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d8.dll
+%endif
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d9.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10_1.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d10core.dll
 touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d11.dll
+touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d12.dll
+touch %{buildroot}%{_libdir}/wine/%{winepedir}/d3d12core.dll
 %if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
 mv %{buildroot}%{_libdir}/wine/i386-windows/dxgi.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-dxgi.dll
 mv %{buildroot}%{_libdir}/wine/i386-windows/d3d9.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d9.dll
@@ -817,12 +991,18 @@ mv %{buildroot}%{_libdir}/wine/i386-windows/d3d10.dll %{buildroot}%{_libdir}/win
 mv %{buildroot}%{_libdir}/wine/i386-windows/d3d10_1.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d10_1.dll
 mv %{buildroot}%{_libdir}/wine/i386-windows/d3d10core.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d10core.dll
 mv %{buildroot}%{_libdir}/wine/i386-windows/d3d11.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d11.dll
+mv %{buildroot}%{_libdir}/wine/i386-windows/d3d8.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d8.dll
+mv %{buildroot}%{_libdir}/wine/i386-windows/d3d12.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d12.dll
+mv %{buildroot}%{_libdir}/wine/i386-windows/d3d12core.dll %{buildroot}%{_libdir}/wine/i386-windows/wine-d3d12core.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/dxgi.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/d3d9.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/d3d10.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/d3d10_1.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/d3d10core.dll
 touch %{buildroot}%{_libdir}/wine/i386-windows/d3d11.dll
+touch %{buildroot}%{_libdir}/wine/i386-windows/d3d8.dll
+touch %{buildroot}%{_libdir}/wine/i386-windows/d3d12.dll
+touch %{buildroot}%{_libdir}/wine/i386-windows/d3d12core.dll
 %endif
 
 # setup new wow64
@@ -842,7 +1022,7 @@ ln -sf /usr/lib64/wine/x86_64-windows %{buildroot}%{_libdir}/wine/x86_64-windows
 # remove rpath
 chrpath --delete %{buildroot}%{_bindir}/wmc
 chrpath --delete %{buildroot}%{_bindir}/wrc
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 chrpath --delete %{buildroot}%{_bindir}/wine64
 chrpath --delete %{buildroot}%{_bindir}/wineserver64
 %else
@@ -1041,38 +1221,30 @@ fi
 %ldconfig_post core
 
 %pretrans -p <lua> core
-%if %{with new_wow64}
-%ifarch %{ix86}
-pathA = "%{_libdir}/wine/x86_64-unix"
-pathB = "%{_libdir}/wine/x86_64-windows"
-stA = posix.stat(pathA)
-stB = posix.stat(pathB)
-if stA and stA.type == "link" then
-  os.remove(pathA)
-end
-if stB and stB.type == "link" then
-  os.remove(pathB)
-end
+%ifarch x86_64 aarch64
+%define _oldlibdir /usr/lib64
+%else
+%define _oldlibdir /usr/lib
 %endif
-%ifarch x86_64
-pathA = "%{_libdir}/wine/i386-unix"
-pathB = "%{_libdir}/wine/i386-windows"
-stA = posix.stat(pathA)
-stB = posix.stat(pathB)
-if stA and stA.type == "link" then
-  os.remove(pathA)
-end
-if stB and stB.type == "link" then
-  os.remove(pathB)
-end
+oldPath = "%{_oldlibdir}/wine/%{winepedir}/wine-dxgi.dll"
+opStat = posix.stat(oldPath)
+if opStat and opStat.type == "regular" then
+for _, alt in ipairs({"dxgi", "d3d8", "d3d9", "d3d10core", "d3d10_1", "d3d10", "d3d11", "d3d12", "d3d12core"}) do
+os.execute("%{_sbindir}/alternatives --remove 'wine-" .. alt .. "%{?_isa}' %{_oldlibdir}/wine/%{winepedir}/wine-" .. alt .. ".dll")
+%if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
+os.execute("%{_sbindir}/alternatives --remove 'wine-" .. alt .. "(x86-32)' %{_oldlibdir}/wine/i386-windows/wine-" .. alt .. ".dll")
 %endif
-%endif
+end
+end
 
 %posttrans core
 # handle upgrades for a few package updates
 rm -f %{_libdir}/wine/%{winepedirs}/d3d8.dll
 rm -f %{_bindir}/wine-preloader
-%if %{__isa_bits} == 64
+%ifnarch %{ix86}
+%{_sbindir}/alternatives --remove 'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d8.dll 2>/dev/null || :
+%endif
+%ifarch x86_64 aarch64
 %{_sbindir}/alternatives --remove wine %{_bindir}/wine64
 %{_sbindir}/alternatives --install %{_bindir}/wine \
   wine %{_bindir}/wine64 20
@@ -1087,8 +1259,10 @@ rm -f %{_bindir}/wine-preloader
 %endif
 %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/dxgi.dll \
   'wine-dxgi%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-dxgi.dll 10
+%ifarch %{ix86}
 %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d8.dll \
   'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d8.dll 10
+%endif
 %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d9.dll \
   'wine-d3d9%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d9.dll 10
 %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d10core.dll \
@@ -1098,15 +1272,33 @@ rm -f %{_bindir}/wine-preloader
   --slave  %{_libdir}/wine/%{winepedir}/d3d10_1.dll 'wine-d3d10_1%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d10_1.dll
 %{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d11.dll \
   'wine-d3d11%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d11.dll 10 || :
+for dll in d3d12 d3d12core; do
+  [ -L %{_libdir}/wine/%{winepedir}/$dll.dll ] || rm -f %{_libdir}/wine/%{winepedir}/$dll.dll
+done
+%{_sbindir}/alternatives --install %{_libdir}/wine/%{winepedir}/d3d12.dll \
+  'wine-d3d12%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d12.dll 10 \
+  --slave %{_libdir}/wine/%{winepedir}/d3d12core.dll 'wine-d3d12core%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d12core.dll || :
 %if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
 %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/dxgi.dll \
   'wine-dxgi(x86-32)' %{_libdir}/wine/i386-windows/wine-dxgi.dll 10
 %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d9.dll \
   'wine-d3d9(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d9.dll 10
+if %{_sbindir}/alternatives --display 'wine-d3d10(x86-32)' 2>/dev/null | grep -q 'wine-d3d10core(x86-32)'; then
+  %{_sbindir}/alternatives --remove 'wine-d3d10(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10.dll
+fi
+for dll in d3d12 d3d12core; do
+  [ -L %{_libdir}/wine/i386-windows/$dll.dll ] || rm -f %{_libdir}/wine/i386-windows/$dll.dll
+done
+%{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d8.dll \
+  'wine-d3d8(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d8.dll 10
+%{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d10core.dll \
+  'wine-d3d10core(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10core.dll 10
 %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d10.dll \
   'wine-d3d10(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10.dll 10 \
-  --slave  %{_libdir}/wine/i386-windows/d3d10_1.dll 'wine-d3d10_1(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10_1.dll \
-  --slave  %{_libdir}/wine/i386-windows/d3d10core.dll 'wine-d3d10core(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10core.dll
+  --slave  %{_libdir}/wine/i386-windows/d3d10_1.dll 'wine-d3d10_1(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10_1.dll
+%{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d12.dll \
+  'wine-d3d12(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d12.dll 10 \
+  --slave %{_libdir}/wine/i386-windows/d3d12core.dll 'wine-d3d12core(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d12core.dll || :
 %{_sbindir}/alternatives --install %{_libdir}/wine/i386-windows/d3d11.dll \
   'wine-d3d11(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d11.dll 10 || :
 %endif
@@ -1114,7 +1306,7 @@ rm -f %{_bindir}/wine-preloader
 %postun core
 %{?ldconfig}
 if [ $1 -eq 0 ] ; then
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
   %{_sbindir}/alternatives --remove wine %{_bindir}/wine64
   %{_sbindir}/alternatives --remove wineserver %{_bindir}/wineserver64
 %else
@@ -1122,15 +1314,21 @@ if [ $1 -eq 0 ] ; then
   %{_sbindir}/alternatives --remove wineserver %{_bindir}/wineserver32
 %endif
   %{_sbindir}/alternatives --remove 'wine-dxgi%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-dxgi.dll
+%ifarch %{ix86}
   %{_sbindir}/alternatives --remove 'wine-d3d8%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d8.dll
+%endif
   %{_sbindir}/alternatives --remove 'wine-d3d9%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d9.dll
   %{_sbindir}/alternatives --remove 'wine-d3d10core%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d10core.dll
   %{_sbindir}/alternatives --remove 'wine-d3d10%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d10.dll
   %{_sbindir}/alternatives --remove 'wine-d3d11%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d11.dll || :
+  %{_sbindir}/alternatives --remove 'wine-d3d12%{?_isa}' %{_libdir}/wine/%{winepedir}/wine-d3d12.dll || :
 %if %[ %{__isa_bits} == 64 && %{with new_wow64} ]
   %{_sbindir}/alternatives --remove 'wine-dxgi(x86-32)' %{_libdir}/wine/i386-windows/wine-dxgi.dll
   %{_sbindir}/alternatives --remove 'wine-d3d9(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d9.dll
+  %{_sbindir}/alternatives --remove 'wine-d3d8(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d8.dll
+  %{_sbindir}/alternatives --remove 'wine-d3d10core(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10core.dll
   %{_sbindir}/alternatives --remove 'wine-d3d10(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d10.dll
+  %{_sbindir}/alternatives --remove 'wine-d3d12(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d12.dll || :
   %{_sbindir}/alternatives --remove 'wine-d3d11(x86-32)' %{_libdir}/wine/i386-windows/wine-d3d11.dll || :
 %endif
 fi
@@ -1188,7 +1386,7 @@ fi
 %{_bindir}/wineserver32
 %endif
 
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 %{_bindir}/wine64
 %{_bindir}/wineserver64
 %endif
@@ -1222,6 +1420,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/hostname.exe
 %{_libdir}/wine/%{winepedirs}/ipconfig.exe
 %{_libdir}/wine/%{winepedirs}/klist.exe
+%{_libdir}/wine/%{winepedirs}/lsass.exe
 %{_libdir}/wine/%{winepedirs}/makecab.exe
 %{_libdir}/wine/%{winepedirs}/mshta.exe
 %{_libdir}/wine/%{winepedirs}/msidb.exe
@@ -1359,8 +1558,10 @@ fi
 %{_libdir}/wine/%{winepedirs}/wine-d3d10core.dll
 %ghost %{_libdir}/wine/%{winepedirs}/d3d11.dll
 %{_libdir}/wine/%{winepedirs}/wine-d3d11.dll
-%{_libdir}/wine/%{winepedirs}/d3d12.dll
-%{_libdir}/wine/%{winepedirs}/d3d12core.dll
+%ghost %{_libdir}/wine/%{winepedirs}/d3d12.dll
+%ghost %{_libdir}/wine/%{winepedirs}/d3d12core.dll
+%{_libdir}/wine/%{winepedirs}/wine-d3d12.dll
+%{_libdir}/wine/%{winepedirs}/wine-d3d12core.dll
 %{_libdir}/wine/%{winepedirs}/d3dcompiler_*.dll
 %{_libdir}/wine/%{winepedirs}/d3dim.dll
 %{_libdir}/wine/%{winepedirs}/d3dim700.dll
@@ -1797,7 +1998,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/vcomp120.dll
 %{_libdir}/wine/%{winepedirs}/vcomp140.dll
 %{_libdir}/wine/%{winepedirs}/vcruntime140.dll
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 %{_libdir}/wine/%{winepedirs}/vcruntime140_1.dll
 %endif
 %{_libdir}/wine/%{winepedirs}/vdmdbg.dll
@@ -1910,7 +2111,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/wmphoto.dll
 %{_libdir}/wine/%{winepedirs}/wnaspi32.dll
 %{_libdir}/wine/%{winepedirs}/wofutil.dll
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 %{_libdir}/wine/%{winepedirs}/wow64.dll
 %{_libdir}/wine/%{winepedirs}/wow64win.dll
 %endif
@@ -1919,6 +2120,7 @@ fi
 %endif
 %{_libdir}/wine/%{winepedirs}/wpc.dll
 %{_libdir}/wine/%{winepedirs}/wpcap.dll
+%{_libdir}/wine/%{winepedirs}/wpnapps.dll
 %{_libdir}/wine/%{winesodir}/wpcap.so
 %{_libdir}/wine/%{winepedirs}/ws2_32.dll
 %{_libdir}/wine/%{winesodir}/ws2_32.so
@@ -1934,14 +2136,15 @@ fi
 %{_libdir}/wine/%{winepedirs}/sfc.dll
 %{_libdir}/wine/%{winepedirs}/wineps.drv
 %{_libdir}/wine/%{winesodir}/wineps.so
-%ghost %{_libdir}/wine/%{winepedirs}/d3d8.dll
-%{_libdir}/wine/%{winepedirs}/wine-d3d8.dll
+%ghost %{_libdir}/wine/i386-windows/d3d8.dll
+%{_libdir}/wine/i386-windows/wine-d3d8.dll
 %{_libdir}/wine/%{winepedirs}/d3d8thk.dll
 %ghost %{_libdir}/wine/%{winepedirs}/d3d9.dll
 %{_libdir}/wine/%{winepedirs}/wine-d3d9.dll
 %{_libdir}/wine/%{winesodir}/opengl32.so
 %{_libdir}/wine/%{winepedirs}/opengl32.dll
 %{_libdir}/wine/%{winepedirs}/wined3d.dll
+%{_libdir}/wine/%{winesodir}/wined3d.so
 %{_libdir}/wine/%{winepedirs}/dnsapi.dll
 %{_libdir}/wine/%{winesodir}/dnsapi.so
 %{_libdir}/wine/%{winepedirs}/iexplore.exe
@@ -1993,7 +2196,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/xpssvcs.dll
 
 %if 0%{?wine_staging}
-%if %{__isa_bits} == 64
+%ifarch x86_64 aarch64
 #%%{_libdir}/wine/%%{winepedirs}/nvapi64.dll
 #%%{_libdir}/wine/%%{winepedirs}/nvencodeapi64.dll
 #%%{_libdir}/wine/%%{winesodir}/nvencodeapi64.dll.so
@@ -2279,7 +2482,7 @@ fi
 %{_metainfodir}/%{name}.appdata.xml
 %{_datadir}/icons/hicolor/scalable/apps/*svg
 
-%files ntsync
+%files -n ntsync-autoload
 %{_modulesloaddir}/ntsync.conf
 
 %files systemd
@@ -2350,6 +2553,185 @@ fi
 %endif
 
 %changelog
+* Sat Oct 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.20-ec1
+- Update to 11.20
+- Staging from v11.20 tag
+- d3d8 is i386-only upstream
+- Package wpnapps.dll
+
+* Tue Oct 13 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec23
+- Skip autofs mounts in drive device lookup
+
+* Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec22
+- Fix msvcp120_app money id forwards
+
+* Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec21
+- Export msvcp money facet ids (FreeOrion)
+
+* Sun Oct 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec20
+- Stop scanf %f taking d as exponent (Warsow UI)
+
+* Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec19
+- Keep forced-fullscreen windows on output (Freeciv clicks)
+
+* Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec18
+- Expose EXT_dsa procs to GLEW (Pioneer)
+
+* Sat Oct 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec17
+- Fix UTF-8 locale names in msvcrt (Luanti)
+
+* Thu Oct 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec16
+- Start with desktop as foreground window (Wwise audio)
+
+* Wed Oct 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec15
+- Keep layered windows layered on resize
+
+* Wed Oct 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec14
+- Report SDR white level
+
+* Wed Oct 07 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec13
+- Fix scrollbar orientation
+- Close menus on Escape
+- Fix mshtml document.open navigation
+- Fix date picker field widths
+- Fullscreen owned popups on their monitor
+- Parent dialogs to nearest toplevel
+
+* Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec12
+- Request server-side decorations properly
+
+* Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec11
+- Fix negative MAT2 glyph scaling
+- Run Lightroom CEF GPU in-process
+- Stack ownerless popups over dialogs
+
+* Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec10
+- Support dead keys on Wayland
+- Fix CEF helper crash (arm64ec varargs delay-load)
+
+* Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec9
+- Hide menu underlines until keyboard use
+- Set xdg parent for owned windows
+
+* Tue Oct 06 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec8
+- Add xdg-session-management (window placement restore)
+- Add ext-data-control clipboard
+- Add xdg-system-bell, xdg-toplevel-tag
+- Map touchpad pinch to Ctrl+wheel
+
+* Mon Oct 05 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec7
+- Fix winewayland scale-change deadlock
+- Add touchpad smooth scrolling
+- Keep thread stack size on 16K pages
+- Bounds-check RtlIsEcCode
+- Mark rethrow in msvcrt filter
+
+* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec6
+- Fix windows snapping to wrong output
+- Fix black Unity video on DX11
+
+* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec5
+- Limit MEM_RESET to whole host pages
+- Fix dsound 3D buffer input tail overflow
+- Fix stale Wayland client surfaces on top
+
+* Sun Oct 04 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec4
+- Require wine-mono on Fedora 43
+- Provide wine-core(wow64-libdir)
+
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec3
+- Require FEX, dxvk, vkd3d-proton, d7vk, mono, gecko, ntsync
+
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec2
+- Rebase on Fedora 11.0-4 spec
+- Move to wine-wow64 libdir
+- Rename wine-ntsync to ntsync-autoload
+- Restore xattr support
+
+* Sat Oct 03 2026 Lachlan Marie <lchlnm@pm.me> - 11.19-ec1
+- Update to 11.19
+- Staging at 6544c23 (no v11.19 tag yet)
+- Drop staging d3d12 options structs (merged upstream)
+
+* Wed Sep 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec6
+- Make the largest output the primary display
+- Never move borderless or fullscreen windows between outputs
+
+* Tue Sep 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec5
+- Stop fullscreen windows ping-ponging between outputs
+
+* Sat Sep 26 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec4
+- Raise guard faults only for the guard page itself on 16K hosts
+- Zero decommitted pages sharing a host page
+- Load images whose shared sections are not host page aligned
+
+* Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec3
+- Fix missing 32-bit d3d8
+- Split 32-bit d3d10core, add 32-bit d3d12 alternatives
+
+* Wed Sep 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec2
+- Make d3d12 an alternative
+
+* Sat Sep 19 2026 Lachlan Marie <lchlnm@pm.me> - 11.18-ec1
+- updated wine version to 11.18
+- keep 32-bit only modules enabled on all archs
+
+* Fri Sep 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec12
+- winewayland: follow-output snaps into the target output
+- winewayland: fix output score sentinel
+
+* Fri Sep 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec11
+- server: signed DPI scaling of negative coordinates
+- winewayland: follow-output compares raw coordinates
+
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec10
+- vkd3d-shader: accept point in state blocks
+
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec9
+- vkd3d-shader: accept linear in state blocks
+
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec8
+- winewayland: windows follow their output
+- win32u: all monitors' resolutions on every display
+
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec7
+- winewayland: no forced tile size on fixed-size windows
+
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec6
+- d2d1: fix stray stroke fragments
+
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec5
+- win32u: fix stuck BeginPaint DC marker
+
+* Thu Sep 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec4
+- winewayland: decorations follow the compositor
+
+* Wed Sep 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec3
+- win32u: keep swapchain pNext chain
+- winewayland: PrimaryOutput setting
+
+* Wed Sep 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec2
+- winewayland: popup, decoration and theme fixes
+- d2d1: layers and blend modes
+- win32u: window size, paint DC and monitor fixes
+- comctl32: group box caption fix
+
+* Sat Sep 05 2026 Lachlan Marie <lchlnm@pm.me> - 11.17-ec1
+- Increased wine version to 11.17
+
+* Tue Aug 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.16-ec1
+- Increased wine version to 11.16
+- Increased wine-mono version to 11.3.0
+
+* Tue Aug 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.15-ec1
+- Increased wine version to 11.15
+
+* Thu Jul 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.14-ec1
+- Increased wine version to 11.14
+
+* Fri Jul 17 2026 Fedora Release Engineering <releng@fedoraproject.org> - 11.0-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_45_Mass_Rebuild
+
 * Sat Jul 11 2026 Lachlan Marie <lchlnm@pm.me> - 11.13-ec1
 - Increased wine version to 11.13
 
@@ -2394,8 +2776,17 @@ fi
 * Sat Jan 24 2026 Lachlan Marie <lchlnm@pm.me> - 11.1-ec1
 - Increased wine version to 11.1
 
+* Sat Jan 17 2026 Fedora Release Engineering <releng@fedoraproject.org> - 11.0-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_44_Mass_Rebuild
+
 * Wed Jan 14 2026 Lachlan Marie <lchlnm@pm.me> - 11.0-ec1
 - Increased wine version to 11.0
+
+* Wed Jan 14 2026 Michael Cronenworth <mike@cchtml.com> - 11.0-2
+- wine-mono 10.4.1
+
+* Tue Jan 13 2026 Michael Cronenworth <mike@cchtml.com> - 11.0-1
+- version update
 
 * Sat Jan 10 2026 Lachlan Marie <lchlnm@pm.me> - 11.0-rc5^ec1
 - Increased wine version to 11.0-rc5
@@ -2403,14 +2794,35 @@ fi
 * Sun Dec 28 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc4^ec1
 - Increased wine version to 11.0-rc4
 
+* Fri Dec 26 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-5
+- Fix x86_64 alternatives upgrade path
+
+* Tue Dec 23 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-4
+- Account for alternatives in upgrade path
+
 * Sat Dec 13 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc3^ec1
 - Increased wine version to 11.0-rc3
 
 * Sat Dec 13 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc2^ec1
 - Increased wine version to 11.0-rc2
 
+* Tue Dec 09 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-3
+- Bring sanity to the upgrade path, credit Gordon Messmer (RHBZ#2401666)
+
 * Sun Dec 07 2025 Lachlan Marie <lchlnm@pm.me> - 11.0-rc1^ec1
 - Increased wine version to 11.0-rc1
+
+* Mon Dec 01 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-2
+- remove Conflicts
+
+* Mon Dec 01 2025 Michael Cronenworth <mike@cchtml.com> - 10.20-1
+- version update
+
+* Fri Nov 21 2025 Michael Cronenworth <mike@cchtml.com> - 10.19-2
+- wine-ntsync rename to ntsync-autoload
+
+* Tue Nov 18 2025 Michael Cronenworth <mike@cchtml.com> - 10.19-1
+- version update
 
 * Sat Nov 15 2025 Lachlan Marie <lchlnm@pm.me> - 10.20-ec1
 - Increased wine version to 10.20

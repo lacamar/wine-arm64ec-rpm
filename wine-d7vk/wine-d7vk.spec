@@ -5,8 +5,8 @@
 %global __brp_strip_static_archive %nil
 
 Name:           wine-d7vk
-Version:        2.3
-Release:        ec2%{dist}
+Version:        2.4
+Release:        ec1%{dist}
 Summary:        Vulkan-based implementation of D3D7, 6, 5 and 3 for Wine
 
 License:        zlib AND MIT
@@ -17,11 +17,11 @@ Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/
 
 %{lua:
 local externals = {
-  { name="dxbc-spirv", ref="bf14419", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
+  { name="dxbc-spirv", ref="687a301", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
   { name="SPIRV-Headers", ref="04f10f6", owner="KhronosGroup", path="include/spirv", version="1.3.341.0", license="CC0" },
-  { name="Vulkan-Headers", ref="8864cdc", owner="KhronosGroup", path="include/vulkan", version="1.4.344.0", license="Apache-2.0" },
+  { name="Vulkan-Headers", ref="6802bb4", owner="KhronosGroup", path="include/vulkan", version="1.4.363.0", license="Apache-2.0" },
   { name="mingw-directx-headers", ref="9df86f2", owner="misyltoad", path="include/native/directx", license="LGPL v2.1" },
 }
 
@@ -103,6 +103,10 @@ install -Dpm 644 $(find build-i686/src/ddraw -name ddraw.dll) %{buildroot}%{_dat
 %{_datadir}/d7vk/
 
 %changelog
+* Thu Oct 29 2026 Lachlan Marie <lchlnm@pm.me> - 2.4-ec1
+- Update to 2.4
+- Update Vulkan-Headers, dxbc-spirv
+
 * Fri Oct 09 2026 Lachlan Marie <lchlnm@pm.me> - 2.3-ec2
 - Require wine-dxvk-d3d9
 
