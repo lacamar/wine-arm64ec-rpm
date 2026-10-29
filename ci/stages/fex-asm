@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+import argparse, hashlib, json, os, re, struct, subprocess, sys
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+SRC_C = HERE.parent / "tests" / "asmrun.c"
+SUITES = {
+    "64": ("unittests/ASM", "BITS 64\n", "Test_", "x86_64-w64-mingw32-gcc", []),
+    "32": ("unittests/32Bit_ASM", "BITS 32\norg 10000h\nmov eax, 0x17\nmov ds, ax\nmov es, ax\n", "Test_32Bit_", "i686-w64-mingw32-gcc", ["-Wl,--large-address-aware"]),
+}
+DUMP = 0x70000000
+R64 = "rax rbx rcx rdx rsi rdi rbp rsp r8 r9 r10 r11 r12 r13 r14 r15".split()
+XS = DUMP + 0x400
+EPILOGUE = {
+    "64": "\n__asmrun_epilogue:\n"
+    + "".join(f"mov [dword {DUMP + 8 * (k + 2):#x}], {r}\n" for k, r in enumerate(R64))
+    + f"cmp byte [dword {DUMP + 0x90:#x}], 0\nje .nox\nmov eax, 7\nxor edx, edx\nxsave [dword {XS:#x}]\njmp .done\n"
+    + f".nox:\nfxsave [dword {XS:#x}]\n.done:\nmov rsp, [dword {DUMP + 8:#x}]\njmp qword [dword {DUMP:#x}]\n",
+    "32": "\n__asmrun_epilogue:\n"
+    + "".join(f"mov [{DUMP + 8 * (k + 2):#x}], {r.replace('r', 'e')}\n" for k, r in enumerate(R64[:8]))
+    + f"cmp byte [{DUMP + 0x90:#x}], 0\nje .nox\nmov eax, 7\nxor edx, edx\nxsave [{XS:#x}]\njmp .done\n"
+    + f".nox:\nfxsave [{XS:#x}]\n.done:\nmov esp, [{DUMP + 8:#x}]\njmp [{DUMP:#x}]\n",
+}
+JIT_ENV = {"FEX_MAXINST": "500", "FEX_MULTIBLOCK": "0", "FEX_TSOENABLED": "0"}
+TIMEOUT = 120
+
+
+def lines(p):
+    return {l.strip() for l in p.read_text().splitlines() if l.strip() and not l.startswith("#")} if p.exists() else set()
+
+
+def src_hash(src):
+    h = hashlib.sha256(SRC_C.read_bytes())
+    files = [src / "Scripts" / n for n in ("json_config_parse.py", "json_asm_config_parse.py")]
+    for d, *_ in SUITES.values():
+        files += sorted((src / d).rglob("*"))
+    for f in files:
+        if f.is_file():
+            h.update(str(f.relative_to(src)).encode())
+            h.update(f.read_bytes())
+    return h.hexdigest()[:16]
+
+
+def assemble(src, cache, suite, asm):
+    d, prefix, *_ = SUITES[suite]
+    rel = asm.relative_to(src / d)
+    out = cache / suite / rel
+    out.parent.mkdir(parents=True, exist_ok=True)
+    binf, cfg = out.with_suffix(".bin"), out.with_suffix(".cfg")
+    if binf.exists() and cfg.exists():
+        return rel, True
+    tmp = out.with_suffix(".tmp.asm")
+    body = re.sub(r"(?im)^(\s*)hlt\b", r"\1jmp __asmrun_epilogue", asm.read_text())
+    tmp.write_text(prefix + body + "\nret\n" + EPILOGUE[suite])
+    inc = ["-i", f"{asm.parent}/"] + (["-i", f"{src}/unittests/ASM/Includes/"] if suite == "64" else [])
+    r = subprocess.run(["nasm", *inc, str(tmp), "-o", str(binf)], capture_output=True, text=True)
+    tmp.unlink()
+    if r.returncode:
+        binf.unlink(missing_ok=True)
+        return rel, False
+    subprocess.run(["python3", str(src / "Scripts/json_asm_config_parse.py"), str(asm), str(cfg)], check=True)
+    return rel, True
+
+
+def cfg_env(cfg):
+    b = cfg.read_bytes()
+    off, n = struct.unpack_from("<II", b, 68)
+    env = {}
+    for _ in range(n):
+        k = b[off:b.index(0, off)]
+        off += len(k) + 1
+        v = b[off:b.index(0, off)]
+        off += len(v) + 1
+        env[k.decode()] = v.decode()
+    return env
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--wine", required=True)
+    ap.add_argument("--prefix", required=True)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--src")
+    ap.add_argument("--work")
+    ap.add_argument("-j", type=int, default=6)
+    ap.add_argument("--filter", default="")
+    a = ap.parse_args()
+    if not a.src:
+        sys.exit("fex-asm needs --src")
+    src, out = Path(a.src).resolve(), Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    work = Path(a.work) if a.work else out / "work"
+    cache = work / "fex-asm" / src_hash(src)
+    cache.mkdir(parents=True, exist_ok=True)
+    log = open(out / "log.txt", "w")
+
+    def say(m):
+        log.write(m + "\n")
+        log.flush()
+
+    jobs = []
+    with ThreadPoolExecutor(a.j) as ex:
+        for suite, (d, _, tp, cc, ldf) in SUITES.items():
+            exe = cache / f"asmrun{suite}.exe"
+            if not exe.exists():
+                subprocess.run([cc, "-O1", "-static", *ldf, "-o", str(exe), str(SRC_C)], check=True)
+            disabled = lines(src / d / "Disabled_Tests")
+            known = lines(src / d / "Known_Failures") | lines(src / d / "Known_Failures_jit")
+            asms = sorted(p for p in (src / d).rglob("*.asm") if a.filter in str(p))
+            asms = [p for p in asms if p.parent.name != "Includes"]
+            for rel, ok in ex.map(lambda p: assemble(src, cache, suite, p), asms):
+                jobs.append((suite, rel, ok, exe, tp + str(rel), tp + str(rel) in disabled or str(rel) in disabled,
+                             tp + str(rel) in known or str(rel) in known))
+    say(f"{len(jobs)} tests, cache {cache}")
+
+    env0 = {**os.environ, "WINEPREFIX": a.prefix, "WINEDEBUG": "-all", "WINEPRELOADRESERVE": "10000-110000", "DISPLAY": ""}
+
+    def run(j):
+        suite, rel, ok, exe, name, disabled, known = j
+        tid = f"fex-asm:{suite}/{rel}"
+        if disabled:
+            return tid, {"status": "skip", "failures": 0, "detail": "disabled"}
+        if not ok:
+            return tid, {"status": "skip", "failures": 0, "detail": "nasm failed"}
+        stem = cache / suite / rel
+        env = {**env0, **JIT_ENV, **cfg_env(stem.with_suffix(".cfg"))}
+        try:
+            r = subprocess.run([a.wine, str(exe), str(stem.with_suffix(".bin")), str(stem.with_suffix(".cfg"))],
+                               env=env, capture_output=True, text=True, timeout=TIMEOUT)
+        except subprocess.TimeoutExpired:
+            return tid, {"status": "timeout", "failures": 1, "detail": "known-failure" if known else ""}
+        txt = r.stdout.strip()
+        st = {0: "pass", 1: "fail", 77: "skip"}.get(r.returncode, "crash")
+        n = sum(" != expected " in l for l in txt.splitlines())
+        det = "\n".join(txt.splitlines()[:6]) or f"exit {r.returncode}"
+        if known:
+            det = "known-failure; " + det
+        return tid, {"status": st, "failures": n or (st in ("fail", "crash")), "detail": det}
+
+    res = {}
+    todo = [j for j in jobs]
+    first = next((j for j in todo if j[2] and not j[5]), None)
+    if first:
+        todo.remove(first)
+        k, v = run(first)
+        res[k] = v
+    with ThreadPoolExecutor(a.j) as ex:
+        for k, v in ex.map(run, todo):
+            res[k] = v
+    for k, v in sorted(res.items()):
+        say(f"{v['status']:8} {k}")
+    json.dump(res, open(out / "results.json", "w"), indent=1, sort_keys=True)
+    c = {}
+    for v in res.values():
+        c[v["status"]] = c.get(v["status"], 0) + 1
+    say(str(c))
+    print(c)
+
+
+main()
