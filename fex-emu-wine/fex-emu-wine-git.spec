@@ -72,7 +72,7 @@ Patch100:       fex-emu-wine-git-host-page-size.patch
 Patch101:       fex-emu-wine-git-smc-untrap-host-page.patch
 Patch102:       fex-emu-wine-git-callback-code-buffer.patch
 Patch103:       fex-emu-wine-smc-untrappable-host-page.patch
-Patch104:       fex-emu-wine-precise-faults.patch
+Patch104:       fex-emu-wine-git-precise-faults.patch
 Patch105:       fex-emu-wine-git-suspend-backedge.patch
 Patch106:       fex-emu-wine-git-dispatcher-rethrow.patch
 Patch107:       fex-emu-wine-git-setflags-branchless.patch
@@ -234,6 +234,7 @@ rm -rf %{buildroot}/usr/share
 * Thu Oct 29 2026 Lachlan Marie <lchlnm@pm.me> - 2610^2.git.fb48e2d-2
  - Update to commit fb48e2d19de4bd49bbc66d42242609357883a302
  - Rebase dispatcher-rethrow patch
+ - Rebase precise-faults patch
 
 * Fri Oct 16 2026 Lachlan Marie <lchlnm@pm.me> - 2610^1.git.5285020-2
  - Update to commit 5285020de0b30dbdae7b44d0d83541af2d13d002

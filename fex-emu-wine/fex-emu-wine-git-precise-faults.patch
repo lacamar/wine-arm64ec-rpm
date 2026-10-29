@@ -1,0 +1,153 @@
+Report the faulting RIP for moffs and relocated memory operands; raise #DE for a zero divisor on Windows;
+leave RSP untouched when a POP to memory faults.
+
+--- a/FEXCore/Source/Interface/Core/OpcodeDispatcher.h
++++ b/FEXCore/Source/Interface/Core/OpcodeDispatcher.h
+@@ -254,6 +254,11 @@
+         return true;
+       }
+ 
++      if (TableInfo->Flags & X86Tables::InstFlags::FLAGS_MEM_OFFSET) {
++        // moffs addressing: the operand is a literal but the instruction always accesses memory
++        return true;
++      }
++
+       if (TableInfo->Flags & (X86Tables::InstFlags::FLAGS_SETS_RIP | X86Tables::InstFlags::FLAGS_BLOCK_END)) {
+         // Cooperative suspend interrupts can be triggered at any back-edge, the RIP must be reconstructed correctly in such cases
+         return true;
+@@ -268,7 +273,8 @@
+       }
+ 
+       // This isn't guaranteed that all of these types will access memory, but be safe.
+-      return Operand.IsGPRDirect() || Operand.IsGPRIndirect() || Operand.IsRIPRelative() || Operand.IsSIB();
++      return Operand.IsGPRDirect() || Operand.IsGPRIndirect() || Operand.IsRIPRelative() || Operand.IsSIB() ||
++             Operand.IsGPRIndirectRelocation() || Operand.IsRIPRelativeRelocation() || Operand.IsSIBRelocation();
+     };
+ 
+     CanHaveSideEffects |= HasPotentialMemoryAccess(Op->Dest);
+@@ -890,6 +896,7 @@
+   void Insertq(OpcodeArgs);
+ 
+   void BreakOp(OpcodeArgs, FEXCore::IR::BreakDefinition BreakDefinition);
++  void RaiseDivideErrorIfZero(OpcodeArgs, IR::OpSize Size);
+   void UnimplementedOp(OpcodeArgs);
+   void PermissionRestrictedOp(OpcodeArgs);
+ 
+--- a/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp
++++ b/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp
+@@ -393,8 +393,24 @@
+ }
+ 
+ void OpDispatchBuilder::POPOp(OpcodeArgs) {
+-  Ref Value = Pop(OpSizeFromSrc(Op));
++  const auto& Dest = Op->Dest;
++  const bool AddressUsesRSP =
++    (Dest.IsGPRDirect() && Dest.Data.GPR.GPR == X86State::REG_RSP) ||
++    ((Dest.IsGPRIndirect() || Dest.IsGPRIndirectRelocation()) && Dest.Data.GPRIndirect.GPR == X86State::REG_RSP) ||
++    ((Dest.IsSIB() || Dest.IsSIBRelocation()) && (Dest.Data.SIB.Base == X86State::REG_RSP || Dest.Data.SIB.Index == X86State::REG_RSP));
++
++  if (Dest.IsGPR() || AddressUsesRSP) {
++    Ref Value = Pop(OpSizeFromSrc(Op));
++    StoreResultGPR(Op, Value);
++    return;
++  }
++
++  // A faulting memory store must leave RSP unchanged, so only update it afterwards
++  const auto Size = OpSizeFromSrc(Op);
++  Ref OldSP = LoadGPRRegister(X86State::REG_RSP);
++  Ref Value = _LoadMemGPRAutoTSO(Size, OldSP);
+   StoreResultGPR(Op, Value);
++  StoreGPRRegister(X86State::REG_RSP, Add(GetGPROpSize(), OldSP, IR::OpSizeToSize(Size)));
+ }
+ 
+ void OpDispatchBuilder::POPAOp(OpcodeArgs) {
+@@ -3663,19 +3679,54 @@
+   }
+ }
+ 
++void OpDispatchBuilder::RaiseDivideErrorIfZero(OpcodeArgs, IR::OpSize Size) {
++  // The host divide returns 0 for a zero divisor, Windows applications rely on the #DE exception instead.
++  if (CTX->HostFeatures.ProcessFeatures.HostType != FEXCore::HostFeatures::HostTypeEnum::Wow64 &&
++      CTX->HostFeatures.ProcessFeatures.HostType != FEXCore::HostFeatures::HostTypeEnum::Arm64ec) {
++    return;
++  }
++
++  CalculateDeferredFlags();
++
++  // This splits the block, the divide itself must load its operands afterwards
++  Ref Divisor = LoadSourceGPR(Op, Op->Dest, Op->Flags, {.AllowUpperGarbage = Size >= OpSize::i32Bit});
++
++  const auto CompareSize = Size == OpSize::i64Bit ? OpSize::i64Bit : OpSize::i32Bit;
++  auto CondJump_ = CondJump(Divisor, Constant(0), InvalidNode, InvalidNode, CondClass::NEQ, CompareSize);
++  auto TrapBlock = CreateNewCodeBlockAfter(GetCurrentBlock());
++  SetFalseJumpTarget(CondJump_, TrapBlock);
++  SetCurrentCodeBlock(TrapBlock);
++  StartNewBlock();
++
++  _StoreContextGPR(GetGPROpSize(), GetRelocatedPC(Op, -Op->InstSize), offsetof(FEXCore::Core::CPUState, rip));
++  Break(FEXCore::IR::BreakDefinition {
++    .ErrorRegister = 0,
++    .Signal = Core::FAULT_SIGSEGV,
++    .TrapNumber = X86State::X86_TRAPNO_DE,
++    .si_code = 0x80,
++  });
++
++  auto ContinueBlock = CreateNewCodeBlockAfter(TrapBlock);
++  SetTrueJumpTarget(CondJump_, ContinueBlock);
++  SetCurrentCodeBlock(ContinueBlock);
++  StartNewBlock();
++}
++
+ void OpDispatchBuilder::DIVOp(OpcodeArgs) {
+   const auto GPRSize = GetGPROpSize();
+   auto Size = OpSizeFromSrc(Op);
+ 
+-  // This loads the divisor. 32-bit/64-bit paths mask inside the JIT, 8/16 do not.
+-  Ref Divisor = LoadSourceGPR(Op, Op->Dest, Op->Flags, {.AllowUpperGarbage = Size >= OpSize::i32Bit});
+-
+   if (Size == OpSize::i64Bit && !Is64BitMode) {
+     LogMan::Msg::EFmt("Doesn't exist in 32bit mode");
+     DecodeFailure = true;
+     return;
+   }
+ 
++  RaiseDivideErrorIfZero(Op, Size);
++
++  // This loads the divisor. 32-bit/64-bit paths mask inside the JIT, 8/16 do not.
++  Ref Divisor = LoadSourceGPR(Op, Op->Dest, Op->Flags, {.AllowUpperGarbage = Size >= OpSize::i32Bit});
++
+   Ref Quotient = _AllocateGPR(true);
+   Ref Remainder = _AllocateGPR(true);
+ 
+@@ -3705,9 +3756,6 @@
+ }
+ 
+ void OpDispatchBuilder::IDIVOp(OpcodeArgs) {
+-  // This loads the divisor
+-  Ref Divisor = LoadSourceGPR(Op, Op->Dest, Op->Flags);
+-
+   const auto GPRSize = GetGPROpSize();
+   auto Size = OpSizeFromSrc(Op);
+ 
+@@ -3717,6 +3765,11 @@
+     return;
+   }
+ 
++  RaiseDivideErrorIfZero(Op, Size);
++
++  // This loads the divisor
++  Ref Divisor = LoadSourceGPR(Op, Op->Dest, Op->Flags);
++
+   Ref Quotient = _AllocateGPR(true);
+   Ref Remainder = _AllocateGPR(true);
+ 
+--- a/Source/Windows/Common/Exception.h
++++ b/Source/Windows/Common/Exception.h
+@@ -74,6 +74,7 @@
+       }
+       break;
+     case FEXCore::X86State::X86_TRAPNO_OF: Dst.ExceptionCode = EXCEPTION_INT_OVERFLOW; return Dst;
++    case FEXCore::X86State::X86_TRAPNO_DE: Dst.ExceptionCode = EXCEPTION_INT_DIVIDE_BY_ZERO; return Dst;
+     case FEXCore::X86State::X86_TRAPNO_PF:
+       // A page-fault raised by an explicit break in JIT code is always an execute fault
+       Dst.NumberParameters = 2;
