@@ -3,12 +3,25 @@ winewayland: only attach the window's current client surface.
 diff --git a/dlls/winewayland.drv/wayland_surface.c b/dlls/winewayland.drv/wayland_surface.c
 --- a/dlls/winewayland.drv/wayland_surface.c
 +++ b/dlls/winewayland.drv/wayland_surface.c
-@@ -1350,7 +1350,7 @@
-     if(toplevel) visible = NtUserIsWindowVisible(hwnd);
-     if (!(data = wayland_win_data_get(hwnd))) return;
+@@ -1344,16 +1344,20 @@
+ {
+     struct wayland_client_surface *surface = impl_from_client_surface(client);
+     HWND hwnd = client->hwnd, toplevel = client->toplevel;
++    struct wayland_win_data *data;
+     BOOL visible = FALSE;
+ 
+     TRACE("%s\n", debugstr_client_surface(client));
+ 
+     if (toplevel) visible = NtUserIsWindowVisible(hwnd);
++    if (!(data = wayland_win_data_get(hwnd))) return;
  
 -    if (toplevel && visible)
 +    if (toplevel && visible && data->client_surface == surface)
          wayland_client_surface_attach(surface, toplevel, &client->monitor_rect);
      else
          wayland_client_surface_attach(surface, NULL, NULL);
++
++    wayland_win_data_release(data);
+ }
+ 
+ static void wayland_client_surface_present(struct client_surface *client, HDC hdc)

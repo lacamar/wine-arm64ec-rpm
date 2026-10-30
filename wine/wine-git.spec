@@ -7,10 +7,10 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global tag 11.20
-%global bumpver 6
+%global tag 11.21
+%global bumpver 0
 
-%global commit 66caeb46aea4aa8fe6f87b7a209e7867651c09dd
+%global commit 2528aff26208257fdbf980666a4f0e66d47563ce
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global staging_commit 711f5be0b016c2730c268eb92369bf56b9ec9782
@@ -884,7 +884,7 @@ This package adds the opencl driver for wine.
 # setup and apply wine-staging patches
 gzip -dc %{SOURCE900} | tar -xf - --strip-components=1
 
-staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
+staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs -W dcomp-DCompositionCreateDevice2
 
 %endif
 # 0%%{?wine_staging}
@@ -2653,6 +2653,11 @@ fi
 %endif
 
 %changelog
+* Fri Oct 30 2026 Lachlan Marie <lchlnm@pm.me> - 11.21^0.git.2528aff-ec.31
+- Update to 11.21
+- Rebase stale-client-surfaces patch
+- Skip staging dcomp-DCompositionCreateDevice2 until rebased
+
 * Thu Oct 29 2026 Lachlan Marie <lchlnm@pm.me> - 11.20^6.git.66caeb4-ec.31
 - Map shared PE sections larger than a host page
 
