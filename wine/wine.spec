@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.21
-Release:        ec1%{dist}
+Release:        ec2%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -1732,6 +1732,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/mfplay.dll
 %{_libdir}/wine/%{winepedirs}/mfreadwrite.dll
 %{_libdir}/wine/%{winepedirs}/mfsrcsnk.dll
+%{_libdir}/wine/%{winepedirs}/mfwmaaec.dll
 %{_libdir}/wine/%{winepedirs}/mgmtapi.dll
 %{_libdir}/wine/%{winepedirs}/midimap.dll
 %{_libdir}/wine/%{winepedirs}/mlang.dll
@@ -2553,6 +2554,9 @@ fi
 %endif
 
 %changelog
+* Sat Oct 31 2026 Lachlan Marie <lchlnm@pm.me> - 11.21-ec2
+- Package mfwmaaec.dll
+
 * Sat Oct 31 2026 Lachlan Marie <lchlnm@pm.me> - 11.21-ec1
 - Update to 11.21
 
