@@ -40,6 +40,8 @@ Server = https://github.com/lacamar/wine-arm64ec-rpm/releases/download/arch-repo
 sudo pacman -Sy wine-git wine-dxvk-git wine-vkd3d-proton-git
 ```
 
+`wine-git` pulls in `fex-emu-wine-git` (the x86/x64 emulator DLLs); it replaces AUR `wine-asahi-git` and `fex-emu-wine-git`. A self-built Wine that fails with `failed to load L"\\??\\C:\\windows\\syswow64\\ntdll.dll" error c0000135` was built without the i386 PE target (`--enable-archs=arm64ec,aarch64,i386 --with-mingw=clang`) or lacks FEX's `libwow64fex.dll`/`libarm64ecfex.dll`.
+
 To build locally, run `arch/build.sh fex-emu-wine-git wine-mono wine-gecko wine-git wine-dxvk-git wine-vkd3d-proton-git wine-d7vk-git` (expects the repo at `/src`). The -git PKGBUILDs read commit, refs and patch lists from the RPM specs, so they follow spec bumps; checksums are skipped.
 
 Maintainers: `arch/publish.sh` rebuilds stale packages and updates the release.
