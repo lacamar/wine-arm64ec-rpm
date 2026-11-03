@@ -12,7 +12,8 @@ if ! podman container exists alarm-build; then
   podman exec -u 0 alarm-build bash -c 'sed -i "/^\[options\]/a DisableSandbox" /etc/pacman.conf; pacman-key --init >/dev/null && pacman-key --populate archlinuxarm >/dev/null
     pacman -Syu --noconfirm --needed base-devel git sudo >/dev/null
     echo "'"$(id -un)"' ALL=(ALL) NOPASSWD: ALL" >/etc/sudoers.d/b
-    printf "PKGDEST=/a/pkgs\nBUILDDIR=/a/build\nSRCDEST=/a/src\n" >>/etc/makepkg.conf'
+    printf "PKGDEST=/a/pkgs\nBUILDDIR=/a/build\nSRCDEST=/a/src\n" >>/etc/makepkg.conf
+    printf "[wine-arm64ec]\nSigLevel = Optional TrustAll\nServer = file:///a/repo\n" >>/etc/pacman.conf'
 fi
 podman start alarm-build >/dev/null
 for d in fex-emu-wine-git wine-mono wine-gecko wine-git wine-dxvk-git wine-vkd3d-proton-git wine-d7vk-git; do
