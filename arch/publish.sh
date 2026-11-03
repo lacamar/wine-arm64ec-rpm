@@ -21,8 +21,10 @@ for d in fex-emu-wine-git wine-mono wine-gecko wine-git wine-dxvk-git wine-vkd3d
   [ -n "$new" ] || continue
   echo "== $d"
   c $d 'sudo pacman -Sy >/dev/null && makepkg -Ccsf --noconfirm --needed && f=$(makepkg --packagelist) && cp $f /a/repo/ && cd /a/repo && repo-add -R wine-arm64ec.db.tar.gz ${f//\/a\/pkgs\//}'
-  (cd $R && gh release upload arch-repo --repo lacamar/wine-arm64ec-rpm --clobber $new wine-arm64ec.{db,files}{,.tar.gz})
 done
-gh release view arch-repo --repo lacamar/wine-arm64ec-rpm --json assets -q '.assets[].name' | while read -r a; do
-  [ -e "$R/$a" ] || gh release delete-asset arch-repo "$a" --repo lacamar/wine-arm64ec-rpm -y
-done
+G=(--repo lacamar/wine-arm64ec-rpm)
+have=$(gh release view arch-repo "${G[@]}" --json assets -q '.assets[].name')
+cd $R
+up=$(for f in *.pkg.tar.*; do grep -qxF "$f" <<<"$have" || echo "$f"; done)
+gh release upload arch-repo "${G[@]}" --clobber $up wine-arm64ec.{db,files}{,.tar.gz}
+for a in $have; do [ -e "$a" ] || gh release delete-asset arch-repo "$a" "${G[@]}" -y; done
