@@ -24,7 +24,7 @@ _extsrc() {
 }
 
 _unpack_ext() {
-  local e o r d
+  local e o r d; shopt -s nocaseglob
   for e in "${_ext[@]}"; do
     read -r o r d <<<"$e"
     mkdir -p "$1$d"
