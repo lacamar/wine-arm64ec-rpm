@@ -12,7 +12,7 @@
 %global __provides_exclude_from ^%{_libdir}/wine/.*$
 
 Name:       fex-emu-wine
-Version:    2610
+Version:    2611
 Release:    1%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
@@ -37,10 +37,10 @@ local externals = {
   { name="fmt", ref="c07e2aa", owner="fmtlib", path="fmt", version="12.1.0" },
   { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
   { name="range-v3", ref="ca1388f", owner="ericniebler", license="MIT" },
-  { name="rpmalloc", ref="09142d7", owner="FEX-Emu", license="0BSD" },
+  { name="rpmalloc", ref="ed22744", owner="FEX-Emu", license="0BSD" },
   { name="tracy", ref="650c98e", owner="wolfpld", license="BSD-2-Clause" },
   { name="unordered_dense", ref="3234af2", owner="martinus", version="4.8.1", license="MIT" },
-  { name="vixl", ref="585d860", owner="FEX-Emu", license="BSD-3-Clause" },
+  { name="vixl", ref="6561d40", owner="FEX-Emu", license="BSD-3-Clause" },
   { name="xxhash", ref="e626a72", owner="Cyan4973", path="xxhash", version="0.8.3",  license="BSD-2-Clause" },
   { name="zydis", ref="9bfadd6", owner="zyantific", version="4.1.1",  license="MIT" },
 }
@@ -68,9 +68,9 @@ Patch100:       fex-emu-wine-git-host-page-size.patch
 Patch101:       fex-emu-wine-git-smc-untrap-host-page.patch
 Patch102:       fex-emu-wine-git-callback-code-buffer.patch
 Patch103:       fex-emu-wine-smc-untrappable-host-page.patch
-Patch104:       fex-emu-wine-precise-faults.patch
+Patch104:       fex-emu-wine-git-precise-faults.patch
 Patch105:       fex-emu-wine-git-suspend-backedge.patch
-Patch106:       fex-emu-wine-dispatcher-rethrow.patch
+Patch106:       fex-emu-wine-git-dispatcher-rethrow.patch
 
 
 BuildRequires:  cmake
@@ -222,6 +222,11 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Thu Nov 05 2026 Lachlan Marie <lchlnm@pm.me> - 2611-1
+- Update to 2611
+- Update rpmalloc, vixl
+- Rebase host-page-size, smc-untrappable, precise-faults patches
+
 * Wed Oct 07 2026 Lachlan Marie <lchlnm@pm.me> - 2610-1
 - Update to 2610
 

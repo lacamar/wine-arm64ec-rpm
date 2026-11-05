@@ -1,41 +1,10 @@
 Report the faulting RIP for moffs and relocated memory operands; raise #DE for a zero divisor on Windows;
 leave RSP untouched when a POP to memory faults.
 
---- a/FEXCore/Source/Interface/Core/OpcodeDispatcher.h
-+++ b/FEXCore/Source/Interface/Core/OpcodeDispatcher.h
-@@ -254,6 +254,11 @@
-         return true;
-       }
- 
-+      if (TableInfo->Flags & X86Tables::InstFlags::FLAGS_MEM_OFFSET) {
-+        // moffs addressing: the operand is a literal but the instruction always accesses memory
-+        return true;
-+      }
-+
-       if (TableInfo->Flags & (X86Tables::InstFlags::FLAGS_SETS_RIP | X86Tables::InstFlags::FLAGS_BLOCK_END)) {
-         // Cooperative suspend interrupts can be triggered at any back-edge, the RIP must be reconstructed correctly in such cases
-         return true;
-@@ -268,7 +273,8 @@
-       }
- 
-       // This isn't guaranteed that all of these types will access memory, but be safe.
--      return Operand.IsGPRDirect() || Operand.IsGPRIndirect() || Operand.IsRIPRelative() || Operand.IsSIB();
-+      return Operand.IsGPRDirect() || Operand.IsGPRIndirect() || Operand.IsRIPRelative() || Operand.IsSIB() ||
-+             Operand.IsGPRIndirectRelocation() || Operand.IsRIPRelativeRelocation() || Operand.IsSIBRelocation();
-     };
- 
-     CanHaveSideEffects |= HasPotentialMemoryAccess(Op->Dest);
-@@ -890,6 +896,7 @@
-   void Insertq(OpcodeArgs);
- 
-   void BreakOp(OpcodeArgs, FEXCore::IR::BreakDefinition BreakDefinition);
-+  void RaiseDivideErrorIfZero(OpcodeArgs, IR::OpSize Size);
-   void UnimplementedOp(OpcodeArgs);
-   void PermissionRestrictedOp(OpcodeArgs);
- 
+diff --git a/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp b/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp
 --- a/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp
 +++ b/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp
-@@ -393,8 +393,24 @@
+@@ -401,8 +401,24 @@ void OpDispatchBuilder::PUSHSegmentOp(OpcodeArgs, uint32_t SegmentReg) {
  }
  
  void OpDispatchBuilder::POPOp(OpcodeArgs) {
@@ -61,7 +30,7 @@ leave RSP untouched when a POP to memory faults.
  }
  
  void OpDispatchBuilder::POPAOp(OpcodeArgs) {
-@@ -3663,19 +3679,54 @@
+@@ -3800,19 +3816,54 @@ void OpDispatchBuilder::NEGOp(OpcodeArgs) {
    }
  }
  
@@ -119,7 +88,7 @@ leave RSP untouched when a POP to memory faults.
    Ref Quotient = _AllocateGPR(true);
    Ref Remainder = _AllocateGPR(true);
  
-@@ -3705,9 +3756,6 @@
+@@ -3846,9 +3897,6 @@ void OpDispatchBuilder::DIVOp(OpcodeArgs) {
  }
  
  void OpDispatchBuilder::IDIVOp(OpcodeArgs) {
@@ -129,7 +98,7 @@ leave RSP untouched when a POP to memory faults.
    const auto GPRSize = GetGPROpSize();
    auto Size = OpSizeFromSrc(Op);
  
-@@ -3717,6 +3765,11 @@
+@@ -3858,6 +3906,11 @@ void OpDispatchBuilder::IDIVOp(OpcodeArgs) {
      return;
    }
  
@@ -141,9 +110,43 @@ leave RSP untouched when a POP to memory faults.
    Ref Quotient = _AllocateGPR(true);
    Ref Remainder = _AllocateGPR(true);
  
+diff --git a/FEXCore/Source/Interface/Core/OpcodeDispatcher.h b/FEXCore/Source/Interface/Core/OpcodeDispatcher.h
+--- a/FEXCore/Source/Interface/Core/OpcodeDispatcher.h
++++ b/FEXCore/Source/Interface/Core/OpcodeDispatcher.h
+@@ -259,6 +259,11 @@ public:
+         return true;
+       }
+ 
++      if (TableInfo->Flags & X86Tables::InstFlags::FLAGS_MEM_OFFSET) {
++        // moffs addressing: the operand is a literal but the instruction always accesses memory
++        return true;
++      }
++
+       if (TableInfo->Flags & (X86Tables::InstFlags::FLAGS_SETS_RIP | X86Tables::InstFlags::FLAGS_BLOCK_END)) {
+         // Cooperative suspend interrupts can be triggered at any back-edge, the RIP must be reconstructed correctly in such cases
+         return true;
+@@ -273,7 +278,8 @@ public:
+       }
+ 
+       // This isn't guaranteed that all of these types will access memory, but be safe.
+-      return Operand.IsGPRDirect() || Operand.IsGPRIndirect() || Operand.IsRIPRelative() || Operand.IsSIB();
++      return Operand.IsGPRDirect() || Operand.IsGPRIndirect() || Operand.IsRIPRelative() || Operand.IsSIB() ||
++             Operand.IsGPRIndirectRelocation() || Operand.IsRIPRelativeRelocation() || Operand.IsSIBRelocation();
+     };
+ 
+     CanHaveSideEffects |= HasPotentialMemoryAccess(Op->Dest);
+@@ -904,6 +910,7 @@ public:
+ 
+   void BreakOp(OpcodeArgs, FEXCore::IR::BreakDefinition BreakDefinition, Ref RelocatedPC = nullptr);
+   void BreakpointOp(OpcodeArgs, uint32_t BP);
++  void RaiseDivideErrorIfZero(OpcodeArgs, IR::OpSize Size);
+   void UnimplementedOp(OpcodeArgs);
+   void PermissionRestrictedOp(OpcodeArgs);
+ 
+diff --git a/Source/Windows/Common/Exception.h b/Source/Windows/Common/Exception.h
 --- a/Source/Windows/Common/Exception.h
 +++ b/Source/Windows/Common/Exception.h
-@@ -74,6 +74,7 @@
+@@ -74,6 +74,7 @@ static inline EXCEPTION_RECORD HandleGuestException(FEXCore::Core::CpuStateFrame
        }
        break;
      case FEXCore::X86State::X86_TRAPNO_OF: Dst.ExceptionCode = EXCEPTION_INT_OVERFLOW; return Dst;

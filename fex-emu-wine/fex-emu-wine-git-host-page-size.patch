@@ -3,7 +3,7 @@ Size guard pages and host protection boundaries to the real host page size.
 diff --git a/FEXCore/Source/CMakeLists.txt b/FEXCore/Source/CMakeLists.txt
 --- a/FEXCore/Source/CMakeLists.txt
 +++ b/FEXCore/Source/CMakeLists.txt
-@@ -7,6 +7,7 @@ set(FEXCORE_BASE_SRCS
+@@ -8,6 +8,7 @@ set(FEXCORE_BASE_SRCS
    Utils/ForcedAssert.cpp
    Utils/LogManager.cpp
    Utils/SpinWaitLock.cpp
@@ -14,7 +14,7 @@ diff --git a/FEXCore/Source/CMakeLists.txt b/FEXCore/Source/CMakeLists.txt
 diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
 --- a/FEXCore/Source/Interface/Core/JIT/JIT.cpp
 +++ b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
-@@ -915,13 +915,14 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
+@@ -890,13 +890,14 @@ CPUBackend::CompiledCode Arm64JITCore::EmitJITCode(uint64_t Entry, uint64_t Size
  
    // Fairly excessive buffer range to make sure we don't overflow
    // One page baseline, plus SSANodeMultipler bytes, plus another page for guard page.
@@ -70,7 +70,7 @@ diff --git a/FEXCore/Source/Interface/Core/SharedCodeBufferManager.h b/FEXCore/S
 diff --git a/FEXCore/Source/Utils/Allocator.cpp b/FEXCore/Source/Utils/Allocator.cpp
 --- a/FEXCore/Source/Utils/Allocator.cpp
 +++ b/FEXCore/Source/Utils/Allocator.cpp
-@@ -314,9 +314,19 @@ void VirtualTHPNOP(const void* Ptr, size_t Size, THPControl Control) {}
+@@ -394,9 +394,19 @@ void VirtualTHPNOP(const void* Ptr, size_t Size, THPControl Control) {}
  VirtualNamePtr VirtualName {VirtualNameNOP};
  VirtualTHPPtr VirtualTHPControl {VirtualTHPNOP};
  
@@ -171,7 +171,7 @@ diff --git a/FEXCore/include/FEXCore/Utils/TypeDefines.h b/FEXCore/include/FEXCo
 diff --git a/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp b/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
 --- a/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
 +++ b/Source/Tools/LinuxEmulation/LinuxSyscalls/SignalDelegator.cpp
-@@ -578,7 +578,7 @@ bool SignalDelegator::HandleFrontendSIGSEGV(FEXCore::Core::InternalThreadState*
+@@ -592,7 +592,7 @@ bool SignalDelegator::HandleFrontendSIGSEGV(FEXCore::Core::InternalThreadState*
  #ifdef ARCHITECTURE_arm64
    if (Signal == SIGSEGV && SigInfo.si_code == SEGV_ACCERR && Thread->JITGuardPage &&
        SigInfo.si_addr >= reinterpret_cast<void*>(Thread->JITGuardPage) &&
@@ -238,7 +238,7 @@ diff --git a/Source/Tools/LinuxEmulation/LinuxSyscalls/ThreadManager.h b/Source/
 diff --git a/Source/Windows/ARM64EC/Module.cpp b/Source/Windows/ARM64EC/Module.cpp
 --- a/Source/Windows/ARM64EC/Module.cpp
 +++ b/Source/Windows/ARM64EC/Module.cpp
-@@ -631,9 +631,11 @@ NTSTATUS ProcessInit() {
+@@ -807,9 +807,11 @@ NTSTATUS ProcessInit() {
  
    CPUFeatures.emplace(*CTX);
  
@@ -323,8 +323,8 @@ diff --git a/Source/Windows/Common/FEXUnixLib.cpp b/Source/Windows/Common/FEXUni
  
  #include <cstdint>
  #include <windef.h>
-@@ -210,4 +211,17 @@ uint32_t GetPID() {
-   return GetCurrentProcessId();
+@@ -221,4 +222,17 @@ bool SupportsTPIDRRO_CPU() {
+   return false;
  }
  
 +size_t GetHostPageSize() {
@@ -344,11 +344,12 @@ diff --git a/Source/Windows/Common/FEXUnixLib.cpp b/Source/Windows/Common/FEXUni
 diff --git a/Source/Windows/Common/FEXUnixLib.h b/Source/Windows/Common/FEXUnixLib.h
 --- a/Source/Windows/Common/FEXUnixLib.h
 +++ b/Source/Windows/Common/FEXUnixLib.h
-@@ -53,4 +53,5 @@ void* MapFile(HANDLE FileHandle, uint64_t MapSize);
- // Or returns the process ID otherwise.
- uint32_t GetPID();
+@@ -56,4 +56,6 @@ uint32_t GetPID();
+ // Returns true if the system supports CPU Index in TPIDRRO
+ bool SupportsTPIDRRO_CPU();
  
 +size_t GetHostPageSize();
++
  } // namespace FEX::Windows::UnixLib
 diff --git a/Source/Windows/Common/InvalidationTracker.cpp b/Source/Windows/Common/InvalidationTracker.cpp
 --- a/Source/Windows/Common/InvalidationTracker.cpp
@@ -397,10 +398,10 @@ diff --git a/Source/Windows/Common/JITGuardPage.h b/Source/Windows/Common/JITGua
 diff --git a/Source/Windows/UnixLib/FEXUnixLib.cpp b/Source/Windows/UnixLib/FEXUnixLib.cpp
 --- a/Source/Windows/UnixLib/FEXUnixLib.cpp
 +++ b/Source/Windows/UnixLib/FEXUnixLib.cpp
-@@ -181,6 +181,12 @@ static NTSTATUS FEXUnixLib_GetPIDHandler(void* _Args) {
-   Args->Result = ::getpid();
+@@ -192,6 +192,12 @@ static NTSTATUS FEXUnixLib_CheckSupportsTPIDRRO_CPUHandler(void* _Args) {
    return STATUS_SUCCESS;
  }
+ 
 +static NTSTATUS FEXUnixLib_GetHostPageSizeHandler(void* _Args) {
 +  auto Args = reinterpret_cast<FEXUnixLib_GetHostPageSize*>(_Args);
 +  Args->Result = static_cast<uint64_t>(sysconf(_SC_PAGESIZE));
@@ -410,10 +411,10 @@ diff --git a/Source/Windows/UnixLib/FEXUnixLib.cpp b/Source/Windows/UnixLib/FEXU
  extern "C" const unixlib_entry_t __wine_unix_call_funcs[] = {
    FEXUnixLib_SetHardwareTSOControlHandler,
    FEXUnixLib_SetKernelUnalignedAtomicControlHandler,
-@@ -190,6 +196,7 @@ extern "C" const unixlib_entry_t __wine_unix_call_funcs[] = {
-   FEXUnixLib_DeleteSHMStatsFileHandler,
+@@ -202,6 +208,7 @@ extern "C" const unixlib_entry_t __wine_unix_call_funcs[] = {
    FEXUnixLib_MapFileHandler,
    FEXUnixLib_GetPIDHandler,
+   FEXUnixLib_CheckSupportsTPIDRRO_CPUHandler,
 +  FEXUnixLib_GetHostPageSizeHandler,
  };
  
@@ -421,18 +422,19 @@ diff --git a/Source/Windows/UnixLib/FEXUnixLib.cpp b/Source/Windows/UnixLib/FEXU
 diff --git a/Source/Windows/UnixLib/FEXUnixLib.h b/Source/Windows/UnixLib/FEXUnixLib.h
 --- a/Source/Windows/UnixLib/FEXUnixLib.h
 +++ b/Source/Windows/UnixLib/FEXUnixLib.h
-@@ -12,6 +12,7 @@ enum class FEXUnixLibFunctions : uint32_t {
-   DeleteSHMStatsFile,
+@@ -13,6 +13,7 @@ enum class FEXUnixLibFunctions : uint32_t {
    MapFile,
    GetPID,
+   CheckSupportsTPIDRRO_CPU,
 +  GetHostPageSize,
    MAX,
  };
  
-@@ -65,3 +66,7 @@ struct FEXUnixLib_GetPID {
+@@ -71,3 +72,8 @@ struct FEXUnixLib_CheckSupportsTPIDRRO_CPU {
    uint32_t Result;
  };
- static_assert(sizeof(FEXUnixLib_GetPID) == 4);
+ static_assert(sizeof(FEXUnixLib_CheckSupportsTPIDRRO_CPU) == 4);
++
 +struct FEXUnixLib_GetHostPageSize {
 +  uint64_t Result;
 +};

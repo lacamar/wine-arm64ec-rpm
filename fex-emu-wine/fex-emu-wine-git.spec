@@ -2,11 +2,11 @@
 %global _libdir %{_libdir}/wine-wow64
 
 %global srcname FEX
-%global tag 2610
+%global tag 2611
 
-%global bumpver 3
+%global bumpver 0
 
-%global commit d321f49fb5551b7e7ad0e09eee73940bf236e370
+%global commit 8f92e80dccd043e5f9e2cec1be69f5168562eab9
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -40,10 +40,10 @@ local externals = {
   { name="fmt", ref="c07e2aa", owner="fmtlib", path="fmt", version="12.2.1" },
   { name="jemalloc", ref="8436195", owner="FEX-Emu", path="jemalloc_glibc", version="5.3.0", license="MIT" },
   { name="range-v3", ref="ca1388f", owner="ericniebler", license="MIT" },
-  { name="rpmalloc", ref="09142d7", owner="FEX-Emu", license="0BSD" },
+  { name="rpmalloc", ref="ed22744", owner="FEX-Emu", license="0BSD" },
   { name="tracy", ref="650c98e", owner="wolfpld", license="BSD-2-Clause" },
   { name="unordered_dense", ref="3234af2", owner="martinus", version="4.8.1", license="MIT" },
-  { name="vixl", ref="585d860", owner="FEX-Emu", license="BSD-3-Clause" },
+  { name="vixl", ref="6561d40", owner="FEX-Emu", license="BSD-3-Clause" },
   { name="xxhash", ref="e626a72", owner="Cyan4973", path="xxhash", version="0.8.3",  license="BSD-2-Clause" },
   { name="zydis", ref="9bfadd6", owner="zyantific", version="4.1.1",  license="MIT" },
 }
@@ -231,6 +231,11 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Thu Nov 05 2026 Lachlan Marie <lchlnm@pm.me> - 2611^0.git.8f92e80-2
+- Update to commit 8f92e80dccd043e5f9e2cec1be69f5168562eab9
+- Update rpmalloc, vixl
+- Rebase host-page-size, smc-untrappable patches
+
 * Fri Oct 30 2026 Lachlan Marie <lchlnm@pm.me> - 2610^3.git.d321f49-2
 - Update to commit d321f49fb5551b7e7ad0e09eee73940bf236e370
 
