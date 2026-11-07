@@ -1,10 +1,10 @@
 # _libdir was restructured in F42 wine package to support a directory/symlink replacement
 %global _libdir %{_libdir}/wine-wow64
 
-%global bumpver 10
+%global bumpver 11
 %global tag 3.1.1
 
-%global commit 78cdf8f1e62954eda30c382dfb13e65d6d43ba4b
+%global commit 829e377d2d5cf4b07455412fcabed66a1bf4390c
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -30,7 +30,7 @@ Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/
 
 %{lua:
 local externals = {
-  { name="dxbc-spirv", ref="687a301", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
+  { name="dxbc-spirv", ref="d82d9ea", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
   { name="SPIRV-Headers", ref="04f10f6", owner="KhronosGroup", path="include/spirv", version="1.3.341.0", license="CC0" },
@@ -316,6 +316,10 @@ fi
 %{_libdir}/wine/i386-windows/dxvk-dxgi.dll
 
 %changelog
+* Sun Nov 08 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^11.git.829e377-ec7
+- Update to commit 829e377d2d5cf4b07455412fcabed66a1bf4390c
+- Update dxbc-spirv
+
 * Fri Oct 30 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^10.git.78cdf8f-ec7
 - Update to commit 78cdf8f1e62954eda30c382dfb13e65d6d43ba4b
 

@@ -19,7 +19,7 @@ URL:            https://github.com/HansKristian-Work/vkd3d-proton
 Source0:        %{url}/archive/v%{version}/vkd3d-proton-%{version}.tar.gz
 Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64.tar.xz
 Patch0:         wine-vkd3d-proton-honeykrisp-occlusion-pool.patch
-Patch1:         wine-vkd3d-proton-scrgb-srgb-fallback.patch
+Patch1:         wine-vkd3d-proton-scrgb-srgb-fallback-3.1.patch
 
 
 %{lua:

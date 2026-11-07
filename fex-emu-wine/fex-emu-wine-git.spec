@@ -4,9 +4,9 @@
 %global srcname FEX
 %global tag 2611
 
-%global bumpver 0
+%global bumpver 1
 
-%global commit 8f92e80dccd043e5f9e2cec1be69f5168562eab9
+%global commit 388fd9cf409dbd3da43dcac5cb9fc11e109f9630
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global forgeurl https://github.com/FEX-Emu/FEX
@@ -231,6 +231,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Sun Nov 08 2026 Lachlan Marie <lchlnm@pm.me> - 2611^1.git.388fd9c-2
+- Update to commit 388fd9cf409dbd3da43dcac5cb9fc11e109f9630
+
 * Thu Nov 05 2026 Lachlan Marie <lchlnm@pm.me> - 2611^0.git.8f92e80-2
 - Update to commit 8f92e80dccd043e5f9e2cec1be69f5168562eab9
 - Update rpmalloc, vixl

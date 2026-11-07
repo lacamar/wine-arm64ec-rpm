@@ -8,12 +8,12 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.21
-%global bumpver 1
+%global bumpver 2
 
-%global commit 2528aff26208257fdbf980666a4f0e66d47563ce
+%global commit 78e52205d9b9ac1c7e6f55fc613b882f1ad093d9
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
-%global staging_commit 04414fee61f7d283072d40905816b928875b2d4b
+%global staging_commit 5fbef1656b82a8dff34c02aa415c6df30cbc8a72
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -2653,6 +2653,11 @@ fi
 %endif
 
 %changelog
+* Sun Nov 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.21^2.git.78e5220-ec.31
+- Update to commit 78e52205d9b9ac1c7e6f55fc613b882f1ad093d9
+- Update wine-staging to 5fbef16
+- Rebase bylaws patch (ARM64 context defines, map randomization)
+
 * Sat Oct 31 2026 Lachlan Marie <lchlnm@pm.me> - 11.21^1.git.2528aff-ec.31
 - Update wine-staging to 04414fe
 - Re-enable dcomp-DCompositionCreateDevice2

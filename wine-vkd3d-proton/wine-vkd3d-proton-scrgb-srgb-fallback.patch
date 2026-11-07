@@ -37,9 +37,9 @@
  static bool dxgi_vk_swap_chain_select_format(struct dxgi_vk_swap_chain *chain, VkSurfaceFormatKHR *format)
  {
      VkFormat vk_format = vkd3d_get_format(chain->queue->device, chain->request.dxgi_format, false)->vk_format;
-@@ -1799,6 +1815,10 @@
-     {
-         return dxgi_vk_swap_chain_find_surface_format(chain, VK_FORMAT_UNDEFINED, vk_color_space, format);
+@@ -1806,6 +1822,10 @@
+         return dxgi_vk_swap_chain_find_surface_format(chain, VK_FORMAT_B8G8R8A8_UNORM, vk_color_space, format) ||
+                 dxgi_vk_swap_chain_find_surface_format(chain, VK_FORMAT_A2B10G10R10_UNORM_PACK32, vk_color_space, format);
      }
 +    else if (vk_color_space == VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT)
 +    {

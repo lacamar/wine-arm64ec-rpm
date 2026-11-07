@@ -1,7 +1,7 @@
-%global bumpver 0
+%global bumpver 1
 %global tag 2.4
 
-%global commit 321d63a7470582eb3b709c5f007c3ecd12e5d4ef
+%global commit 635f4c79c366a80c15cbfa71d69e4f1ab51aad00
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -26,7 +26,7 @@ Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/
 
 %{lua:
 local externals = {
-  { name="dxbc-spirv", ref="687a301", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
+  { name="dxbc-spirv", ref="d82d9ea", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
   { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
   { name="SPIRV-Headers", ref="04f10f6", owner="KhronosGroup", path="include/spirv", version="1.3.341.0", license="CC0" },
@@ -112,6 +112,10 @@ install -Dpm 644 $(find build-i686/src/ddraw -name ddraw.dll) %{buildroot}%{_dat
 %{_datadir}/d7vk/
 
 %changelog
+* Sun Nov 08 2026 Lachlan Marie <lchlnm@pm.me> - 2.4^1.git.635f4c7-ec1
+- Update to commit 635f4c79c366a80c15cbfa71d69e4f1ab51aad00
+- Update dxbc-spirv
+
 * Thu Oct 29 2026 Lachlan Marie <lchlnm@pm.me> - 2.4^0.git.321d63a-ec1
 - Initial package
 
