@@ -1611,6 +1611,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/browseui.dll
 %{_libdir}/wine/%{winepedirs}/bthprops.cpl
 %{_libdir}/wine/%{winepedirs}/cabinet.dll
+%{_libdir}/wine/%{winepedirs}/capabilityaccessmanagerclient.dll
 %{_libdir}/wine/%{winepedirs}/cards.dll
 %{_libdir}/wine/%{winepedirs}/cdosys.dll
 %{_libdir}/wine/%{winepedirs}/cfgmgr32.dll
@@ -2657,6 +2658,7 @@ fi
 - Update to commit 78e52205d9b9ac1c7e6f55fc613b882f1ad093d9
 - Update wine-staging to 5fbef16
 - Rebase bylaws patch (ARM64 context defines, map randomization)
+- Package capabilityaccessmanagerclient.dll
 
 * Sat Oct 31 2026 Lachlan Marie <lchlnm@pm.me> - 11.21^1.git.2528aff-ec.31
 - Update wine-staging to 04414fe

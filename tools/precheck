@@ -11,6 +11,7 @@ Fuzz is checked against a per-spec baseline: review the hunks, then
 import argparse
 import difflib
 import fcntl
+import fnmatch
 import hashlib
 import os
 import re
@@ -61,6 +62,24 @@ def stamp(spec: Path, parsed: Spec) -> str:
         if f.is_file():
             h.update(f.read_bytes())
     return h.hexdigest()
+
+
+def unpackaged_modules(top: Path, spec_text: str) -> list[str]:
+    root = next(p.parent for p in top.glob("BUILD/*/*/configure"))
+    configure = (root / "configure").read_text(errors="replace")
+    tokens = set(re.split(r"[/\s]+", "\n".join(sections(spec_text))))
+    globs = [x for x in tokens if "*" in x and "." in x and not x.startswith("*")]
+    out = []
+    for mk in sorted([*root.glob("dlls/*/Makefile.in"), *root.glob("programs/*/Makefile.in")]):
+        m = re.search(r"^MODULE\s*=\s*(\S+)", mk.read_text(errors="replace"), re.M)
+        if not m or mk.parent.name == "winetest":
+            continue
+        var = "enable_" + re.sub(r"\W", "_", mk.parent.name)
+        if re.search(rf"^{var}=\${{{var}:-no}}", configure, re.M):
+            continue
+        if m.group(1) not in tokens and not any(fnmatch.fnmatch(m.group(1), g) for g in globs):
+            out.append(m.group(1))
+    return out
 
 
 def main() -> int:
@@ -131,6 +150,12 @@ def main() -> int:
         print(f"FAIL new fuzzy hunks (can land in the wrong function); check them in {top}/BUILD, then --accept-fuzz:")
         print("\n".join(new))
         return 1
+
+    if is_wine:
+        unpackaged = unpackaged_modules(top, text)
+        if unpackaged:
+            print(f"FAIL new upstream modules missing from %files: {' '.join(unpackaged)}")
+            return 1
 
     if do_compile and is_wine:
         srcs = list(top.glob("BUILD/*/*/configure")) or list(top.glob("BUILD/*/configure"))
