@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 31
+Release:        ec.%autorelease -b 32
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -165,6 +165,7 @@ Patch652:       2026_10_10-winewayland-fullscreen-output-origin.patch
 Patch653:       2026_10_11-msvcrt-scanf-no-d-exponent.patch
 Patch654:       2026_10_11-msvcp-money-facet-ids.patch
 Patch655:       2026_10_13-ntdll-skip-autofs-mounts.patch
+Patch656:       2026_11_08-kernel32-unregister-app-recovery-callback.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -948,6 +949,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 653 -p1
 %patch -P 654 -p1
 %patch -P 655 -p1
+%patch -P 656 -p1
 %endif
 
 %build
@@ -2654,6 +2656,9 @@ fi
 %endif
 
 %changelog
+* Sun Nov 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.21^2.git.78e5220-ec.32
+- Add UnregisterApplicationRecoveryCallback (Lightroom exit abort)
+
 * Sun Nov 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.21^2.git.78e5220-ec.31
 - Update to commit 78e52205d9b9ac1c7e6f55fc613b882f1ad093d9
 - Update wine-staging to 5fbef16

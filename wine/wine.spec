@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.21
-Release:        ec2%{dist}
+Release:        ec3%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -168,6 +168,7 @@ Patch650:       2026_10_10-winewayland-fullscreen-output-origin.patch
 Patch651:       2026_10_11-msvcrt-scanf-no-d-exponent.patch
 Patch652:       2026_10_11-msvcp-money-facet-ids.patch
 Patch653:       2026_10_13-ntdll-skip-autofs-mounts.patch
+Patch656:       2026_11_08-kernel32-unregister-app-recovery-callback.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -849,6 +850,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 651 -p1
 %patch -P 652 -p1
 %patch -P 653 -p1
+%patch -P 656 -p1
 %endif
 
 %build
@@ -2554,6 +2556,9 @@ fi
 %endif
 
 %changelog
+* Sun Nov 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.21-ec3
+- Add UnregisterApplicationRecoveryCallback (Lightroom exit abort)
+
 * Sat Oct 31 2026 Lachlan Marie <lchlnm@pm.me> - 11.21-ec2
 - Package mfwmaaec.dll
 
