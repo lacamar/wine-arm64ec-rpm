@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.21
-Release:        ec4%{dist}
+Release:        ec5%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2558,6 +2558,9 @@ fi
 %endif
 
 %changelog
+* Mon Nov 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.21-ec5
+- winewayland: keep owned popups above child client surfaces
+
 * Mon Nov 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.21-ec4
 - winebth: only create PnP devices for paired devices
 

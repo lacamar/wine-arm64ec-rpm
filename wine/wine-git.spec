@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
-Release:        ec.%autorelease -b 33
+Release:        ec.%autorelease -b 34
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2658,6 +2658,9 @@ fi
 %endif
 
 %changelog
+* Mon Nov 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.21^2.git.78e5220-ec.34
+- winewayland: keep owned popups above child client surfaces
+
 * Mon Nov 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.21^2.git.78e5220-ec.33
 - winebth: only create PnP devices for paired devices
 

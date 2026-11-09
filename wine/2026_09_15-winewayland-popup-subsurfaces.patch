@@ -3,10 +3,35 @@ winewayland: owned layered popups as subsurfaces, keep toplevels on-screen, hono
 diff --git a/dlls/winewayland.drv/wayland_surface.c b/dlls/winewayland.drv/wayland_surface.c
 --- a/dlls/winewayland.drv/wayland_surface.c
 +++ b/dlls/winewayland.drv/wayland_surface.c
-@@ -752,13 +752,44 @@ static BOOL wayland_surface_reconfigure_xdg(struct wayland_surface *surface, REC
+@@ -752,13 +752,76 @@ static BOOL wayland_surface_reconfigure_xdg(struct wayland_surface *surface, REC
      return TRUE;
  }
  
++/* Clients go directly above the parent, so after re-placing them all the first one placed is topmost. */
++static struct wl_surface *wayland_surface_restack_clients(HWND hwnd, HWND toplevel,
++                                                         struct wayland_surface *parent,
++                                                         struct wl_surface *top)
++{
++    struct wayland_win_data *data;
++
++    for (hwnd = NtUserGetWindowRelative(hwnd, GW_CHILD); hwnd; hwnd = NtUserGetWindowRelative(hwnd, GW_HWNDNEXT))
++    {
++        top = wayland_surface_restack_clients(hwnd, toplevel, parent, top);
++        if ((data = wayland_win_data_get(hwnd)))
++        {
++            struct wayland_client_surface *client = data->client_surface;
++
++            if (client && client->wl_subsurface && client->toplevel == toplevel)
++            {
++                wl_subsurface_place_above(client->wl_subsurface, parent->wl_surface);
++                if (!top) top = client->wl_surface;
++            }
++            wayland_win_data_release(data);
++        }
++    }
++    return top;
++}
++
 +static void wayland_surface_restack_subsurface(struct wayland_surface *surface,
 +                                               struct wayland_win_data *owner_data)
 +{
@@ -29,8 +54,15 @@ diff --git a/dlls/winewayland.drv/wayland_surface.c b/dlls/winewayland.drv/wayla
 +        if (below) break;
 +    }
 +
-+    if (!below && owner_data->client_surface && owner_data->client_surface->wl_subsurface)
-+        below = owner_data->client_surface->wl_surface;
++    if (!below)
++    {
++        below = wayland_surface_restack_clients(surface->owner_hwnd, surface->owner_hwnd, owner_surface, NULL);
++        if (owner_data->client_surface && owner_data->client_surface->wl_subsurface)
++        {
++            wl_subsurface_place_above(owner_data->client_surface->wl_subsurface, owner_surface->wl_surface);
++            if (!below) below = owner_data->client_surface->wl_surface;
++        }
++    }
 +    if (!below) below = owner_surface->wl_surface;
 +
 +    TRACE("hwnd=%p above wl_surface=%p (hwnd=%p)\n", surface->hwnd, below, hwnd);
