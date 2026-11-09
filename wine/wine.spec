@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.21
-Release:        ec3%{dist}
+Release:        ec4%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -169,6 +169,7 @@ Patch651:       2026_10_11-msvcrt-scanf-no-d-exponent.patch
 Patch652:       2026_10_11-msvcp-money-facet-ids.patch
 Patch653:       2026_10_13-ntdll-skip-autofs-mounts.patch
 Patch656:       2026_11_08-kernel32-unregister-app-recovery-callback.patch
+Patch657:       2026_11_09-winebth-paired-devices-only.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -851,6 +852,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 652 -p1
 %patch -P 653 -p1
 %patch -P 656 -p1
+%patch -P 657 -p1
 %endif
 
 %build
@@ -2556,6 +2558,9 @@ fi
 %endif
 
 %changelog
+* Mon Nov 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.21-ec4
+- winebth: only create PnP devices for paired devices
+
 * Sun Nov 08 2026 Lachlan Marie <lchlnm@pm.me> - 11.21-ec3
 - Add UnregisterApplicationRecoveryCallback (Lightroom exit abort)
 

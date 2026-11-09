@@ -1,0 +1,32 @@
+winebth.sys: only create PnP devices for paired remote devices.
+
+Unpaired devices seen by BlueZ scanning (BLE random addresses rotate)
+were each persisted under Enum\WINEBTH; prefixes grew to >1 GB of
+system.reg and wineserver stalled saving it.
+
+--- a/dlls/winebth.sys/winebth.c
++++ b/dlls/winebth.sys/winebth.c
+@@ -1210,8 +1210,13 @@
+                     device->props.address = event.props.address;
+                 if (event.changed_props_mask & WINEBLUETOOTH_DEVICE_PROPERTY_CONNECTED)
+                     device->props.connected = event.props.connected;
+-                if (event.changed_props_mask & WINEBLUETOOTH_DEVICE_PROPERTY_PAIRED)
++                if (event.changed_props_mask & WINEBLUETOOTH_DEVICE_PROPERTY_PAIRED &&
++                    device->props.paired != event.props.paired)
++                {
+                     device->props.paired = event.props.paired;
++                    if (radio->started)
++                        IoInvalidateDeviceRelations( radio->device_obj, BusRelations );
++                }
+                 if (event.changed_props_mask & WINEBLUETOOTH_DEVICE_PROPERTY_LEGACY_PAIRING)
+                     device->props.legacy_pairing = event.props.legacy_pairing;
+                 if (event.changed_props_mask & WINEBLUETOOTH_DEVICE_PROPERTY_TRUSTED)
+@@ -2210,6 +2215,8 @@
+             }
+             LIST_FOR_EACH_ENTRY( remote_device, &device->remote_devices, struct bluetooth_remote_device, entry )
+             {
++                /* Like Windows, only paired devices get a PnP node; scanned ones would pile up in the registry. */
++                if (!remote_device->props.paired) continue;
+                 devices->Objects[i++] = remote_device->device_obj;
+                 call_fastcall_func1( ObfReferenceObject, remote_device->device_obj );
+             }
