@@ -1,0 +1,52 @@
+#!/usr/bin/python3
+"""prune-winebth PREFIX...
+
+Drops WINEBTH remote-device keys from system.reg (BLE scan results piled up
+by winebth.sys before the paired-only fix). Paired devices come back on the
+next start. Keeps system.reg.winebth-bak.
+"""
+import os
+import re
+import sys
+from pathlib import Path
+
+DEVICE = re.compile(r"WINEBTH(\\\\|#)DEVICE")
+
+
+def server_running(prefix: Path) -> bool:
+    for env in Path("/proc").glob("[0-9]*/environ"):
+        try:
+            if (env.parent / "comm").read_text().strip() != "wineserver":
+                continue
+            if f"WINEPREFIX={prefix}\0".encode() in env.read_bytes():
+                return True
+        except OSError:
+            pass
+    return False
+
+
+def prune(prefix: Path) -> None:
+    reg = prefix / "system.reg"
+    if server_running(prefix):
+        sys.exit(f"{prefix}: wineserver running, close its programs first")
+    bak = reg.with_name("system.reg.winebth-bak")
+    os.replace(reg, bak)
+    kept = dropped = 0
+    with bak.open(encoding="utf-8", errors="surrogateescape") as src, \
+         reg.open("w", encoding="utf-8", errors="surrogateescape") as dst:
+        skip = False
+        for line in src:
+            if line.startswith("["):
+                skip = bool(DEVICE.search(line))
+                dropped += skip
+                kept += not skip
+            if not skip:
+                dst.write(line)
+    print(f"{prefix}: dropped {dropped} keys, kept {kept}, {bak.stat().st_size >> 20} MB -> {reg.stat().st_size >> 20} MB")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        sys.exit(__doc__)
+    for p in sys.argv[1:]:
+        prune(Path(p).expanduser().resolve())

@@ -46,6 +46,10 @@ To build locally, run `arch/build.sh fex-emu-wine-git wine-mono wine-gecko wine-
 
 Maintainers: `arch/publish.sh` rebuilds stale packages and updates the release.
 
+## Slow or freezing prefixes
+
+Wine before 11.21-ec4 / wine-git ec.33 stored every Bluetooth device BlueZ scanned in `system.reg`, which can reach gigabytes and stall wineserver. With the prefix's programs closed, run `tools/prune-winebth ~/path/to/prefix`.
+
 ## Development
 
 Each package has `<name>.spec` (latest release) and `<name>-git.spec` (upstream HEAD).
