@@ -56,8 +56,7 @@ Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
 URL:            https://www.winehq.org/
-Source0:        https://dl.winehq.org/wine/source/11.x/wine-%{version}.tar.xz
-Source10:       https://dl.winehq.org/wine/source/11.x/wine-%{version}.tar.xz.sign
+Source0:        https://gitlab.winehq.org/wine/wine/-/archive/wine-%{version}/wine-wine-%{version}.tar.gz
 
 Source1:        wine.systemd
 Source2:        wine-README-Fedora
@@ -781,7 +780,7 @@ This package adds the opencl driver for wine.
 %endif
 
 %prep
-%setup -qn wine-%{version}
+%setup -qn wine-wine-%{version}
 %patch -P 511 -p1 -b.cjk
 
 %if 0%{?wine_staging}

@@ -2,7 +2,7 @@
 %undefine _hardened_build
 
 %global forgeurl https://github.com/wine-mono/wine-mono
-%global tag wine-mono-%{version}
+%global srctag wine-mono-%{version}
 
 Name:           wine-mono
 Version:        11.3.0
@@ -12,7 +12,7 @@ Summary:        Mono library required for Wine, built with ARM64EC support
 License:        GPL-2.0-or-later AND LGPL-2.1-only AND MIT AND BSD-4-Clause-UC AND MS-PL AND MPL-1.1
 URL:            https://github.com/wine-mono/wine-mono
 
-Source0:        %{forgeurl}/archive/%{tag}/%{name}-%{tag}.tar.gz
+Source0:        %{forgeurl}/archive/%{srctag}/%{name}-%{srctag}.tar.gz
 
 Patch0:         wine-mono-iconv.patch
 
@@ -113,7 +113,7 @@ loads. Built from source for aarch64 with native ARM64EC support (as well
 as x86 support).
 
 %prep
-%setup -q -n %{name}-%{tag}
+%setup -q -n %{name}-%{srctag}
 
 %{lua: print_setup_externals()}
 
