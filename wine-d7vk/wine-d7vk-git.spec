@@ -1,7 +1,7 @@
-%global bumpver 1
+%global bumpver 2
 %global tag 2.4
 
-%global commit 635f4c79c366a80c15cbfa71d69e4f1ab51aad00
+%global commit 80e45d897d7c7ea1db085b87acefbb45c1bfb1ff
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -112,6 +112,9 @@ install -Dpm 644 $(find build-i686/src/ddraw -name ddraw.dll) %{buildroot}%{_dat
 %{_datadir}/d7vk/
 
 %changelog
+* Sat Nov 14 2026 Lachlan Marie <lchlnm@pm.me> - 2.4^2.git.80e45d8-ec1
+- Update to commit 80e45d897d7c7ea1db085b87acefbb45c1bfb1ff
+
 * Sun Nov 08 2026 Lachlan Marie <lchlnm@pm.me> - 2.4^1.git.635f4c7-ec1
 - Update to commit 635f4c79c366a80c15cbfa71d69e4f1ab51aad00
 - Update dxbc-spirv
