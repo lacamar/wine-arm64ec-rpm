@@ -1,7 +1,7 @@
-%global bumpver 2
+%global bumpver 3
 %global tag 2.4
 
-%global commit 80e45d897d7c7ea1db085b87acefbb45c1bfb1ff
+%global commit 25024721d9cfbaa732b8d8a34c1594129fc9aee6
 %{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
 
 %global debug_package %{nil}
@@ -112,6 +112,9 @@ install -Dpm 644 $(find build-i686/src/ddraw -name ddraw.dll) %{buildroot}%{_dat
 %{_datadir}/d7vk/
 
 %changelog
+* Sat Nov 14 2026 Lachlan Marie <lchlnm@pm.me> - 2.4^3.git.2502472-ec1
+- Update to commit 25024721d9cfbaa732b8d8a34c1594129fc9aee6
+
 * Sat Nov 14 2026 Lachlan Marie <lchlnm@pm.me> - 2.4^2.git.80e45d8-ec1
 - Update to commit 80e45d897d7c7ea1db085b87acefbb45c1bfb1ff
 
