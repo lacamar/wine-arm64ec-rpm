@@ -1515,6 +1515,7 @@ fi
 %{_libdir}/wine/%{winepedirs}/browseui.dll
 %{_libdir}/wine/%{winepedirs}/bthprops.cpl
 %{_libdir}/wine/%{winepedirs}/cabinet.dll
+%{_libdir}/wine/%{winepedirs}/capabilityaccessmanagerclient.dll
 %{_libdir}/wine/%{winepedirs}/cards.dll
 %{_libdir}/wine/%{winepedirs}/cdosys.dll
 %{_libdir}/wine/%{winepedirs}/cfgmgr32.dll
@@ -2561,6 +2562,7 @@ fi
 - Update to 11.22
 - Rebase bylaws patch (drop xstate, upstream merged)
 - Unversioned release bylaws patch name
+- Package capabilityaccessmanagerclient.dll
 
 * Mon Nov 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.21-ec5
 - winewayland: keep owned popups above child client surfaces

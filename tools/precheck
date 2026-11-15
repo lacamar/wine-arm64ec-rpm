@@ -20,12 +20,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-from mx_rpm.config import Config
-from mx_rpm.download import fetch_sources
-from mx_rpm.specfile import Spec
-from mx_rpm.update import _PATCH_HEADER_RE
-
 CACHE = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "wine-arm64ec-dev/precheck"
+SRC_ROOT = Path(os.environ.get("SRC_ROOT") or Path.home() / ".local/rpm/sources")
+# rpm 4 prints "Patch #N (x.patch):"; rpm 6 only traces the decompress/cat of the file
+PATCH_HEADER_RE = re.compile(r"^(?:Patch #\d+ \((.+)\):|\+ .*?([^/\s]+\.(?:patch|diff)(?:\.\w+)?))\s*$")
 CONFIGURE = ["--enable-win64", "--enable-archs=arm64ec,aarch64,i386", "--with-mingw=clang", "--disable-tests", "--without-x", "--without-wayland",
              "--without-gstreamer", "--without-cups", "--without-sane", "--without-krb5",
              "--without-netapi", "--without-pcap"]
@@ -55,12 +53,19 @@ def patch600(text: str) -> str | None:
     return m.group(1) if m else None
 
 
-def stamp(spec: Path, parsed: Spec) -> str:
+def source_urls(spec: Path) -> list[str]:
+    out = subprocess.run(["rpmspec", "-P", str(spec)], capture_output=True, text=True, check=True).stdout
+    return re.findall(r"^(?:Source|Patch)\d*:\s*(\S+)", out, re.M)
+
+
+def local_files(spec: Path) -> list[Path]:
+    return [f for u in source_urls(spec) if (f := spec.parent / Path(u.partition("#")[0]).name).is_file()]
+
+
+def stamp(spec: Path) -> str:
     h = hashlib.sha256(spec.read_bytes())
-    for e in parsed.entries:
-        f = spec.parent / Path(e.url.partition("#")[0]).name
-        if f.is_file():
-            h.update(f.read_bytes())
+    for f in local_files(spec):
+        h.update(f.read_bytes())
     return h.hexdigest()
 
 
@@ -96,23 +101,29 @@ def main() -> int:
     spec = a.spec.resolve()
     work = CACHE / spec.stem
     work.mkdir(parents=True, exist_ok=True)
-    parsed = Spec(spec)
+    name = subprocess.run(["rpmspec", "-q", "--srpm", "--qf", "%{name}", str(spec)],
+                          capture_output=True, text=True, check=True).stdout.strip()
     text = spec.read_text()
     prev_text = at_rev(spec, a.against)
-    is_wine = parsed.name in ("wine", "wine-git")
-    local = [str(spec)] + [str(f) for e in parsed.entries if (f := spec.parent / Path(e.url.partition("#")[0]).name).is_file()]
+    is_wine = name in ("wine", "wine-git")
+    local = [str(spec)] + [str(f) for f in local_files(spec)]
     changed = subprocess.run(["git", "diff", "--quiet", a.against, "--", *local], cwd=spec.parent).returncode != 0
     do_compile = a.compile if a.compile is not None else changed or not prev_text
 
-    key = stamp(spec, parsed) + str(do_compile)
+    key = stamp(spec) + str(do_compile)
     stamp_file = work / "passed"
     if not a.force and stamp_file.is_file() and stamp_file.read_text() == key:
         print(f"precheck {spec.stem}: unchanged since last pass")
         return 0
     stamp_file.unlink(missing_ok=True)
 
-    src_dir = Config().src_root / spec.stem
-    missing = [r.dest.name for r in fetch_sources(parsed, src_dir, spec_dir=spec.parent) if not r.ok]
+    src_dir = SRC_ROOT / spec.stem
+    fetch = subprocess.run([os.environ.get("MX_RPM", "mx-rpm"), "--fetch-only", str(spec)],
+                           capture_output=True, text=True, check=False)
+    missing = re.findall(r"^missing: (.+)$", fetch.stdout, re.M)
+    if fetch.returncode and not missing:
+        print(f"FAIL mx-rpm --fetch-only:\n{fetch.stderr[-2000:]}")
+        return 1
     if missing:
         print(f"FAIL missing sources (add them next to the spec): {' '.join(missing)}")
         return 1
@@ -136,7 +147,7 @@ def main() -> int:
         return 1
     fuzz, patch, target = [], "?", "?"
     for line in proc.stdout.splitlines():
-        if m := _PATCH_HEADER_RE.match(line):
+        if m := PATCH_HEADER_RE.match(line):
             patch = m.group(1) or m.group(2)
         elif line.startswith("patching file "):
             target = line.removeprefix("patching file ")
