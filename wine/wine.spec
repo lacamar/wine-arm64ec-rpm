@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.22
-Release:        ec1%{dist}
+Release:        ec2%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -169,6 +169,9 @@ Patch652:       2026_10_11-msvcp-money-facet-ids.patch
 Patch653:       2026_10_13-ntdll-skip-autofs-mounts.patch
 Patch656:       2026_11_08-kernel32-unregister-app-recovery-callback.patch
 Patch657:       2026_11_09-winebth-paired-devices-only.patch
+Patch658:       2026_11_15-winewayland-icon-buffer-lifetime.patch
+Patch659:       2026_11_15-dbghelp-pdb-defrange-gap-null-func.patch
+Patch660:       2026_11_15-ntdll-acpi-firmware-tables.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -852,6 +855,9 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 653 -p1
 %patch -P 656 -p1
 %patch -P 657 -p1
+%patch -P 658 -p1
+%patch -P 659 -p1
+%patch -P 660 -p1
 %endif
 
 %build
@@ -2558,6 +2564,11 @@ fi
 %endif
 
 %changelog
+* Sun Nov 15 2026 Lachlan Marie <lchlnm@pm.me> - 11.22-ec2
+- winewayland: keep icon buffer alive until icon is replaced
+- dbghelp: fix NULL deref in SymFromIndex on PDB locals
+- ntdll: ACPI firmware tables
+
 * Sun Nov 15 2026 Lachlan Marie <lchlnm@pm.me> - 11.22-ec1
 - Update to 11.22
 - Rebase bylaws patch (drop xstate, upstream merged)

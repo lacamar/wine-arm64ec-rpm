@@ -1,0 +1,13 @@
+--- a/dlls/dbghelp/pdb.c
++++ b/dlls/dbghelp/pdb.c
+@@ -2176,8 +2176,8 @@
+                  inside && (const char*)(gap + 1) <= (const char*)cv_def + sizeof(cv_def->generic.len) + cv_def->generic.len;
+                  gap++)
+             {
+-                if (func->ranges[0].low + gap->gapStartOffset <= ip &&
+-                    ip < func->ranges[0].low + gap->gapStartOffset + gap->cbRange)
++                if (range_start + gap->gapStartOffset <= ip &&
++                    ip < range_start + gap->gapStartOffset + gap->cbRange)
+                     inside = FALSE;
+             }
+         }

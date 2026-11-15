@@ -1,0 +1,18 @@
+--- a/dlls/winewayland.drv/wayland_surface.c
++++ b/dlls/winewayland.drv/wayland_surface.c
+@@ -1704,6 +1704,15 @@
+     icon_buf = wayland_shm_buffer_from_color_bitmaps(hDC, ii->hbmColor, ii->hbmMask, TRUE);
+     NtGdiDeleteObjectApp(hDC);
+ 
++    /* the icon object references the buffers about to be destroyed */
++    if (surface->xdg_toplevel_icon)
++    {
++        xdg_toplevel_icon_manager_v1_set_icon(process_wayland.xdg_toplevel_icon_manager_v1,
++                                              surface->xdg_toplevel, NULL);
++        xdg_toplevel_icon_v1_destroy(surface->xdg_toplevel_icon);
++        surface->xdg_toplevel_icon = NULL;
++    }
++
+     if (surface->big_icon_buffer && type == ICON_BIG)
+     {
+         wayland_shm_buffer_unref(surface->big_icon_buffer);
