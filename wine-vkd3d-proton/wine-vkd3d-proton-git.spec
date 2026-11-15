@@ -36,8 +36,8 @@ local externals = {
   { name="SPIRV-Headers", ref="f88a2d7", owner="KhronosGroup", paths={"khronos/SPIRV-Headers"} },
   { name="SPIRV-Headers", ref="c63848e", owner="KhronosGroup", paths={"subprojects/dxil-spirv/third_party/spirv-headers"} },
   { name="Vulkan-Headers", ref="ee2ec5f", owner="KhronosGroup", paths={"khronos/Vulkan-Headers"} },
-  { name="dxil-spirv", ref="788f3e2", owner="HansKristian-Work", paths={"subprojects/dxil-spirv"} },
-  { name="dxbc-spirv", ref="8dae2d8", owner="doitsujin", paths={"subprojects/dxil-spirv/subprojects/dxbc-spirv"} },
+  { name="dxil-spirv", ref="114e664", owner="HansKristian-Work", paths={"subprojects/dxil-spirv"} },
+  { name="dxbc-spirv", ref="d82d9ea", owner="doitsujin", paths={"subprojects/dxil-spirv/subprojects/dxbc-spirv"} },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", paths={"subprojects/dxil-spirv/subprojects/dxbc-spirv/submodules/spirv_headers"} },
 }
 

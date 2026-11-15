@@ -26,9 +26,9 @@ Source1:        https://github.com/bylaws/llvm-mingw/releases/download/20250920/
 
 %{lua:
 local externals = {
-  { name="dxbc-spirv", ref="d82d9ea", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
+  { name="dxbc-spirv", ref="6196cc6", owner="doitsujin", path="subprojects/dxbc-spirv", license="MIT" },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", path="subprojects/dxbc-spirv/submodules/spirv_headers", version="1.4.328.1", license="CC0" },
-  { name="libdisplay-info", ref="275e645", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
+  { name="libdisplay-info", ref="e318319", owner="doitsujin", path="subprojects/libdisplay-info",  license="MIT" },
   { name="SPIRV-Headers", ref="04f10f6", owner="KhronosGroup", path="include/spirv", version="1.3.341.0", license="CC0" },
   { name="Vulkan-Headers", ref="6802bb4", owner="KhronosGroup", path="include/vulkan", version="1.4.363.0", license="Apache-2.0" },
   { name="mingw-directx-headers", ref="9df86f2", owner="misyltoad", path="include/native/directx", license="LGPL v2.1" },
