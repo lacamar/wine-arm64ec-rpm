@@ -118,8 +118,7 @@ class Headless:
             self.up = False
 
     def env(self, prefix: Path) -> dict:
-        if not self.up:
-            self.start()
+        self.start()
         assert prefix.name.endswith("-test-claude") and prefix.parent == PREFIXES, prefix
         s = self.state()
         wayland = s.get("wayland")
