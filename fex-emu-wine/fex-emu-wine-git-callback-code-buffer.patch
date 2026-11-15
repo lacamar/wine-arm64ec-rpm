@@ -3,16 +3,16 @@ Keep the code buffer alive while a WOW64 syscall that can dispatch user callback
 diff --git a/Source/Windows/WOW64/Module.cpp b/Source/Windows/WOW64/Module.cpp
 --- a/Source/Windows/WOW64/Module.cpp
 +++ b/Source/Windows/WOW64/Module.cpp
-@@ -117,6 +117,8 @@
- struct FrontendThreadData {
+@@ -118,6 +118,8 @@
+   FEX::Windows::ScopedHandle ThreadHandle;
    bool InLockedRWXRead {};
    CHPE_V2_CPU_AREA_INFO CpuArea {};
 +  // Entry stack pointers of the BTCpuSimulate invocations that have a syscall handler waiting to return into JIT code
 +  fextl::vector<uint64_t> SyscallSimulateSps;
  
-   FrontendThreadData(const TLS& TLS) {
-     CpuArea.SuspendDoorbell = reinterpret_cast<ULONG*>(&TLS.ThreadState()->CurrentFrame->SuspendDoorbell);
-@@ -461,8 +463,26 @@
+   FrontendThreadData(const TLS& TLS, FEX::Windows::ScopedHandle&& ThreadHandle)
+     : ThreadHandle {std::move(ThreadHandle)} {
+@@ -527,8 +529,26 @@
      const auto TLS = GetTLS();
      // Stash the the context pointer on the stack, as Simulate can be called from this syscall handler which would overwrite it
      CONTEXT* EntryContext = TLS.EntryContext();
