@@ -1,10 +1,10 @@
 # _libdir was restructured in F42 wine package to support a directory/symlink replacement
 %global _libdir %{_libdir}/wine-wow64
 
-%global bumpver 13
+%global bumpver 14
 %global tag 3.1.1
 
-%global commit 3e65fd34fd7890a510ee2639a41a4eb14c4b4113
+%global commit 71bf4bad427dd6a6a338d6768812110c61bb4503
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %global debug_package %{nil}
@@ -316,6 +316,9 @@ fi
 %{_libdir}/wine/i386-windows/dxvk-dxgi.dll
 
 %changelog
+* Sun Nov 15 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^14.git.71bf4ba-ec7
+- Update to commit 71bf4bad427dd6a6a338d6768812110c61bb4503
+
 * Sat Nov 14 2026 Lachlan Marie <lchlnm@pm.me> - 3.1.1^13.git.3e65fd3-ec7
 - Update to commit 3e65fd34fd7890a510ee2639a41a4eb14c4b4113
 
