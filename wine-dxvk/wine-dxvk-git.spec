@@ -5,7 +5,7 @@
 %global tag 3.1.1
 
 %global commit 3e65fd34fd7890a510ee2639a41a4eb14c4b4113
-%{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %global debug_package %{nil}
 
@@ -15,7 +15,7 @@
 %global __brp_strip_static_archive %nil
 
 Name:           wine-dxvk-git
-Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
+Version:        %{tag}^%{bumpver}.git.%{shortcommit}
 Release:        ec7%{?dist}
 Summary:        Vulkan-based implementation of D3D8, 9, 10 and 11 for Linux / Wine (ARM64EC)
 

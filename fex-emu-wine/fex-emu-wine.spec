@@ -20,11 +20,7 @@ Summary:    FEX DLLs for enabling Wine's ARM64EC support
 %global fex_license MIT AND Apache-2.0 AND BSD-3-Clause AND GPL-2.0-only
 License:    %{fex_license}
 URL:        https://fex-emu.com
-%if %{defined commit}
-Source0:    %{forgeurl}/commit/%{commit}/%{srcname}-%{commit}.tar.gz
-%else
 Source0:    %{forgeurl}/archive/%{srcname}-%{version}/%{srcname}-%{srcname}-%{version}.tar.gz
-%endif
 
 Source100:  https://github.com/bylaws/llvm-mingw/releases/download/20250920/llvm-mingw-20250920-ucrt-ubuntu-22.04-aarch64.tar.xz
 

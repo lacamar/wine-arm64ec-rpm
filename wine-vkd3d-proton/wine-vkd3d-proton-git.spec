@@ -5,7 +5,7 @@
 %global tag 3.1
 
 %global commit 5b1089c89dbc5cb9f662650feb60d2d3df3e55ca
-%{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %global debug_package %{nil}
 
@@ -16,7 +16,7 @@
 %global __brp_strip_static_archive %nil
 
 Name:           wine-vkd3d-proton-git
-Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
+Version:        %{tag}^%{bumpver}.git.%{shortcommit}
 Release:        ec1%{?dist}
 Summary:        Vulkan-based implementation of D3D12 for Wine (ARM64EC)
 

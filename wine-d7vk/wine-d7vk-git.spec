@@ -2,7 +2,7 @@
 %global tag 2.4
 
 %global commit 25024721d9cfbaa732b8d8a34c1594129fc9aee6
-%{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %global debug_package %{nil}
 
@@ -11,7 +11,7 @@
 %global __brp_strip_static_archive %nil
 
 Name:           wine-d7vk-git
-Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
+Version:        %{tag}^%{bumpver}.git.%{shortcommit}
 Release:        ec1%{?dist}
 Summary:        Vulkan-based implementation of D3D7, 6, 5 and 3 for Wine
 

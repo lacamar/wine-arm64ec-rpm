@@ -6,7 +6,7 @@
 
 Name:           wine-d7vk
 Version:        2.4
-Release:        ec1%{dist}
+Release:        ec1%{?dist}
 Summary:        Vulkan-based implementation of D3D7, 6, 5 and 3 for Wine
 
 License:        zlib AND MIT

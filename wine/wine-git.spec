@@ -11,7 +11,7 @@
 %global bumpver 2
 
 %global commit 78e52205d9b9ac1c7e6f55fc613b882f1ad093d9
-%{?commit:%global shortcommit %(c=%{commit}; echo ${c:0:7})}
+%global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %global staging_commit 5fbef1656b82a8dff34c02aa415c6df30cbc8a72
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
@@ -61,7 +61,7 @@
 # 0%%{?fedora}
 
 Name:           wine-git
-Version:        %{tag}%{?bumpver:^%{bumpver}.git.%{shortcommit}}
+Version:        %{tag}^%{bumpver}.git.%{shortcommit}
 Release:        ec.%autorelease -b 34
 Summary:        A compatibility layer for windows applications
 
