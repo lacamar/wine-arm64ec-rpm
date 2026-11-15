@@ -1,0 +1,117 @@
+#!/usr/bin/python3
+"""smoke --wine W --prefix P --out O --work D --api d3d9[,d3d11,d3d12,d3d7] [--only IDS]
+
+Per API a light `<slug>-test-claude` game runs through `gt run --wine W` on the CI's headless
+session (GT_INSTANCE from CI_GT_INSTANCE); d3d7 runs ci/tests/d3d7test.c instead (no D3D7 game).
+Ids `<api>:<slug>`; pass = N fps lines, still rendering after a pause, non-black shot, no
+crash. Waits while any other test game runs; aborts the stage on a DRM scheduler timeout.
+"""
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+GAMES = {"d3d9": "limbo", "d3d11": "nubbys-number-factory", "d3d12": "road-to-vostok-demo"}
+D3D7 = Path(__file__).resolve().parents[1] / "tests/d3d7test.c"
+FRAMES, BOOT = 8, 240
+GT_ENV = {**os.environ, "GT_INSTANCE": os.environ.get("CI_GT_INSTANCE", "ci")}
+
+
+def gt(*a, **kw):
+    return subprocess.run(["gt", *a], env=GT_ENV, capture_output=True, text=True, **kw)
+
+
+def drm_timeouts():
+    r = subprocess.run(["journalctl", "-k", "-b", "--no-pager", "-g", "Job timed out"], capture_output=True, text=True)
+    return len(r.stdout.splitlines())
+
+
+def wait_idle():
+    for _ in range(360):
+        if not gt("ps").stdout.strip():
+            return
+        time.sleep(10)
+    sys.exit("another test game keeps running")
+
+
+def res(status, detail=""):
+    return {"status": status, "failures": int(status != "pass"), "detail": detail}
+
+
+def black(shot: Path) -> bool:
+    m = subprocess.run(["magick", shot, "-format", "%[fx:mean] %[fx:standard_deviation]", "info:"], capture_output=True, text=True)
+    mean, dev = map(float, m.stdout.split())
+    return mean < 0.01 and dev < 0.01
+
+
+def game(wine, slug, out: Path):
+    wait_idle()
+    gt("sway", "focus", "output", gt("outputs").stdout.split()[0])
+    gt("stop", slug)
+    r = gt("run", slug, "--wine", str(wine))
+    if r.returncode:
+        return res("crash", r.stdout[-300:] + r.stderr[-300:])
+    try:
+        w = gt("wait", slug, "-f", str(FRAMES), "-t", str(BOOT))
+        if w.returncode:
+            return res("crash" if "exited" in w.stderr + w.stdout else "timeout", (w.stderr + w.stdout)[-300:])
+        time.sleep(5)
+        w = gt("wait", slug, "-f", "3", "-t", "30")
+        if w.returncode:
+            return res("timeout" if "timeout" in w.stderr + w.stdout else "crash", "stopped rendering: " + (w.stderr + w.stdout)[-200:])
+        shot = out / f"{slug}.png"
+        gt("shot", str(shot))
+        if not shot.is_file():
+            return res("fail", "no screenshot")
+        if black(shot):
+            return res("fail", "black frame")
+        return res("pass", gt("fps", slug).stdout.strip())
+    finally:
+        subprocess.run(["cp", "-f", str(Path.home() / ".cache/wine-arm64ec-dev/gametest/logs" / f"{slug}.log"), str(out / f"{slug}.log")], capture_output=True)
+        gt("stop", slug)
+
+
+def d3d7(wine, work: Path, env):
+    exe = work / "d3d7test.exe"
+    if not exe.is_file() or exe.stat().st_mtime < D3D7.stat().st_mtime:
+        subprocess.run(["i686-w64-mingw32-gcc", "-O2", D3D7, "-o", exe, "-lddraw", "-ldxguid", "-luser32", "-lgdi32"], check=True)
+    try:
+        p = subprocess.run([wine, exe], capture_output=True, text=True, errors="replace", stdin=subprocess.DEVNULL, timeout=120, env=env)
+    except subprocess.TimeoutExpired:
+        return res("timeout")
+    return res("pass") if "PASS" in p.stdout and "FAIL" not in p.stdout else res("crash" if p.returncode else "fail", p.stdout[-300:])
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--wine", required=True)
+    ap.add_argument("--prefix")
+    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--work", type=Path, required=True)
+    ap.add_argument("--src")
+    ap.add_argument("--only")
+    ap.add_argument("--api", default=",".join([*GAMES, "d3d7"]))
+    a = ap.parse_args()
+    a.out.mkdir(parents=True, exist_ok=True)
+    a.work.mkdir(parents=True, exist_ok=True)
+    only = set(a.only.split(",")) if a.only else None
+    base = drm_timeouts()
+    results = {}
+    for api in a.api.split(","):
+        slug = "d3d7test" if api == "d3d7" else GAMES[api]
+        if only and f"{api}:{slug}" not in only:
+            continue
+        results[f"{api}:{slug}"] = d3d7(a.wine, a.work, os.environ) if api == "d3d7" else game(a.wine, slug, a.out)
+        if drm_timeouts() > base:
+            results[f"{api}:{slug}"] = res("crash", "DRM scheduler timeout, stage aborted")
+            break
+    (a.out / "results.json").write_text(json.dumps(results, indent=1))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

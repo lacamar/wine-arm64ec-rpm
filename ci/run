@@ -1,10 +1,11 @@
 #!/usr/bin/python3
-"""ci/run [--spec SPEC ... | --all] [--ship] [--force] [--stages a,b] [--modules m,n]
+"""ci/run [--spec SPEC ... | --all] [--ship] [--force] [--stages a,b] [--smoke] [--modules m,n]
          [--candidate PATH ...] [--baseline PATH ...] [--no-bump] [--no-bd] [--keep-prefixes]
 
 Per spec: bump, precheck, local mock build, A/B (shipped COPR build vs candidate) through
 every ci/stages/* the package maps to, report. --ship (default: report only) commits the
 bump, pushes, builds on COPR and upgrades the installed packages when nothing regressed.
+--smoke adds the game smoke stage (opt-in, never part of --ship's default plan until proven).
 --candidate/--baseline take rpms, rpm dirs or extracted trees and skip the build/download.
 """
 import argparse
@@ -49,8 +50,9 @@ STAGES = [
     ("wine", [("winetest", ["--modules", f"{CORE},{GFX}"]), ("hostpage", [])]),
     ("wine-git", [("winetest", ["--modules", f"{CORE},{GFX}"]), ("hostpage", [])]),
 ]
+SMOKE = [("wine-dxvk*", "d3d9,d3d11"), ("wine-d7vk*", "d3d7"), ("wine-vkd3d-proton*", "d3d12")]
 NEEDS_SRC = {"fex-asm", "vkd3d"}
-RERUN_ONLY = {"winetest"}
+RERUN_ONLY = {"winetest", "smoke"}
 
 
 def log(msg):
@@ -267,6 +269,10 @@ def plan(stem, a):
         items = [(x, []) for x in a.stages.split(",")]
     else:
         items = next((st for pat, st in STAGES if fnmatch.fnmatchcase(stem, pat)), [])
+    if a.smoke and not a.stages:
+        items = [*items, *([("smoke", [])] if any(fnmatch.fnmatchcase(stem, p) for p, _ in SMOKE) else [])]
+    items = [(x, ["--api", next(v for p, v in SMOKE if fnmatch.fnmatchcase(stem, p))] if x == "smoke" and not args else args) for x, args in items
+             if x != "smoke" or any(fnmatch.fnmatchcase(stem, p) for p, _ in SMOKE)]
     return [(x, ["--modules", a.modules, *(args[2:] if args[:1] == ["--modules"] else args)] if x == "winetest" and a.modules else list(args))
             for x, args in items]
 
@@ -396,6 +402,7 @@ def main() -> int:
     ap.add_argument("--no-bump", action="store_true")
     ap.add_argument("--no-bd", action="store_true")
     ap.add_argument("--keep-prefixes", action="store_true")
+    ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--stages")
     ap.add_argument("--modules")
     ap.add_argument("--candidate", action="append", default=[])
