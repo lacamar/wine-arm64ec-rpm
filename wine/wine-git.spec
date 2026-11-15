@@ -7,13 +7,13 @@
 %endif
 
 # Full commit and short commit reference for wine-git
-%global tag 11.21
-%global bumpver 2
+%global tag 11.22
+%global bumpver 0
 
-%global commit 78e52205d9b9ac1c7e6f55fc613b882f1ad093d9
+%global commit 9f8c4ae4d35c7ff4153267aba9618c026f5f5583
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
-%global staging_commit 5fbef1656b82a8dff34c02aa415c6df30cbc8a72
+%global staging_commit 40ab84054fe2ead6c689de31405ba36269e9ee3a
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -2664,6 +2664,10 @@ fi
 %endif
 
 %changelog
+* Mon Nov 16 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^0.git.9f8c4ae-ec.35
+- Update to 11.22
+- Update staging to 40ab84054fe2ead6c689de31405ba36269e9ee3a
+
 * Sun Nov 15 2026 Lachlan Marie <lchlnm@pm.me> - 11.21^2.git.78e5220-ec.35
 - winewayland: keep icon buffer alive until icon is replaced
 - dbghelp: fix NULL deref in SymFromIndex on PDB locals
