@@ -69,8 +69,7 @@
      INT len;
  
      TRACE_(keyboard)( "virt %#x, scan %#x, state %p, str %p, size %d, flags %#x, layout %p.\n",
-@@ -1421,12 +1436,25 @@
-     if ((len = user_driver->pToUnicodeEx( virt, scan, state, str, size, flags, layout )) >= -1) return len;
+@@ -1422,10 +1437,23 @@
  
      if (!(kbd_tables = user_driver->pKbdLayerDescriptor( layout ))) kbd_tables = &kbdus_tables;
 -    if (scan & 0x8000) str[0] = 0; /* key up */
@@ -98,7 +97,6 @@
 +    if (wch && wch != WCH_NONE && !(flags & 4)) *pending = len == -1 ? wch : 0;
  
      if (kbd_tables != &kbdus_tables) user_driver->pReleaseKbdTables( kbd_tables );
- 
 --- a/dlls/winewayland.drv/wayland_keyboard.c
 +++ b/dlls/winewayland.drv/wayland_keyboard.c
 @@ -30,6 +30,7 @@

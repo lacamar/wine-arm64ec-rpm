@@ -50,8 +50,8 @@
 # 0%%{?fedora}
 
 Name:           wine
-Version:        11.21
-Release:        ec5%{dist}
+Version:        11.22
+Release:        ec1%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -97,7 +97,7 @@ Source502:      wine-README-tahoma
 Patch511:       wine-cjk.patch
 
 %ifarch aarch64
-Patch600:       2026_08_17_bylaws_rebased-11.21.patch
+Patch600:       2026_08_17_bylaws_rebased-release.patch
 Patch602:       2026_08_30-arm64ec-fex-bootstrap-order.patch
 # msvcrt: idempotent C++ catch frame unregistration
 Patch603:       2026_09_15-msvcrt-idempotent-cxx-unregister.patch
@@ -2557,6 +2557,11 @@ fi
 %endif
 
 %changelog
+* Sun Nov 15 2026 Lachlan Marie <lchlnm@pm.me> - 11.22-ec1
+- Update to 11.22
+- Rebase bylaws patch (drop xstate, upstream merged)
+- Unversioned release bylaws patch name
+
 * Mon Nov 09 2026 Lachlan Marie <lchlnm@pm.me> - 11.21-ec5
 - winewayland: keep owned popups above child client surfaces
 

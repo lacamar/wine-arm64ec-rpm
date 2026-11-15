@@ -1,25 +1,3 @@
-diff --git a/dlls/vcruntime140_1/Makefile.in b/dlls/vcruntime140_1/Makefile.in
---- a/dlls/vcruntime140_1/Makefile.in
-+++ b/dlls/vcruntime140_1/Makefile.in
-@@ -1,7 +1,7 @@
- MODULE  = vcruntime140_1.dll
- IMPORTS = vcruntime140
- PARENTSRC = ../msvcrt
--ENABLE_ARCHS = x86_64 arm64ec
-+ENABLE_ARCHS = x86_64 arm64ec aarch64
-
- VER_FILEDESCRIPTION_STR = "Wine runtime library"
- VER_PRODUCTVERSION      = 14,50,35719,0
-diff --git a/programs/dpnsvr/Makefile.in b/programs/dpnsvr/Makefile.in
---- a/programs/dpnsvr/Makefile.in
-+++ b/programs/dpnsvr/Makefile.in
-@@ -1,5 +1,5 @@
- MODULE    = dpnsvr.exe
--ENABLE_ARCHS = i386 x86_64 arm64ec
-+ENABLE_ARCHS = i386 x86_64 arm64ec aarch64
-
- EXTRADLLFLAGS = -mwindows -municode
-
 diff --git a/dlls/advapi32/Makefile.in b/dlls/advapi32/Makefile.in
 index 53abe47..e7fcc58 100644
 --- a/dlls/advapi32/Makefile.in
@@ -36,7 +14,7 @@ index 53abe47..e7fcc58 100644
  VER_PRODUCTVERSION = 10,0,10240,16384
  
 diff --git a/dlls/appwiz.cpl/addons.c b/dlls/appwiz.cpl/addons.c
-index f0835e9..86d4f9c 100644
+index 1b5aa19..11cefb0 100644
 --- a/dlls/appwiz.cpl/addons.c
 +++ b/dlls/appwiz.cpl/addons.c
 @@ -48,7 +48,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(appwizcpl);
@@ -51,30 +29,30 @@ index f0835e9..86d4f9c 100644
 @@ -57,7 +57,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(appwizcpl);
  #endif
  
- #define MONO_VERSION "11.2.0"
+ #define MONO_VERSION "11.3.0"
 -#if defined(__i386__) || defined(__x86_64__)
 +#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
  #define MONO_ARCH "x86"
- #define MONO_SHA "b4525679e7da30d4658ceb85739cbc55c771791054abbb4b3152fe96ded0b897"
- #else
+ #define MONO_SHA "df2dfc1665c2511882e7cabd56eafd0c0a3d94e5a7e86f969277f6c189d418d3"
+ #elif defined(__aarch64__)
 diff --git a/dlls/mscoree/metahost.c b/dlls/mscoree/metahost.c
-index eb609fc..cb3fa08 100644
+index 262a985..ec9a50a 100644
 --- a/dlls/mscoree/metahost.c
 +++ b/dlls/mscoree/metahost.c
 @@ -711,7 +711,7 @@ HRESULT ICLRRuntimeInfo_GetRuntimeHost(ICLRRuntimeInfo *iface, RuntimeHost **res
  
  #ifdef __i386__
- static const WCHAR libmono2_arch_dll[] = {'\\','b','i','n','\\','l','i','b','m','o','n','o','-','2','.','0','-','x','8','6','.','d','l','l',0};
+ static const WCHAR libmono2_arch_dll[] = L"\\bin\\libmono-2.0-x86.dll";
 -#elif defined(__x86_64__)
 +#elif defined(__x86_64__) || defined(__aarch64__)
- static const WCHAR libmono2_arch_dll[] = {'\\','b','i','n','\\','l','i','b','m','o','n','o','-','2','.','0','-','x','8','6','_','6','4','.','d','l','l',0};
- #else
- static const WCHAR libmono2_arch_dll[] = {'\\','b','i','n','\\','l','i','b','m','o','n','o','-','2','.','0','.','d','l','l',0};
+ static const WCHAR libmono2_arch_dll[] = L"\\bin\\libmono-2.0-x86_64.dll";
+ #elif defined(__aarch64__)
+ static const WCHAR libmono2_arch_dll[] = L"\\bin\\libmono-2.0-arm64.dll";
 diff --git a/dlls/ntdll/loader.c b/dlls/ntdll/loader.c
-index c0878f2..be75eb4 100644
+index 8f90495..44f3c21 100644
 --- a/dlls/ntdll/loader.c
 +++ b/dlls/ntdll/loader.c
-@@ -4374,7 +4374,7 @@ static void load_arm64ec_module(void)
+@@ -4377,7 +4377,7 @@ static void load_arm64ec_module(void)
      ULONG buffer[16];
      KEY_VALUE_PARTIAL_INFORMATION *info = (KEY_VALUE_PARTIAL_INFORMATION *)buffer;
      UNICODE_STRING nameW = RTL_CONSTANT_STRING( L"\\Registry\\Machine\\Software\\Microsoft\\Wow64\\amd64" );
@@ -83,7 +61,7 @@ index c0878f2..be75eb4 100644
      OBJECT_ATTRIBUTES attr;
      WINE_MODREF *wm;
      NTSTATUS status;
-@@ -4424,6 +4424,7 @@ static void build_wow64_main_module(void)
+@@ -4427,6 +4427,7 @@ static void build_wow64_main_module(void)
  static void (WINAPI *pWow64LdrpInitialize)( CONTEXT *ctx );
  
  void (WINAPI *pWow64PrepareForException)( EXCEPTION_RECORD *rec, CONTEXT *context ) = NULL;
@@ -91,7 +69,7 @@ index c0878f2..be75eb4 100644
  
  static void init_wow64( CONTEXT *context )
  {
-@@ -4448,6 +4449,7 @@ static void init_wow64( CONTEXT *context )
+@@ -4452,6 +4453,7 @@ static void init_wow64( CONTEXT *context )
  
          GET_PTR( Wow64LdrpInitialize );
          GET_PTR( Wow64PrepareForException );
@@ -99,7 +77,7 @@ index c0878f2..be75eb4 100644
  #undef GET_PTR
          imports_fixup_done = TRUE;
      }
-@@ -4456,7 +4458,6 @@ static void init_wow64( CONTEXT *context )
+@@ -4460,7 +4462,6 @@ static void init_wow64( CONTEXT *context )
      pWow64LdrpInitialize( context );
  }
  
@@ -108,7 +86,7 @@ index c0878f2..be75eb4 100644
  
  void *Wow64Transition = NULL;
 diff --git a/dlls/ntdll/ntdll_misc.h b/dlls/ntdll/ntdll_misc.h
-index 5cf6256..63ad9fb 100644
+index c2c3089..a1797d8 100644
 --- a/dlls/ntdll/ntdll_misc.h
 +++ b/dlls/ntdll/ntdll_misc.h
 @@ -74,6 +74,7 @@ extern void WINAPI KiUserApcDispatcher(CONTEXT*,ULONG_PTR,ULONG_PTR,ULONG_PTR,PN
@@ -120,10 +98,10 @@ index 5cf6256..63ad9fb 100644
  /* debug helpers */
  extern LPCSTR debugstr_us( const UNICODE_STRING *str );
 diff --git a/dlls/ntdll/process.c b/dlls/ntdll/process.c
-index 53a508a..cdd28e3 100644
+index 5c8af82..4900f83 100644
 --- a/dlls/ntdll/process.c
 +++ b/dlls/ntdll/process.c
-@@ -464,13 +464,15 @@
+@@ -464,6 +464,7 @@ BOOLEAN WINAPI RtlWow64RequestCrossProcessHeavyFlush( CROSS_PROCESS_WORK_HDR *li
  }
  
  
@@ -131,20 +109,20 @@ index 53a508a..cdd28e3 100644
  /***********************************************************************
   *              RtlWow64SuspendThread (NTDLL.@)
   */
- NTSTATUS WINAPI RtlWow64SuspendThread( HANDLE thread, ULONG *count )
- {
+@@ -472,6 +473,7 @@ NTSTATUS WINAPI RtlWow64SuspendThread( HANDLE thread, ULONG *count )
      /* FIXME: Use Wow64SuspendLocalThread when available */
      return NtSuspendThread( thread, count );
  }
 +#endif
  
  #endif /* _WIN64 */
+ 
 diff --git a/dlls/ntdll/signal_arm64.c b/dlls/ntdll/signal_arm64.c
-index e560718..511c54e 100644
+index 996f1bb..465b116 100644
 --- a/dlls/ntdll/signal_arm64.c
 +++ b/dlls/ntdll/signal_arm64.c
-@@ -673,6 +673,74 @@ BOOLEAN WINAPI RtlIsProcessorFeaturePresent( UINT feature )
-     return !!(cpu_features_bitmap[feature / 64] & (1ull << (feature % 64)));
+@@ -682,6 +682,74 @@ ULONG64 WINAPI RtlGetEnabledExtendedFeatures( ULONG64 feature_mask )
+     return 0;
  }
  
 +static void suspend_remote_breakin( HANDLE thread )
@@ -218,131 +196,11 @@ index e560718..511c54e 100644
  
  /*************************************************************************
   *		RtlWalkFrameChain (NTDLL.@)
-diff --git a/dlls/ntdll/signal_arm64ec.c b/dlls/ntdll/signal_arm64ec.c
-index 140775d..1559ade 100644
---- a/dlls/ntdll/signal_arm64ec.c
-+++ b/dlls/ntdll/signal_arm64ec.c
-@@ -35,6 +35,11 @@
- #include "wine/debug.h"
- #include "ntsyscalls.h"
- 
-+union ARM64EC_NT_XCONTEXT {
-+    ARM64EC_NT_CONTEXT context;
-+    BYTE buffer[0x800];
-+};
-+
- WINE_DEFAULT_DEBUG_CHANNEL(seh);
- WINE_DECLARE_DEBUG_CHANNEL(relay);
- 
-@@ -1263,7 +1268,11 @@ NTSTATUS call_seh_handlers( EXCEPTION_RECORD *rec, CONTEXT *orig_context )
-  */
- void dispatch_emulation( ARM64_NT_CONTEXT *arm_ctx )
- {
--    context_arm_to_x64( get_arm64ec_cpu_area()->ContextAmd64, arm_ctx );
-+    ARM64EC_NT_CONTEXT *context = get_arm64ec_cpu_area()->ContextAmd64;
-+    CONTEXT_EX *xctx;
-+
-+    RtlInitializeExtendedContext( context, ctx_flags_arm_to_x64( arm_ctx->ContextFlags), &xctx );
-+    context_arm_to_x64( context, arm_ctx );
-     get_arm64ec_cpu_area()->InSimulation = 1;
-     pBeginSimulation();
- }
-@@ -1293,11 +1302,13 @@ static void dispatch_syscall( ARM64_NT_CONTEXT *context )
- }
- 
- 
--static void * __attribute__((used)) prepare_exception_arm64ec( EXCEPTION_RECORD *rec, ARM64EC_NT_CONTEXT *context, ARM64_NT_CONTEXT *arm_ctx )
-+static void * __attribute__((used)) prepare_exception_arm64ec( EXCEPTION_RECORD *rec, union ARM64EC_NT_XCONTEXT *context, ARM64_NT_CONTEXT *arm_ctx )
- {
-+    CONTEXT_EX *xctx;
-     if (rec->ExceptionCode == STATUS_EMULATION_SYSCALL) dispatch_syscall( arm_ctx );
--    context_arm_to_x64( context, arm_ctx );
--    if (pResetToConsistentState) pResetToConsistentState( rec, &context->AMD64_Context, arm_ctx );
-+    RtlInitializeExtendedContext( context, ctx_flags_arm_to_x64( arm_ctx->ContextFlags ), &xctx );
-+    context_arm_to_x64( &context->context, arm_ctx );
-+    if (pResetToConsistentState) pResetToConsistentState( rec, &context->context.AMD64_Context, arm_ctx );
-     /* call x64 dispatcher if the thunk or the function pointer was modified */
-     if (pWow64PrepareForException || memcmp( KiUserExceptionDispatcher_thunk, KiUserExceptionDispatcher_orig,
-                                              sizeof(KiUserExceptionDispatcher_orig) ))
-@@ -1312,12 +1323,13 @@ void __attribute__((naked)) KiUserExceptionDispatcher( EXCEPTION_RECORD *rec, CO
- {
-     asm( ".seh_proc \"#KiUserExceptionDispatcher\"\n\t"
-          ".seh_context\n\t"
--         "sub sp, sp, #0x4d0\n\t"       /* sizeof(ARM64EC_NT_CONTEXT) */
--         ".seh_stackalloc 0x4d0\n\t"
-+         "sub sp, sp, #0xcd0\n\t"       /* sizeof(union ARM64EC_NT_XCONTEXT) */
-+         ".seh_stackalloc 0xcd0\n\t"
-          ".seh_endprologue\n\t"
--         "add x0, sp, #0x3b0+0x4d0\n\t" /* rec */
-+         "add x0, sp, #0xcd0\n\t"
-+         "add x0, x0, #0x3b0\n\t"       /* rec */
-          "mov x1, sp\n\t"               /* context */
--         "add x2, sp, #0x4d0\n\t"       /* arm_ctx (context + 1) */
-+         "add x2, sp, #0xcd0\n\t"       /* arm_ctx (context + 1) */
-          "bl \"#prepare_exception_arm64ec\"\n\t"
-          "cbz x0, 1f\n\t"
-          /* bypass exit thunk to avoid messing up the stack */
-@@ -1325,8 +1337,9 @@ void __attribute__((naked)) KiUserExceptionDispatcher( EXCEPTION_RECORD *rec, CO
-          "ldr x16, [x16, #:lo12:__os_arm64x_dispatch_call_no_redirect]\n\t"
-          "mov x9, x0\n\t"
-          "blr x16\n"
--         "1:\tadd x0, sp, #0x3b0+0x4d0\n\t" /* rec */
--         "mov x1, sp\n\t"                   /* context */
-+         "1:\tadd x0, sp, #0xcd0\n\t"
-+         "add x0, x0, #0x3b0\n\t"       /* rec */
-+         "mov x1, sp\n\t"               /* context */
-          "bl #dispatch_exception\n\t"
-          "brk #1\n\t"
-          ".seh_endproc" );
-@@ -1340,11 +1353,12 @@ static void __attribute__((used)) dispatch_apc( void (CALLBACK *func)(ULONG_PTR,
-                                                 ULONG_PTR arg1, ULONG_PTR arg2, ULONG_PTR arg3,
-                                                 BOOLEAN alertable, ARM64_NT_CONTEXT *arm_ctx )
- {
--    ARM64EC_NT_CONTEXT context;
--
--    context_arm_to_x64( &context, arm_ctx );
--    func( arg1, arg2, arg3, &context.AMD64_Context );
--    NtContinue( &context.AMD64_Context, alertable );
-+    union ARM64EC_NT_XCONTEXT context;
-+    CONTEXT_EX *xctx;
-+    RtlInitializeExtendedContext( &context, ctx_flags_arm_to_x64( arm_ctx->ContextFlags), &xctx );
-+    context_arm_to_x64( &context.context, arm_ctx );
-+    func( arg1, arg2, arg3, &context.context.AMD64_Context );
-+    NtContinue( &context.context.AMD64_Context, alertable );
- }
- __ASM_GLOBAL_FUNC( "#KiUserApcDispatcher",
-                    ".seh_context\n\t"
-@@ -2112,7 +2126,9 @@ void __attribute__((naked)) RtlUserThreadStart( PRTL_THREAD_START_ROUTINE entry,
-  */
- void WINAPI LdrInitializeThunk( CONTEXT *arm_context, ULONG_PTR unk2, ULONG_PTR unk3, ULONG_PTR unk4 )
- {
--    ARM64EC_NT_CONTEXT context;
-+    union ARM64EC_NT_XCONTEXT context;
-+    CONTEXT_EX *xctx;
-+    RtlInitializeExtendedContext( &context, ctx_flags_arm_to_x64( arm_context->ContextFlags), &xctx );
- 
-     if (!__os_arm64x_check_call)
-     {
-@@ -2123,10 +2139,10 @@ void WINAPI LdrInitializeThunk( CONTEXT *arm_context, ULONG_PTR unk2, ULONG_PTR
-         __os_arm64x_set_x64_information = LdrpSetX64Information;
-     }
- 
--    context_arm_to_x64( &context, (ARM64_NT_CONTEXT *)arm_context );
--    loader_init( &context.AMD64_Context, (void **)&context.X0 );
--    TRACE_(relay)( "\1Starting thread proc %p (arg=%p)\n", (void *)context.X0, (void *)context.X1 );
--    NtContinue( &context.AMD64_Context, TRUE );
-+    context_arm_to_x64( &context.context, (ARM64_NT_CONTEXT *)arm_context );
-+    loader_init( &context.context.AMD64_Context, (void **)&context.context.X0 );
-+    TRACE_(relay)( "\1Starting thread proc %p (arg=%p)\n", (void *)context.context.X0, (void *)context.context.X1 );
-+    NtContinue( &context.context.AMD64_Context, TRUE );
- }
- 
- 
 diff --git a/dlls/ntdll/signal_x86_64.c b/dlls/ntdll/signal_x86_64.c
-index b94e4a2..2c6f4cc 100644
+index 573727c..6f95312 100644
 --- a/dlls/ntdll/signal_x86_64.c
 +++ b/dlls/ntdll/signal_x86_64.c
-@@ -82,7 +82,7 @@ __ASM_GLOBAL_FUNC( "EXP+#KiUserExceptionDispatcher",
+@@ -149,7 +149,7 @@ __ASM_GLOBAL_FUNC( "EXP+#KiUserExceptionDispatcher",
                     "test %rax,%rax\n\t"
                     "jz 1f\n\t"
                     "subq $0x28,%rsp\n\t"
@@ -351,8 +209,8 @@ index b94e4a2..2c6f4cc 100644
                     "leaq 0x30(%rsp),%rdx\n\t"             /* context */
                     "call *%rax\n"
                     "addq $0x28,%rsp\n"
-@@ -866,6 +866,13 @@ BOOLEAN WINAPI RtlIsProcessorFeaturePresent( UINT feature )
-     return feature < PROCESSOR_FEATURE_MAX && user_shared_data->ProcessorFeatures[feature];
+@@ -942,6 +942,13 @@ ULONG64 WINAPI RtlGetEnabledExtendedFeatures( ULONG64 feature_mask )
+     return user_shared_data->XState.EnabledFeatures & feature_mask;
  }
  
 +/***********************************************************************
@@ -366,7 +224,7 @@ index b94e4a2..2c6f4cc 100644
  /*************************************************************************
   *		RtlWalkFrameChain (NTDLL.@)
 diff --git a/dlls/ntdll/unix/process.c b/dlls/ntdll/unix/process.c
-index 418f95b..5cedadc 100644
+index 1d10948..046d669 100644
 --- a/dlls/ntdll/unix/process.c
 +++ b/dlls/ntdll/unix/process.c
 @@ -46,6 +46,9 @@
@@ -379,7 +237,7 @@ index 418f95b..5cedadc 100644
  #ifdef HAVE_SYS_QUEUE_H
  # include <sys/queue.h>
  #endif
-@@ -1074,6 +1077,46 @@ void fill_vm_counters( VM_COUNTERS_EX *pvmi, int unix_pid )
+@@ -1076,6 +1079,46 @@ void fill_vm_counters( VM_COUNTERS_EX *pvmi, int unix_pid )
  
  #endif
  
@@ -426,7 +284,7 @@ index 418f95b..5cedadc 100644
  #define UNIMPLEMENTED_INFO_CLASS(c) \
      case c: \
          FIXME( "(process=%p) Unimplemented information class: " #c "\n", handle); \
-@@ -1859,6 +1902,14 @@ NTSTATUS WINAPI NtSetInformationProcess( HANDLE handle, PROCESSINFOCLASS class,
+@@ -1861,6 +1904,14 @@ NTSTATUS WINAPI NtSetInformationProcess( HANDLE handle, PROCESSINFOCLASS class,
          SERVER_END_REQ;
          break;
  
@@ -441,58 +299,21 @@ index 418f95b..5cedadc 100644
      case ProcessPowerThrottlingState:
          FIXME( "ProcessPowerThrottlingState - stub\n" );
          return STATUS_SUCCESS;
-diff --git a/dlls/ntdll/unix/system.c b/dlls/ntdll/unix/system.c
-index 2d6e318..74c197d 100644
---- a/dlls/ntdll/unix/system.c
-+++ b/dlls/ntdll/unix/system.c
-@@ -748,6 +748,23 @@ static ULONGLONG get_cpu_features(void)
-     return 0;  /* FIXME */
- }
- 
-+static void init_xstate_features( XSTATE_CONFIGURATION *xstate )
-+{
-+    xstate->EnabledFeatures = (1 << XSTATE_LEGACY_FLOATING_POINT) | (1 << XSTATE_LEGACY_SSE) | (1 << XSTATE_AVX);
-+    xstate->EnabledVolatileFeatures = xstate->EnabledFeatures;
-+    xstate->AllFeatureSize = 0x340;
-+
-+    xstate->OptimizedSave = 0;
-+    xstate->CompactionEnabled = 0;
-+
-+    xstate->Features[0].Size = xstate->AllFeatures[0] = offsetof(XSAVE_FORMAT, XmmRegisters);
-+    xstate->Features[1].Size = xstate->AllFeatures[1] = sizeof(M128A) * 16;
-+    xstate->Features[1].Offset = xstate->Features[0].Size;
-+    xstate->Features[2].Offset = 0x240;
-+    xstate->Features[2].Size = 0x100;
-+    xstate->Size = 0x340;
-+}
-+
- void init_shared_data_cpuinfo( KUSER_SHARED_DATA *data )
- {
-     BOOLEAN *features = data->ProcessorFeatures;
-@@ -809,6 +826,8 @@ void init_shared_data_cpuinfo( KUSER_SHARED_DATA *data )
-         }
-     }
- #endif
-+
-+    init_xstate_features( &data->XState );
- }
- 
- #endif /* End architecture specific feature detection for CPUs */
 diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
-index 05fe451..608cb37 100644
+index 73ab438..b36b658 100644
 --- a/dlls/ntdll/unix/virtual.c
 +++ b/dlls/ntdll/unix/virtual.c
-@@ -227,6 +227,9 @@ static const size_t view_block_size = 0x100000;
+@@ -239,6 +239,9 @@ static const size_t view_block_size = 0x100000;
  static BOOL force_exec_prot;  /* whether to force PROT_EXEC on all PROT_READ mmaps */
  static BOOL enable_write_exceptions;  /* raise exception on writes to executable memory */
-
+ 
 +#define FEX_STATS_SHM_MAX_SIZE 0x400000
 +static void *fex_stats_shm;
 +
  static UINT_PTR *mem_areas;
  static const UINT_PTR initial_mem_areas[] = { 0, ~(UINT_PTR)0 };
  static unsigned int mem_areas_size = 0x1000 << sizeof(void*);
-@@ -6150,6 +6153,49 @@ static unsigned int get_memory_image_info( HANDLE process, LPCVOID addr, MEMORY_
+@@ -5930,6 +5933,49 @@ static unsigned int get_memory_image_info( HANDLE process, LPCVOID addr, MEMORY_
      return status;
  }
  
@@ -542,7 +363,7 @@ index 05fe451..608cb37 100644
  
  /***********************************************************************
   *             NtQueryVirtualMemory   (NTDLL.@)
-@@ -6228,6 +6274,13 @@ NTSTATUS WINAPI NtQueryVirtualMemory( HANDLE process, LPCVOID addr,
+@@ -6008,6 +6054,13 @@ NTSTATUS WINAPI NtQueryVirtualMemory( HANDLE process, LPCVOID addr,
              }
              return STATUS_INVALID_HANDLE;
  
@@ -556,54 +377,6 @@ index 05fe451..608cb37 100644
          default:
              FIXME("(%p,%p,info_class=%d,%p,%ld,%p) Unknown information class\n",
                    process, addr, info_class, buffer, len, res_len);
-diff --git a/dlls/ntdll/unwind.h b/dlls/ntdll/unwind.h
-index faca8a2..71a4d23 100644
---- a/dlls/ntdll/unwind.h
-+++ b/dlls/ntdll/unwind.h
-@@ -36,6 +36,7 @@ static inline ULONG ctx_flags_x64_to_arm( ULONG flags )
-     if (flags & CONTEXT_AMD64_CONTROL) ret |= CONTEXT_ARM64_CONTROL;
-     if (flags & CONTEXT_AMD64_INTEGER) ret |= CONTEXT_ARM64_INTEGER;
-     if (flags & CONTEXT_AMD64_FLOATING_POINT) ret |= CONTEXT_ARM64_FLOATING_POINT;
-+    if (flags & CONTEXT_AMD64_XSTATE) ret |= CONTEXT_ARM64_FEX_YMMSTATE;
-     return ret;
- }
- 
-@@ -47,6 +48,7 @@ static inline ULONG ctx_flags_arm_to_x64( ULONG flags )
-     if (flags & CONTEXT_ARM64_CONTROL) ret |= CONTEXT_AMD64_CONTROL;
-     if (flags & CONTEXT_ARM64_INTEGER) ret |= CONTEXT_AMD64_INTEGER;
-     if (flags & CONTEXT_ARM64_FLOATING_POINT) ret |= CONTEXT_AMD64_FLOATING_POINT;
-+    if (flags & CONTEXT_ARM64_FEX_YMMSTATE) ret |= CONTEXT_AMD64_XSTATE;
-     return ret;
- }
- 
-@@ -166,6 +168,13 @@ static inline void context_x64_to_arm( ARM64_NT_CONTEXT *arm_ctx, const ARM64EC_
-     fpcsr = mxcsr_to_fpcsr( ec_ctx->AMD64_MxCsr );
-     arm_ctx->Fpcr = fpcsr;
-     arm_ctx->Fpsr = fpcsr >> 32;
-+
-+    if ((ec_ctx->ContextFlags & CONTEXT_XSTATE) == CONTEXT_XSTATE)
-+    {
-+        CONTEXT_EX *ec_xctx = (CONTEXT_EX *)(ec_ctx + 1);
-+        YMMCONTEXT *ec_ymm = RtlLocateExtendedFeature( ec_xctx, XSTATE_AVX, NULL );
-+        memcpy( arm_ctx->V + 16, ec_ymm, sizeof(*ec_ymm) );
-+    }
- }
- 
- static inline void context_arm_to_x64( ARM64EC_NT_CONTEXT *ec_ctx, const ARM64_NT_CONTEXT *arm_ctx )
-@@ -216,6 +225,13 @@ static inline void context_arm_to_x64( ARM64EC_NT_CONTEXT *ec_ctx, const ARM64_N
-     ec_ctx->X17_3 = arm_ctx->X17 >> 48;
- 
-     memcpy( ec_ctx->V, arm_ctx->V, sizeof(ec_ctx->V) );
-+
-+    if ((arm_ctx->ContextFlags & CONTEXT_ARM64_FEX_YMMSTATE) == CONTEXT_ARM64_FEX_YMMSTATE)
-+    {
-+        CONTEXT_EX *ec_xctx = (CONTEXT_EX *)(ec_ctx + 1);
-+        YMMCONTEXT *ec_ymm = RtlLocateExtendedFeature( ec_xctx, XSTATE_AVX, NULL );
-+        memcpy( ec_ymm, arm_ctx->V + 16, sizeof(*ec_ymm) );
-+    }
- }
- 
- #endif /* __aarch64__ || __arm64ec__ */
 diff --git a/dlls/sechost/Makefile.in b/dlls/sechost/Makefile.in
 index ec1eb10..25439e9 100644
 --- a/dlls/sechost/Makefile.in
@@ -617,6 +390,19 @@ index ec1eb10..25439e9 100644
  
  SOURCES = \
  	plugplay.idl \
+diff --git a/dlls/vcruntime140_1/Makefile.in b/dlls/vcruntime140_1/Makefile.in
+index dea426f..a20d03c 100644
+--- a/dlls/vcruntime140_1/Makefile.in
++++ b/dlls/vcruntime140_1/Makefile.in
+@@ -1,7 +1,7 @@
+ MODULE  = vcruntime140_1.dll
+ IMPORTS = vcruntime140
+ PARENTSRC = ../msvcrt
+-ENABLE_ARCHS = x86_64 arm64ec
++ENABLE_ARCHS = x86_64 arm64ec aarch64
+ 
+ VER_FILEDESCRIPTION_STR = "Wine runtime library"
+ VER_PRODUCTVERSION      = 14,50,35719,0
 diff --git a/dlls/vcruntime140_1/vcruntime140_1.spec b/dlls/vcruntime140_1/vcruntime140_1.spec
 index 0b126fa..af29594 100644
 --- a/dlls/vcruntime140_1/vcruntime140_1.spec
@@ -627,10 +413,10 @@ index 0b126fa..af29594 100644
  @ stub __NLG_Dispatch2
  @ stub __NLG_Return2
 diff --git a/dlls/wow64/process.c b/dlls/wow64/process.c
-index 98d1c60..496d45d 100644
+index 16ea098..9888889 100644
 --- a/dlls/wow64/process.c
 +++ b/dlls/wow64/process.c
-@@ -1120,7 +1120,7 @@ NTSTATUS WINAPI wow64_NtSuspendThread( UINT *args )
+@@ -1134,7 +1134,7 @@ NTSTATUS WINAPI wow64_NtSuspendThread( UINT *args )
      HANDLE handle = get_handle( &args );
      ULONG *count = get_ptr( &args );
  
@@ -640,17 +426,17 @@ index 98d1c60..496d45d 100644
  
  
 diff --git a/dlls/wow64/syscall.c b/dlls/wow64/syscall.c
-index cfeb8f4..74592cd 100644
+index d6fea09..6ea8490 100644
 --- a/dlls/wow64/syscall.c
 +++ b/dlls/wow64/syscall.c
 @@ -102,6 +102,7 @@ static void     (WINAPI *pBTCpuProcessInit)(void);
  static NTSTATUS (WINAPI *pBTCpuSetContext)(HANDLE,HANDLE,void *,void *);
  static void     (WINAPI *pBTCpuThreadInit)(void);
- static void     (WINAPI *pBTCpuSimulate)(void) __attribute__((used));
-+static NTSTATUS (WINAPI *pBTCpuSuspendLocalThread)(HANDLE,ULONG *);
  static void *   (WINAPI *p__wine_get_unix_opcode)(void);
++static NTSTATUS (WINAPI *pBTCpuSuspendLocalThread)(HANDLE,ULONG *);
  static void *   (WINAPI *pKiRaiseUserExceptionDispatcher)(void);
  void     (WINAPI *pBTCpuFlushInstructionCache2)( const void *, SIZE_T ) = NULL;
+ void     (WINAPI *pBTCpuFlushInstructionCacheHeavy)( const void *, SIZE_T ) = NULL;
 @@ -920,7 +921,7 @@ static const WCHAR *get_cpu_dll_name(void)
      {
      case IMAGE_FILE_MACHINE_I386:
@@ -694,12 +480,12 @@ index 5b4e565..8f95dfc 100644
  @ stub Wow64ValidateUserCallTarget
  @ stub Wow64ValidateUserCallTargetFilter
 diff --git a/include/winnt.h b/include/winnt.h
-index 2dc1aad..2e4d9e3 100644
+index 4b684fc..35b6437 100644
 --- a/include/winnt.h
 +++ b/include/winnt.h
-@@ -1558,6 +1558,13 @@ typedef struct _XSAVE_AREA_HEADER
- }
- XSAVE_AREA_HEADER, *PXSAVE_AREA_HEADER;
+@@ -1628,6 +1628,13 @@ typedef struct DECLSPEC_ALIGN(16) _XSAVE_AREA
+     XSAVE_AREA_HEADER Header;
+ } XSAVE_AREA, *PXSAVE_AREA;
  
 +typedef struct _XSAVE_ARM64_SVE_HEADER {
 +    ULONG VectorLength;
@@ -711,27 +497,8 @@ index 2dc1aad..2e4d9e3 100644
  typedef struct _YMMCONTEXT
  {
      M128A Ymm0;
-@@ -1737,7 +1748,9 @@ typedef struct _KNONVOLATILE_CONTEXT_POINTERS
- #define CONTEXT_ARM64_INTEGER         (CONTEXT_ARM64 | 0x00000002)
- #define CONTEXT_ARM64_FLOATING_POINT  (CONTEXT_ARM64 | 0x00000004)
- #define CONTEXT_ARM64_DEBUG_REGISTERS (CONTEXT_ARM64 | 0x00000008)
--#define CONTEXT_ARM64_X18       (CONTEXT_ARM64 | 0x00000010)
-+#define CONTEXT_ARM64_X18             (CONTEXT_ARM64 | 0x00000010)
-+#define CONTEXT_ARM64_XSTATE          (CONTEXT_ARM64 | 0x00000020)
-+#define CONTEXT_ARM64_FEX_YMMSTATE   (CONTEXT_ARM64 | 0x00000040)
- #define CONTEXT_ARM64_FULL (CONTEXT_ARM64_CONTROL | CONTEXT_ARM64_INTEGER | CONTEXT_ARM64_FLOATING_POINT)
- #define CONTEXT_ARM64_ALL  (CONTEXT_ARM64_FULL | CONTEXT_ARM64_DEBUG_REGISTERS | CONTEXT_ARM64_X18)
- 
-@@ -2017,6 +2030,7 @@ typedef struct DECLSPEC_ALIGN(16) _ARM64EC_NT_CONTEXT
- #define CONTEXT_INTEGER CONTEXT_ARM64_INTEGER
- #define CONTEXT_FLOATING_POINT CONTEXT_ARM64_FLOATING_POINT
- #define CONTEXT_DEBUG_REGISTERS CONTEXT_ARM64_DEBUG_REGISTERS
-+#define CONTEXT_XSTATE CONTEXT_ARM64_XSTATE
- #define CONTEXT_FULL CONTEXT_ARM64_FULL
- #define CONTEXT_ALL CONTEXT_ARM64_ALL
- #define CONTEXT_RET_TO_GUEST CONTEXT_ARM64_RET_TO_GUEST
 diff --git a/include/winternl.h b/include/winternl.h
-index a76eecf..e326ed6 100644
+index e8f25f9..0367b22 100644
 --- a/include/winternl.h
 +++ b/include/winternl.h
 @@ -2014,8 +2014,15 @@ typedef enum _PROCESSINFOCLASS {
@@ -771,21 +538,13 @@ index a76eecf..e326ed6 100644
  typedef enum _MUTANT_INFORMATION_CLASS
  {
      MutantBasicInformation
-@@ -5420,6 +5434,7 @@ NTSYSAPI USHORT    WINAPI RtlWow64GetCurrentMachine(void);
- NTSYSAPI NTSTATUS  WINAPI RtlWow64GetProcessMachines(HANDLE,USHORT*,USHORT*);
- NTSYSAPI NTSTATUS  WINAPI RtlWow64GetSharedInfoProcess(HANDLE,BOOLEAN*,WOW64INFO*);
- NTSYSAPI NTSTATUS  WINAPI RtlWow64IsWowGuestMachineSupported(USHORT,BOOLEAN*);
-+NTSYSAPI NTSTATUS  WINAPI RtlWow64SuspendThread(HANDLE,ULONG*);
- NTSYSAPI NTSTATUS  WINAPI RtlWriteRegistryValue(ULONG,PCWSTR,PCWSTR,ULONG,PVOID,ULONG);
- NTSYSAPI NTSTATUS  WINAPI RtlZombifyActivationContext(struct _ACTIVATION_CONTEXT *);
- NTSYSAPI NTSTATUS  WINAPI RtlpNtCreateKey(PHANDLE,ACCESS_MASK,const OBJECT_ATTRIBUTES*,ULONG,const UNICODE_STRING*,ULONG,PULONG);
 diff --git a/libs/winecrt0/arm64ec.c b/libs/winecrt0/arm64ec.c
-index 1930a27..d997e55 100644
+index 0744d87..8421e22 100644
 --- a/libs/winecrt0/arm64ec.c
 +++ b/libs/winecrt0/arm64ec.c
-@@ -111,4 +111,45 @@ asm( "\t.section .rdata,\"dr\"\n"
-      "\t.rva __os_arm64x_helper7\n"
-      "\t.rva __os_arm64x_helper8\n" );
+@@ -47,4 +47,45 @@ __ASM_GLOBAL_FUNC( __icall_helper_arm64ec,
+                    ".seh_endepilogue\n\t"
+ 		   "br x11" )
  
 +/*
 + * HACK: Provide an exit thunk for memcpy/memmove/memset to work around
@@ -830,10 +589,10 @@ index 1930a27..d997e55 100644
 +
  #endif /* __arm64ec__ */
 diff --git a/loader/wine.inf.in b/loader/wine.inf.in
-index f28f5ef..2e7731a 100644
+index 8619469..dd63b59 100644
 --- a/loader/wine.inf.in
 +++ b/loader/wine.inf.in
-@@ -398,9 +398,9 @@ HKLM,%CurrentVersion%,"ProgramFilesDir (x86)",,"%16426%"
+@@ -402,9 +402,9 @@ HKLM,%CurrentVersion%,"ProgramFilesDir (x86)",,"%16426%"
  HKLM,%CurrentVersion%,"CommonFilesDir (x86)",,"%16428%"
  HKLM,%CurrentVersion%,"ProgramFilesDir (Arm)",,"C:\Program Files (Arm)"
  HKLM,%CurrentVersion%,"CommonFilesDir (Arm)",,"C:\Program Files (Arm)\Common Files"
@@ -845,8 +604,19 @@ index f28f5ef..2e7731a 100644
  
  [CurrentVersionWow64.ntx86]
  HKLM,%CurrentVersion%,"ProgramFilesDir (x86)",,"%16422%"
+diff --git a/programs/dpnsvr/Makefile.in b/programs/dpnsvr/Makefile.in
+index 67017a3..06c630b 100644
+--- a/programs/dpnsvr/Makefile.in
++++ b/programs/dpnsvr/Makefile.in
+@@ -1,5 +1,5 @@
+ MODULE    = dpnsvr.exe
+-ENABLE_ARCHS = i386 x86_64 arm64ec
++ENABLE_ARCHS = i386 x86_64 arm64ec aarch64
+ 
+ EXTRADLLFLAGS = -mwindows -municode
+ 
 diff --git a/server/mapping.c b/server/mapping.c
-index a53b6b6..2ee4831 100644
+index d1b0fc3..1207ed5 100644
 --- a/server/mapping.c
 +++ b/server/mapping.c
 @@ -21,6 +21,7 @@
@@ -857,8 +627,8 @@ index a53b6b6..2ee4831 100644
  #include <fcntl.h>
  #include <stdarg.h>
  #include <stdio.h>
-@@ -272,11 +273,33 @@ static inline mem_size_t round_size( mem_size_t size, mem_size_t mask )
-     return (size + mask) & ~mask;
+@@ -247,13 +248,35 @@ static unsigned int map_random(void)
+     return data[--pos];
  }
  
 +static void free_available_high_map_addr( client_ptr_t base, mem_size_t size )
@@ -885,10 +655,12 @@ index a53b6b6..2ee4831 100644
 +
  void init_memory(void)
  {
+     unsigned int random = map_random();
+ 
      host_page_mask = sysconf( _SC_PAGESIZE ) - 1;
-     free_map_addr( 0x60000000, 0x1c000000 );
--    free_map_addr( 0x600000000000, 0x100000000000 );
-+    free_available_high_map_addr( 0x600000000000, 0x100000000000 );
+     free_map_addr( 0x60000000, 0x1c000000 - ((random & 0xff) << 16) );
+-    free_map_addr( 0x600000000000, (0x100000000000 - ((mem_size_t)random << 8)) & ~granularity_mask );
++    free_available_high_map_addr( 0x600000000000, (0x100000000000 - ((mem_size_t)random << 8)) & ~granularity_mask );
  }
  
  static void ranges_dump( struct object *obj, int verbose )
