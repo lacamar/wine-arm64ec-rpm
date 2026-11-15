@@ -222,7 +222,7 @@ for dll in dxgi d3d8 d3d9 d3d10core d3d11; do
 done
 
 # Clean-up
-rm -rf %{buildroot}%{_bindir}
+rm -rf %{buildroot}%{_bindir} %{buildroot}%{_includedir}
 
 %posttrans
 if vulkaninfo |& grep "ERROR_INITIALIZATION_FAILED\|ERROR_SURFACE_LOST_KHR\|Vulkan support is incomplete" > /dev/null; then
