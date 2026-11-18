@@ -1,10 +1,10 @@
 # _libdir was restructured in F42 wine package to support a directory/symlink replacement
 %global _libdir %{_libdir}/wine-wow64
 
-%global bumpver 3
+%global bumpver 4
 %global tag 3.1
 
-%global commit f2963ee23c2a392d72c1e383128129b92e53df25
+%global commit bfdb811c6d7ccd8c6151f19532654b063a6631f2
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %global debug_package %{nil}
@@ -36,7 +36,7 @@ local externals = {
   { name="SPIRV-Headers", ref="f88a2d7", owner="KhronosGroup", paths={"khronos/SPIRV-Headers"} },
   { name="SPIRV-Headers", ref="c63848e", owner="KhronosGroup", paths={"subprojects/dxil-spirv/third_party/spirv-headers"} },
   { name="Vulkan-Headers", ref="ee2ec5f", owner="KhronosGroup", paths={"khronos/Vulkan-Headers"} },
-  { name="dxil-spirv", ref="114e664", owner="HansKristian-Work", paths={"subprojects/dxil-spirv"} },
+  { name="dxil-spirv", ref="a781dce", owner="HansKristian-Work", paths={"subprojects/dxil-spirv"} },
   { name="dxbc-spirv", ref="d82d9ea", owner="doitsujin", paths={"subprojects/dxil-spirv/subprojects/dxbc-spirv"} },
   { name="SPIRV-Headers", ref="c8ad050", owner="KhronosGroup", paths={"subprojects/dxil-spirv/subprojects/dxbc-spirv/submodules/spirv_headers"} },
 }
@@ -163,6 +163,9 @@ fi
 %{_libdir}/wine/i386-windows/vkd3d-proton-d3d12core.dll
 
 %changelog
+* Wed Nov 18 2026 Lachlan Marie <lchlnm@pm.me> - 3.1^4.git.bfdb811-ec1
+- Update to commit bfdb811c6d7ccd8c6151f19532654b063a6631f2
+
 * Tue Nov 17 2026 Lachlan Marie <lchlnm@pm.me> - 3.1^3.git.f2963ee-ec1
 - Update to commit f2963ee23c2a392d72c1e383128129b92e53df25
 
