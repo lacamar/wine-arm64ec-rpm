@@ -134,7 +134,7 @@ Patch618:       2026_09_17-win32u-extend-virtual-modes.patch
 # vkd3d-shader: "linear" is a valid sampler_state value
 Patch619:       2026_09_17-vkd3d-shader-state-block-keywords.patch
 Patch620:       2026_09_18-server-scale-dpi-signed.patch
-Patch621:       2026_09_26-ntdll-subpage-guard-decommit.patch
+Patch621:       2026_09_26-ntdll-subpage-guard-decommit-11.22.patch
 Patch622:       2026_09_26-ntdll-unaligned-shared-sections.patch
 Patch623:       2026_10_04-dsound-3d-input-tail.patch
 Patch624:       2026_10_04-winewayland-stale-client-surfaces.patch

@@ -23,7 +23,7 @@
 +    }
  
      if (host_start < host_end) anon_mmap_fixed( host_start, host_end - host_start, PROT_NONE, 0 );
-     set_page_vprot_bits( base, size, 0, VPROT_COMMITTED );
+     set_page_vprot( base, size, 0 );
 +    if (size && (((UINT_PTR)base | size) & host_page_mask)) mprotect_range( base, size, 0, 0 );
      if (host_start < host_end) kernel_writewatch_register_range( view, host_start, host_end - host_start );
      return STATUS_SUCCESS;
