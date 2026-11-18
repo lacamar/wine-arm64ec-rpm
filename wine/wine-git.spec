@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}^%{bumpver}.git.%{shortcommit}
-Release:        ec.%autorelease -b 35
+Release:        ec.%autorelease -b 36
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -889,7 +889,9 @@ This package adds the opencl driver for wine.
 # setup and apply wine-staging patches
 gzip -dc %{SOURCE900} | tar -xf - --strip-components=1
 
-staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs
+# ntdll-guard_page is upstream since wine d66f0c9
+staging/patchinstall.py DESTDIR="`pwd`" --all -W server-Stored_ACLs \
+    $(test -d patches/ntdll-guard_page && echo -W ntdll-guard_page)
 
 %endif
 # 0%%{?wine_staging}
@@ -2664,6 +2666,9 @@ fi
 %endif
 
 %changelog
+* Wed Nov 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^1.git.433ffc8-ec.36
+- Skip upstreamed staging ntdll-guard_page
+
 * Tue Nov 17 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^1.git.433ffc8-ec.35
 - Update to commit 433ffc868d5daae7fb4c4640028abe4295e0ab57
 
