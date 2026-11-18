@@ -8,9 +8,9 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.22
-%global bumpver 1
+%global bumpver 2
 
-%global commit 433ffc868d5daae7fb4c4640028abe4295e0ab57
+%global commit d66f0c918e090bc167a76cd297fe3300a8453e56
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %global staging_commit 40ab84054fe2ead6c689de31405ba36269e9ee3a
@@ -2666,6 +2666,9 @@ fi
 %endif
 
 %changelog
+* Wed Nov 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^2.git.d66f0c9-ec.36
+- Update to commit d66f0c918e090bc167a76cd297fe3300a8453e56
+
 * Wed Nov 18 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^1.git.433ffc8-ec.36
 - Skip upstreamed staging ntdll-guard_page
 
