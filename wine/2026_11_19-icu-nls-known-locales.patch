@@ -1,0 +1,93 @@
+icu: List only locales known to NLS.
+
+.NET aborts CultureInfo.GetCultures on ICU locales GetLocaleInfoEx rejects
+(en_US_POSIX, ibb, iu_CA, jv_Java, quc_GT, tzm_*).
+
+--- a/dlls/icu/Makefile.in
++++ b/dlls/icu/Makefile.in
+@@ -2,3 +2,6 @@
+ IMPORTLIB = icu
+ IMPORTS   = $(ICUI18N_PE_LIBS) $(ICUCOMMON_PE_LIBS) $(CXX_PE_LIBS) advapi32
+ ENABLE_ARCHS = $(CXX_PE_ARCHS)
++
++SOURCES = \
++	icu.c
+--- /dev/null
++++ b/dlls/icu/icu.c
+@@ -0,0 +1,62 @@
++/*
++ * ICU locale list filtered to locales known to NLS
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include <stdarg.h>
++
++#include "windef.h"
++#include "winbase.h"
++#include "winnls.h"
++
++int __cdecl uloc_countAvailable(void);
++const char * __cdecl uloc_getAvailable(int index);
++
++static INIT_ONCE init_once = INIT_ONCE_STATIC_INIT;
++static const char **locales;
++static int locale_count;
++
++/* .NET on Windows rejects ICU locales that GetLocaleInfoEx doesn't know,
++ * and one rejected locale fails CultureInfo.GetCultures entirely. */
++static BOOL WINAPI init_locales( INIT_ONCE *once, void *param, void **context )
++{
++    WCHAR name[LOCALE_NAME_MAX_LENGTH], buffer[LOCALE_NAME_MAX_LENGTH];
++    int i, j, count = uloc_countAvailable();
++
++    if (!(locales = HeapAlloc( GetProcessHeap(), 0, count * sizeof(*locales) ))) return TRUE;
++    for (i = 0; i < count; i++)
++    {
++        const char *locale = uloc_getAvailable( i );
++
++        for (j = 0; locale[j] && j < ARRAY_SIZE(name) - 1; j++) name[j] = locale[j] == '_' ? '-' : locale[j];
++        name[j] = 0;
++        if (GetLocaleInfoEx( name, LOCALE_SNAME, buffer, ARRAY_SIZE(buffer) )) locales[locale_count++] = locale;
++    }
++    return TRUE;
++}
++
++int __cdecl wine_uloc_countAvailable(void)
++{
++    InitOnceExecuteOnce( &init_once, init_locales, NULL, NULL );
++    return locales ? locale_count : uloc_countAvailable();
++}
++
++const char * __cdecl wine_uloc_getAvailable( int index )
++{
++    InitOnceExecuteOnce( &init_once, init_locales, NULL, NULL );
++    if (!locales) return uloc_getAvailable( index );
++    return index >= 0 && index < locale_count ? locales[index] : NULL;
++}
+--- a/dlls/icu/icu.spec
++++ b/dlls/icu/icu.spec
+@@ -598,9 +598,9 @@
+ @ cdecl uloc_acceptLanguageFromHTTP(str long ptr str ptr ptr)
+ @ cdecl uloc_addLikelySubtags(str str long ptr)
+ @ cdecl uloc_canonicalize(str str long ptr)
+-@ cdecl uloc_countAvailable()
++@ cdecl uloc_countAvailable() wine_uloc_countAvailable
+ @ cdecl uloc_forLanguageTag(str str long ptr ptr)
+-@ cdecl uloc_getAvailable(long)
++@ cdecl uloc_getAvailable(long) wine_uloc_getAvailable
+ @ cdecl uloc_getBaseName(str str long ptr)
+ @ cdecl uloc_getCharacterOrientation(str ptr)
+ @ cdecl uloc_getCountry(str str long ptr)

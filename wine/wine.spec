@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.22
-Release:        ec2%{dist}
+Release:        ec3%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -172,6 +172,7 @@ Patch657:       2026_11_09-winebth-paired-devices-only.patch
 Patch658:       2026_11_15-winewayland-icon-buffer-lifetime.patch
 Patch659:       2026_11_15-dbghelp-pdb-defrange-gap-null-func.patch
 Patch660:       2026_11_15-ntdll-acpi-firmware-tables.patch
+Patch661:       2026_11_19-icu-nls-known-locales.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -858,6 +859,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 658 -p1
 %patch -P 659 -p1
 %patch -P 660 -p1
+%patch -P 661 -p1
 %endif
 
 %build
@@ -2564,6 +2566,9 @@ fi
 %endif
 
 %changelog
+* Thu Nov 19 2026 Lachlan Marie <lchlnm@pm.me> - 11.22-ec3
+- icu: list only locales known to NLS (.NET CultureInfo enumeration)
+
 * Sun Nov 15 2026 Lachlan Marie <lchlnm@pm.me> - 11.22-ec2
 - winewayland: keep icon buffer alive until icon is replaced
 - dbghelp: fix NULL deref in SymFromIndex on PDB locals
