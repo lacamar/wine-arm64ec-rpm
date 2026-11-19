@@ -8,9 +8,9 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.22
-%global bumpver 3
+%global bumpver 4
 
-%global commit e2aa6cd75ae60acd90ff384feee171ce994f0f6d
+%global commit 76f8e9479548cbc5bdb8b3bd499e4768e7c25078
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %global staging_commit 40ab84054fe2ead6c689de31405ba36269e9ee3a
@@ -2668,6 +2668,9 @@ fi
 %endif
 
 %changelog
+* Fri Nov 20 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^4.git.76f8e94-ec.37
+- Update to commit 76f8e9479548cbc5bdb8b3bd499e4768e7c25078
+
 * Thu Nov 19 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^3.git.e2aa6cd-ec.37
 - Update to commit e2aa6cd75ae60acd90ff384feee171ce994f0f6d
 - Rebase subpage-guard-decommit (reset_page_vprot)
