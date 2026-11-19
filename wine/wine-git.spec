@@ -8,9 +8,9 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.22
-%global bumpver 2
+%global bumpver 3
 
-%global commit d66f0c918e090bc167a76cd297fe3300a8453e56
+%global commit e2aa6cd75ae60acd90ff384feee171ce994f0f6d
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %global staging_commit 40ab84054fe2ead6c689de31405ba36269e9ee3a
@@ -2668,6 +2668,11 @@ fi
 %endif
 
 %changelog
+* Thu Nov 19 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^3.git.e2aa6cd-ec.37
+- Update to commit e2aa6cd75ae60acd90ff384feee171ce994f0f6d
+- Rebase subpage-guard-decommit (reset_page_vprot)
+- Drop bylaws XSAVE_ARM64_SVE_HEADER (now upstream)
+
 * Thu Nov 19 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^2.git.d66f0c9-ec.37
 - icu: list only locales known to NLS (.NET CultureInfo enumeration)
 

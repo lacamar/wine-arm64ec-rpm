@@ -525,24 +525,6 @@ index 5b4e565..8f95dfc 100644
  @ stdcall -norelay Wow64SystemServiceEx(long ptr)
  @ stub Wow64ValidateUserCallTarget
  @ stub Wow64ValidateUserCallTargetFilter
-diff --git a/include/winnt.h b/include/winnt.h
-index 2dc1aad..2e4d9e3 100644
---- a/include/winnt.h
-+++ b/include/winnt.h
-@@ -1558,6 +1558,13 @@ typedef struct _XSAVE_AREA_HEADER
- }
- XSAVE_AREA_HEADER, *PXSAVE_AREA_HEADER;
- 
-+typedef struct _XSAVE_ARM64_SVE_HEADER {
-+    ULONG VectorLength;
-+    ULONG VectorRegisterOffset;
-+    ULONG PredicateRegisterOffset;
-+    ULONG Reserved[5];
-+} XSAVE_ARM64_SVE_HEADER, *PXSAVE_ARM64_SVE_HEADER;
-+
- typedef struct _YMMCONTEXT
- {
-     M128A Ymm0;
 diff --git a/include/winternl.h b/include/winternl.h
 index a76eecf..e326ed6 100644
 --- a/include/winternl.h
