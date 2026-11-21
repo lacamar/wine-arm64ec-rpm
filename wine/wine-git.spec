@@ -8,12 +8,12 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.22
-%global bumpver 4
+%global bumpver 5
 
-%global commit 76f8e9479548cbc5bdb8b3bd499e4768e7c25078
+%global commit 97027f879ba9a36dbe594720d4710818536e5433
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
-%global staging_commit 40ab84054fe2ead6c689de31405ba36269e9ee3a
+%global staging_commit 2d14e13c296a5a0a8c17e6d71fa7f7cedb0292e7
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -2668,6 +2668,12 @@ fi
 %endif
 
 %changelog
+* Sat Nov 21 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^5.git.97027f8-ec.37
+- Update to commit 97027f879ba9a36dbe594720d4710818536e5433
+- Update wine-staging to 2d14e13
+- Refresh vulkan-swapchain-pnext context
+- Rebase DPI patches on UINT dpi revert
+
 * Fri Nov 20 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^4.git.76f8e94-ec.37
 - Update to commit 76f8e9479548cbc5bdb8b3bd499e4768e7c25078
 

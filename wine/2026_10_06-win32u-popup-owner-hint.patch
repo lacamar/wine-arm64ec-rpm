@@ -6,7 +6,7 @@ win32u: hint popup owner from topmost overlapped window.
             rect->top <= info->rcMonitor.top && rect->bottom >= info->rcMonitor.bottom;
  }
  
-+static HWND get_owner_hint( HWND hwnd, const RECT *rect, struct ratio dpi )
++static HWND get_owner_hint( HWND hwnd, const RECT *rect, UINT dpi )
 +{
 +    POINT pt = {rect->left - 1, rect->top - 1};
 +    HWND owner, *list;
@@ -41,4 +41,4 @@ win32u: hint popup owner from topmost overlapped window.
 +        owner_hint = get_owner_hint( hwnd, &new_rects->window, dpi );
  
          user_driver->pWindowPosChanged( hwnd, insert_after, owner_hint, swp_flags, &monitor_rects,
-                                         get_driver_window_surface( new_surface, raw_dpi ) );
+                                         get_driver_window_surface( new_surface, scale ) );

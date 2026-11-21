@@ -3,8 +3,8 @@ win32u: prepend to the swapchain pNext chain instead of replacing it.
 diff --git a/dlls/win32u/vulkan.c b/dlls/win32u/vulkan.c
 --- a/dlls/win32u/vulkan.c
 +++ b/dlls/win32u/vulkan.c
-@@ -1858,9 +1858,11 @@ static VkResult win32u_vkCreateSwapchainKHR( VkDevice client_device, const VkSwa
-     if (get_surface_rect( surface->hwnd, &client_rect, raw_dpi ) &&
+@@ -1926,9 +1926,11 @@ static VkResult win32u_vkCreateSwapchainKHR( VkDevice client_device, const VkSwa
+     if (get_surface_rect( surface->hwnd, &client_rect, TRUE ) &&
          !extents_equals( &create_info_host.imageExtent, &client_rect ) &&
          instance->extensions.has_VK_EXT_surface_maintenance1 &&
 -        physical_device->extensions.has_VK_KHR_swapchain_maintenance1)

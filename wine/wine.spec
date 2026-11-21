@@ -118,7 +118,7 @@ Patch610:       2026_09_16-win32u-monitor-physical-position.patch
 # comctl32: group box caption row background
 Patch611:       2026_09_16-comctl32-groupbox-caption-row.patch
 # win32u: prepend to the swapchain pNext chain
-Patch612:       2026_09_16-win32u-vulkan-swapchain-pnext.patch
+Patch612:       2026_09_16-win32u-vulkan-swapchain-pnext-11.22.patch
 # winewayland: PrimaryOutput setting
 Patch613:       2026_09_16-winewayland-primary-output.patch
 # winewayland: decorations follow the compositor by default
@@ -133,7 +133,7 @@ Patch617:       2026_09_17-winewayland-follow-output.patch
 Patch618:       2026_09_17-win32u-extend-virtual-modes.patch
 # vkd3d-shader: "linear" is a valid sampler_state value
 Patch619:       2026_09_17-vkd3d-shader-state-block-keywords.patch
-Patch620:       2026_09_18-server-scale-dpi-signed.patch
+Patch620:       2026_09_18-server-scale-dpi-signed-11.22.patch
 Patch621:       2026_09_26-ntdll-subpage-guard-decommit-11.22.patch
 Patch622:       2026_09_26-ntdll-unaligned-shared-sections.patch
 Patch623:       2026_10_04-dsound-3d-input-tail.patch
@@ -151,7 +151,7 @@ Patch634:       2026_10_06-win32u-winewayland-dead-keys.patch
 Patch635:       2026_10_06-secur32-ntoskrnl-eager-rpcrt4.patch
 Patch636:       2026_10_06-win32u-mat2-negative-fixed.patch
 Patch637:       2026_10_06-kernelbase-lightroom-cef-in-process-gpu.patch
-Patch638:       2026_10_06-win32u-popup-owner-hint.patch
+Patch638:       2026_10_06-win32u-popup-owner-hint-11.22.patch
 Patch639:       2026_10_06-winewayland-xdg-decoration.patch
 Patch640:       2026_10_06-win32u-scrollbar-orientation.patch
 Patch641:       2026_10_07-win32u-menu-escape.patch
