@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}^%{bumpver}.git.%{shortcommit}
-Release:        ec.%autorelease -b 37
+Release:        ec.%autorelease -b 38
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -171,6 +171,7 @@ Patch658:       2026_11_15-winewayland-icon-buffer-lifetime.patch
 Patch659:       2026_11_15-dbghelp-pdb-defrange-gap-null-func.patch
 Patch660:       2026_11_15-ntdll-acpi-firmware-tables.patch
 Patch661:       2026_11_19-icu-nls-known-locales.patch
+Patch662:       2026_11_23-winewayland-hide-detached-client-surface.patch
 %endif
 
 %if 0%{?wine_staging}
@@ -962,6 +963,7 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 659 -p1
 %patch -P 660 -p1
 %patch -P 661 -p1
+%patch -P 662 -p1
 %endif
 
 %build
@@ -2668,6 +2670,9 @@ fi
 %endif
 
 %changelog
+* Mon Nov 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^5.git.97027f8-ec.38
+- winewayland: hide detached client surfaces (Lightroom loupe freeze)
+
 * Sat Nov 21 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^5.git.97027f8-ec.37
 - Update to commit 97027f879ba9a36dbe594720d4710818536e5433
 - Update wine-staging to 2d14e13

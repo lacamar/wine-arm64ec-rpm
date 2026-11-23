@@ -1,0 +1,98 @@
+winewayland: Hide detached client surfaces instead of unmapping them.
+
+Apps keep presenting to a client surface after its window is hidden. Once
+unmapped it gets no frame callbacks, so EGL/Vulkan FIFO swaps block forever
+(Lightroom freeze when changing photo/video in loupe). Keep the subsurface,
+shrink it to 1x1 and make it transparent.
+
+--- a/dlls/winewayland.drv/wayland_surface.c
++++ b/dlls/winewayland.drv/wayland_surface.c
+@@ -1421,6 +1421,8 @@
+ 
+     if (surface->color_management)
+         wp_color_management_surface_v1_destroy(surface->color_management);
++    if (surface->alpha_modifier)
++        wp_alpha_modifier_surface_v1_destroy(surface->alpha_modifier);
+     if (surface->wp_viewport)
+         wp_viewport_destroy(surface->wp_viewport);
+     if (surface->wl_subsurface)
+@@ -1594,6 +1596,27 @@
+ 
+     if (!toplevel)
+     {
++        /* Keep the subsurface mapped, 1x1 and transparent: apps keep presenting,
++         * and an unmapped surface gets no frame callbacks or FIFO barrier
++         * releases, so their presents would block forever. */
++        if (client->wl_subsurface && client->toplevel &&
++            (toplevel_data = wayland_win_data_get(client->toplevel)))
++        {
++            if ((surface = toplevel_data->wayland_surface) && surface->wl_surface == client->parent)
++            {
++                wl_subsurface_set_position(client->wl_subsurface, 0, 0);
++                wp_viewport_set_destination(client->wp_viewport, 1, 1);
++                if (!client->alpha_modifier && process_wayland.wp_alpha_modifier_v1)
++                    client->alpha_modifier = wp_alpha_modifier_v1_get_surface(process_wayland.wp_alpha_modifier_v1,
++                                                                               client->wl_surface);
++                if (client->alpha_modifier) wp_alpha_modifier_surface_v1_set_multiplier(client->alpha_modifier, 0);
++                wl_surface_commit(surface->wl_surface);
++                wayland_win_data_release(toplevel_data);
++                return;
++            }
++            wayland_win_data_release(toplevel_data);
++        }
++
+         if (client->wl_subsurface)
+         {
+             wl_subsurface_destroy(client->wl_subsurface);
+@@ -1601,6 +1624,7 @@
+         }
+ 
+         client->toplevel = 0;
++        client->parent = NULL;
+         return;
+     }
+ 
+@@ -1610,9 +1634,15 @@
+         return wayland_client_surface_attach(client, NULL, NULL);
+     }
+ 
+-    if (client->toplevel != toplevel)
++    if (client->toplevel != toplevel || client->parent != surface->wl_surface)
+     {
+-        wayland_client_surface_attach(client, NULL, NULL);
++        if (client->wl_subsurface)
++        {
++            wl_subsurface_destroy(client->wl_subsurface);
++            client->wl_subsurface = NULL;
++        }
++        client->toplevel = 0;
++        client->parent = NULL;
+ 
+         client->wl_subsurface =
+             wl_subcompositor_get_subsurface(process_wayland.wl_subcompositor,
+@@ -1624,8 +1654,14 @@
+         wl_subsurface_set_desync(client->wl_subsurface);
+ 
+         client->toplevel = toplevel;
++        client->parent = surface->wl_surface;
+     }
+ 
++    if (client->alpha_modifier)
++    {
++        wp_alpha_modifier_surface_v1_destroy(client->alpha_modifier);
++        client->alpha_modifier = NULL;
++    }
+     wayland_surface_reconfigure_client(surface, client, rect);
+     /* Commit to apply subsurface positioning. */
+     wl_surface_commit(surface->wl_surface);
+--- a/dlls/winewayland.drv/waylanddrv.h
++++ b/dlls/winewayland.drv/waylanddrv.h
+@@ -288,6 +288,8 @@
+     RECT rect;
+     struct wl_surface *wl_surface;
+     struct wl_subsurface *wl_subsurface;
++    struct wl_surface *parent;
++    struct wp_alpha_modifier_surface_v1 *alpha_modifier;
+     struct wp_viewport *wp_viewport;
+     struct wp_color_management_surface_v1 *color_management;
+ };
