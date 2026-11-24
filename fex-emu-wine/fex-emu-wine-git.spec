@@ -20,7 +20,7 @@
 
 Name:       fex-emu-wine-git
 Version:    %{tag}^%{bumpver}.git.%{shortcommit}
-Release:    2%{?dist}
+Release:    3%{?dist}
 Summary:    FEX DLLs for enabling Wine's ARM64EC support
 
 # FEX itself is MIT, see below for the bundled libraries
@@ -231,6 +231,9 @@ rm -rf %{buildroot}/usr/share
 
 
 %changelog
+* Tue Nov 24 2026 Lachlan Marie <lchlnm@pm.me> - 2611^8.git.95d69be-3
+- Rebase callback-code-buffer patch
+
 * Mon Nov 23 2026 Lachlan Marie <lchlnm@pm.me> - 2611^8.git.95d69be-2
 - Update to commit 95d69be58b697a72dadd7fe6c11faeba4eb402a0
 
