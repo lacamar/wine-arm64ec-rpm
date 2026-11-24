@@ -1,10 +1,10 @@
 # _libdir was restructured in F42 wine package to support a directory/symlink replacement
 %global _libdir %{_libdir}/wine-wow64
 
-%global bumpver 7
+%global bumpver 8
 %global tag 3.1
 
-%global commit cae8353ed7959c448ac976342052de1ec2b81715
+%global commit 30b0eb9bc12dc9f40e1a33a2be8c87cf0846447b
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %global debug_package %{nil}
@@ -163,6 +163,9 @@ fi
 %{_libdir}/wine/i386-windows/vkd3d-proton-d3d12core.dll
 
 %changelog
+* Tue Nov 24 2026 Lachlan Marie <lchlnm@pm.me> - 3.1^8.git.30b0eb9-ec1
+- Update to commit 30b0eb9bc12dc9f40e1a33a2be8c87cf0846447b
+
 * Sat Nov 21 2026 Lachlan Marie <lchlnm@pm.me> - 3.1^7.git.cae8353-ec1
 - Update to commit cae8353ed7959c448ac976342052de1ec2b81715
 
