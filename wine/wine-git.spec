@@ -8,12 +8,12 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.22
-%global bumpver 5
+%global bumpver 6
 
-%global commit 97027f879ba9a36dbe594720d4710818536e5433
+%global commit ff2631c6ed3d1721cd050d951671c307ade32b90
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
-%global staging_commit 2d14e13c296a5a0a8c17e6d71fa7f7cedb0292e7
+%global staging_commit e91fe639122b69d6dab50d923ee65edd37bd0516
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -2670,6 +2670,10 @@ fi
 %endif
 
 %changelog
+* Tue Nov 24 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^6.git.ff2631c-ec.38
+- Update to commit ff2631c6ed3d1721cd050d951671c307ade32b90
+- Update staging to e91fe639122b69d6dab50d923ee65edd37bd0516
+
 * Mon Nov 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^5.git.97027f8-ec.38
 - winewayland: hide detached client surfaces (Lightroom loupe freeze)
 
