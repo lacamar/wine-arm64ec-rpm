@@ -8,12 +8,12 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.22
-%global bumpver 6
+%global bumpver 7
 
-%global commit ff2631c6ed3d1721cd050d951671c307ade32b90
+%global commit a79470449d0388ed3b5ff7975a4cefd6a3d80a2a
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
-%global staging_commit e91fe639122b69d6dab50d923ee65edd37bd0516
+%global staging_commit 24ed50534756cfd5023048a7bb56cbb1ea32ce54
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -2668,6 +2668,10 @@ fi
 %endif
 
 %changelog
+* Wed Nov 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^7.git.a794704-ec.39
+- Update to commit a79470449d0388ed3b5ff7975a4cefd6a3d80a2a
+- Update staging to 24ed50534756cfd5023048a7bb56cbb1ea32ce54
+
 * Wed Nov 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^6.git.ff2631c-ec.39
 - Drop scale-dpi-signed (upstream)
 
