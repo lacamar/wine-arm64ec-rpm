@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}^%{bumpver}.git.%{shortcommit}
-Release:        ec.%autorelease -b 38
+Release:        ec.%autorelease -b 39
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -130,7 +130,6 @@ Patch616:       2026_09_17-winewayland-tiled-fixed-size.patch
 Patch617:       2026_09_17-winewayland-follow-output.patch
 Patch618:       2026_09_17-win32u-extend-virtual-modes.patch
 Patch619:       2026_09_17-vkd3d-shader-state-block-keywords.patch
-Patch620:       2026_09_18-server-scale-dpi-signed.patch
 Patch621:       2026_09_26-ntdll-subpage-guard-decommit.patch
 Patch622:       2026_09_26-ntdll-unaligned-shared-sections.patch
 Patch623:       2026_10_04-dsound-3d-input-tail.patch
@@ -922,7 +921,6 @@ sed -i 's/printf "%s\\n"/printf '"'"'%s\\n'"'"'/g'  %{PATCH600}
 %patch -P 617 -p1
 %patch -P 618 -p1
 %patch -P 619 -p1
-%patch -P 620 -p1
 %patch -P 621 -p1
 %patch -P 622 -p1
 %patch -P 623 -p1
@@ -2670,6 +2668,9 @@ fi
 %endif
 
 %changelog
+* Wed Nov 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^6.git.ff2631c-ec.39
+- Drop scale-dpi-signed (upstream)
+
 * Tue Nov 24 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^6.git.ff2631c-ec.38
 - Update to commit ff2631c6ed3d1721cd050d951671c307ade32b90
 - Update staging to e91fe639122b69d6dab50d923ee65edd37bd0516
