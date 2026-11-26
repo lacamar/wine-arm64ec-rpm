@@ -51,7 +51,7 @@
 
 Name:           wine
 Version:        11.22
-Release:        ec4%{dist}
+Release:        ec5%{dist}
 Summary:        A compatibility layer for windows applications
 
 License:        LGPL-2.1-or-later
@@ -2568,6 +2568,9 @@ fi
 %endif
 
 %changelog
+* Fri Nov 27 2026 Lachlan Marie <lchlnm@pm.me> - 11.22-ec5
+- winewayland: commit hidden client surface (stale video frame at window origin)
+
 * Mon Nov 23 2026 Lachlan Marie <lchlnm@pm.me> - 11.22-ec4
 - winewayland: hide detached client surfaces (Lightroom loupe freeze)
 

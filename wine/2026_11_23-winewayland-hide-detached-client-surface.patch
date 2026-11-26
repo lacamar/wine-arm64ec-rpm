@@ -16,7 +16,7 @@ shrink it to 1x1 and make it transparent.
      if (surface->wp_viewport)
          wp_viewport_destroy(surface->wp_viewport);
      if (surface->wl_subsurface)
-@@ -1594,6 +1596,27 @@
+@@ -1594,6 +1596,28 @@
  
      if (!toplevel)
      {
@@ -28,12 +28,13 @@ shrink it to 1x1 and make it transparent.
 +        {
 +            if ((surface = toplevel_data->wayland_surface) && surface->wl_surface == client->parent)
 +            {
-+                wl_subsurface_set_position(client->wl_subsurface, 0, 0);
 +                wp_viewport_set_destination(client->wp_viewport, 1, 1);
 +                if (!client->alpha_modifier && process_wayland.wp_alpha_modifier_v1)
 +                    client->alpha_modifier = wp_alpha_modifier_v1_get_surface(process_wayland.wp_alpha_modifier_v1,
 +                                                                               client->wl_surface);
 +                if (client->alpha_modifier) wp_alpha_modifier_surface_v1_set_multiplier(client->alpha_modifier, 0);
++                wl_surface_commit(client->wl_surface);
++                wl_subsurface_set_position(client->wl_subsurface, 0, 0);
 +                wl_surface_commit(surface->wl_surface);
 +                wayland_win_data_release(toplevel_data);
 +                return;
@@ -52,7 +53,7 @@ shrink it to 1x1 and make it transparent.
          return;
      }
  
-@@ -1610,9 +1634,15 @@
+@@ -1610,9 +1635,15 @@
          return wayland_client_surface_attach(client, NULL, NULL);
      }
  
@@ -70,21 +71,23 @@ shrink it to 1x1 and make it transparent.
  
          client->wl_subsurface =
              wl_subcompositor_get_subsurface(process_wayland.wl_subcompositor,
-@@ -1624,8 +1654,14 @@
+@@ -1624,9 +1655,16 @@
          wl_subsurface_set_desync(client->wl_subsurface);
  
          client->toplevel = toplevel;
 +        client->parent = surface->wl_surface;
      }
  
+     wayland_surface_reconfigure_client(surface, client, rect);
 +    if (client->alpha_modifier)
 +    {
 +        wp_alpha_modifier_surface_v1_destroy(client->alpha_modifier);
 +        client->alpha_modifier = NULL;
++        wl_surface_commit(client->wl_surface);
 +    }
-     wayland_surface_reconfigure_client(surface, client, rect);
      /* Commit to apply subsurface positioning. */
      wl_surface_commit(surface->wl_surface);
+ 
 --- a/dlls/winewayland.drv/waylanddrv.h
 +++ b/dlls/winewayland.drv/waylanddrv.h
 @@ -288,6 +288,8 @@
