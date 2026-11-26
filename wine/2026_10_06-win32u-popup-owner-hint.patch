@@ -2,7 +2,7 @@ win32u: hint popup owner from topmost overlapped window.
 
 --- a/dlls/win32u/window.c
 +++ b/dlls/win32u/window.c
-@@ -2307,6 +2307,27 @@
+@@ -2331,6 +2331,27 @@
             rect->top <= info->rcMonitor.top && rect->bottom >= info->rcMonitor.bottom;
  }
  
@@ -30,8 +30,8 @@ win32u: hint popup owner from topmost overlapped window.
  /***********************************************************************
   *           apply_window_pos
   *
-@@ -2486,10 +2507,7 @@
-             user_driver->pSetWindowIcons( hwnd, icon, &ii, icon_small, &ii_small );
+@@ -2517,10 +2538,7 @@
+             NtGdiDeleteObjectApp( ii.hbmMask );
          }
  
 -        owner_hint = NtUserGetWindowRelative(hwnd, GW_OWNER);

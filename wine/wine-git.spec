@@ -62,7 +62,7 @@
 
 Name:           wine-git
 Version:        %{tag}^%{bumpver}.git.%{shortcommit}
-Release:        ec.%autorelease -b 39
+Release:        ec.%autorelease -b 40
 Summary:        A compatibility layer for windows applications
 
 Conflicts:      wine
@@ -2668,6 +2668,9 @@ fi
 %endif
 
 %changelog
+* Thu Nov 26 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^7.git.a794704-ec.40
+- Rebase popup-owner-hint patch
+
 * Wed Nov 25 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^7.git.a794704-ec.39
 - Update to commit a79470449d0388ed3b5ff7975a4cefd6a3d80a2a
 - Update staging to 24ed50534756cfd5023048a7bb56cbb1ea32ce54
