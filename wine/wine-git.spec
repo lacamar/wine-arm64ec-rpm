@@ -8,12 +8,12 @@
 
 # Full commit and short commit reference for wine-git
 %global tag 11.22
-%global bumpver 7
+%global bumpver 8
 
-%global commit a79470449d0388ed3b5ff7975a4cefd6a3d80a2a
+%global commit ecca8e75524b446d07b9a25a79e32cd9df7dd2aa
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
-%global staging_commit 24ed50534756cfd5023048a7bb56cbb1ea32ce54
+%global staging_commit 29c62ebeda193f7fc2fe54d585ab27686fca5d7a
 %{?staging_commit:%global staging_shortcommit %(c=%{staging_commit}; echo ${c:0:7})}
 
 
@@ -2668,6 +2668,10 @@ fi
 %endif
 
 %changelog
+* Fri Nov 27 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^8.git.ecca8e7-ec.40
+- Update to commit ecca8e75524b446d07b9a25a79e32cd9df7dd2aa
+- Update staging to 29c62ebeda193f7fc2fe54d585ab27686fca5d7a
+
 * Thu Nov 26 2026 Lachlan Marie <lchlnm@pm.me> - 11.22^7.git.a794704-ec.40
 - Rebase popup-owner-hint patch
 
